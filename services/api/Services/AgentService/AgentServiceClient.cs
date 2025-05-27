@@ -8,12 +8,18 @@ namespace GamerUncle.Api.Services.AgentService
     public class AgentServiceClient : IAgentServiceClient
     {
         private readonly HttpClient _httpClient;
-        private const string AgentServiceEndpoint = "https://your-agent-service-endpoint/v1/chat/completions"; // TODO: Replace with real URL
-        private const string ApiKey = "your-api-key"; // TODO: Replace with secure retrieval
+        private readonly string AgentServiceEndpoint;
+        private readonly string ApiKey;
 
-        public AgentServiceClient(HttpClient httpClient)
+        public AgentServiceClient(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
+            AgentServiceEndpoint = Environment.GetEnvironmentVariable("AGENT_SERVICE_ENDPOINT") 
+                ?? config["AgentService:Endpoint"] 
+                ?? throw new InvalidOperationException("AgentService endpoint is not configured.");
+            ApiKey = Environment.GetEnvironmentVariable("AGENT_SERVICE_API_KEY") 
+                ?? config["AgentService:ApiKey"] 
+                ?? throw new InvalidOperationException("AgentService API key is not configured.");
         }
 
         public async Task<string> GetRecommendationsAsync(string userInput)

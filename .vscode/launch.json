@@ -5,17 +5,18 @@
       "name": "Launch GamerUncle.Api",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
+      "preLaunchTask": "build-api",
       "program": "${workspaceFolder}/services/api/bin/Debug/net8.0/GamerUncle.Api.dll",
       "args": [],
       "cwd": "${workspaceFolder}/services/api",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",
-        "pattern": "\bNow listening on:\s+(https?://\S+)"
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
       },
       "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:5001;http://localhost:5000"
       },
       "sourceFileMap": {
         "/Views": "${workspaceFolder}/Views"

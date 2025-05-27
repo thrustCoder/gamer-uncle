@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 

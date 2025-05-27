@@ -16,5 +16,9 @@
       ]
     }
   },
+  "containerEnv": {
+    "AGENT_SERVICE_API_KEY": "${{ secrets.AGENT_SERVICE_API_KEY }}",
+    "AGENT_SERVICE_ENDPOINT": "${{ secrets.AGENT_SERVICE_ENDPOINT }}"
+  }
   // "postCreateCommand": "npm install --prefix apps/mobile && dotnet restore services/api"
 }
