@@ -43,6 +43,18 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Azure.AI.Agents.Persistent": {
+              "target": "Package",
+              "version": "[1.0.0, )"
+            },
+            "Azure.AI.Projects": {
+              "target": "Package",
+              "version": "[1.0.0-beta.9, )"
+            },
+            "Azure.Core": {
+              "target": "Package",
+              "version": "[1.46.1, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[8.0.0, )"

@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // DI registration
-builder.Services.AddHttpClient<IAgentServiceClient, AgentServiceClient>();
+builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
 
 var app = builder.Build();
 

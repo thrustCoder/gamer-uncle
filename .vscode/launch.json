@@ -5,7 +5,7 @@
       "name": "Launch GamerUncle.Api",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build-api",
+      "preLaunchTask": "setup-and-build",
       "program": "${workspaceFolder}/services/api/bin/Debug/net8.0/GamerUncle.Api.dll",
       "args": [],
       "cwd": "${workspaceFolder}/services/api",
