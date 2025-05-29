@@ -1,0 +1,67 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  csprojPath: 'services/api/GamerUncle.Api.csproj'
+  publishOutput: '$(Build.ArtifactStagingDirectory)/publish'
+
+stages:
+- stage: DevBuild
+  displayName: 'Dev Build'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build and Publish Artifacts'
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet restore $(csprojPath)
+      displayName: 'Restore Dependencies'
+
+    - script: dotnet build $(csprojPath) --configuration $(buildConfiguration) --no-restore
+      displayName: 'Build Project'
+
+    - script: dotnet publish $(csprojPath) --configuration $(buildConfiguration) --output $(publishOutput) --no-build
+      displayName: 'Publish Project'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(publishOutput)'
+        ArtifactName: 'drop'
+
+- stage: DevDeploy
+  displayName: 'Dev Deploy'
+  dependsOn: DevBuild
+  condition: |
+    and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  jobs:
+  - deployment: DeployWebApp
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              appType: 'webApp'
+              appName: 'gamer-uncle-dev-app-svc'
+              package: '$(Pipeline.Workspace)/drop'
