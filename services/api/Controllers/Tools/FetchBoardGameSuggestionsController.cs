@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 namespace GamerUncle.Api.Controllers.Tools
 {
     [ApiController]
-    [Route("api/tools/fetchgames")]
+    [Route("api/Tools/FetchGames")]
     public class FetchBoardGameSuggestionsController : ControllerBase
     {
         [HttpPost]
