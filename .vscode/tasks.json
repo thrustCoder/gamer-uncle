@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup-and-build",
+      "dependsOn": [
+        "setup-https-cert",
+        "build-api"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "setup-https-cert",
+      "type": "shell",
+      "command": "dotnet dev-certs https --trust",
+      "problemMatcher": [],
+      "detail": "Sets up local HTTPS developer certificate"
+    },
+    {
+      "label": "build-api",
+      "type": "shell",
+      "command": "dotnet build services/api/GamerUncle.Api.csproj",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile",
+      "detail": "Build GamerUncle API project"
+    }
+  ]
+}
