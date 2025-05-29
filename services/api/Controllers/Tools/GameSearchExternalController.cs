@@ -5,7 +5,7 @@ using GamerUncle.Api.Models;
 namespace GamerUncle.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/Tools/[controller]")]
     public class GameSearchExternalController : ControllerBase
     {
         private readonly IBoardGameDataAdapter _adapter;
