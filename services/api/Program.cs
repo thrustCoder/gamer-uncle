@@ -3,12 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
+using GamerUncle.Api.Services.ExternalGameData;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Register services
 builder.Services.AddControllers();
+builder.Services.AddHttpClient<IBoardGameDataAdapter, BoardGameAtlasAdapter>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
