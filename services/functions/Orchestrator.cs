@@ -1,25 +1,24 @@
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.DurableTask;
-using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.DurableTask;
 
 namespace GamerUncle.Functions
 {
     public class Orchestrator
     {
         [Function("SyncBggGamesOrchestrator")]
-        public async Task RunOrchestrator(
-            [OrchestrationTrigger] FunctionContext context,
-            [DurableClient] IDurableOrchestrationClient starter,
-            ILogger log)
+        public async Task<List<string>> RunOrchestrator(
+            [OrchestrationTrigger] TaskOrchestrationContext context,
+            FunctionContext rawContext)
         {
-            var tasks = new List<Task>();
+            var outputs = new List<string>();
+
             for (int i = 0; i < 10; i++)
             {
-                tasks.Add(context.CallActivityAsync("SyncGameActivity", i));
+                string result = await context.CallActivityAsync<string>("SyncGameActivity", i);
+                outputs.Add(result);
             }
-            await Task.WhenAll(tasks);
+
+            return outputs;
         }
     }
 }
