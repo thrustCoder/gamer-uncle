@@ -4,7 +4,6 @@
     {
       "label": "setup-and-build",
       "dependsOn": [
-        // "setup-https-cert",
         "build-api"
       ],
       "dependsOrder": "sequence"
