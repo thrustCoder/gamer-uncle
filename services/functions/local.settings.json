@@ -2,7 +2,7 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "CosmosDbEndpoint": "https://gamer-uncle-dev-cosmos.documents.azure.com:443/",
     "CosmosDbDatabaseId": "gamer-uncle-dev-cosmos-container",
     "CosmosDbContainerId": "Games"

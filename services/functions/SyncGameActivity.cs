@@ -3,11 +3,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.DurableTask;
 
 using GamerUncle.Functions.Models;
-using System;
-using System.Threading.Tasks;
 
 namespace GamerUncle.Functions
 {
