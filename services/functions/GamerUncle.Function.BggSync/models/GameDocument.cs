@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System;
+using System.Text.Json.Serialization;
+
 namespace GamerUncle.Functions.Models
 {
     public class GameDocument
