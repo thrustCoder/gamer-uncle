@@ -111,7 +111,7 @@ namespace GamerUncle.Functions
             [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
             [DurableClient] DurableTaskClient client)
         {
-            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "10";
+            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
             string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
