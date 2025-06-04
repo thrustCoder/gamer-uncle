@@ -97,4 +97,7 @@ stages:
               appType: 'functionApp'
               appName: 'gamer-uncle-dev-function'
               package: '$(Pipeline.Workspace)/dropFunction'
-              deploymentMethod: 'auto'
+              deploymentMethod: 'zipDeploy'
+              enableCustomDeployment: true
+              TakeAppOfflineFlag: false
+              RemoveAdditionalFilesFlag: false
