@@ -103,9 +103,16 @@ stages:
                   --name gamer-uncle-dev-function \
                   --resource-group gamer-uncle-dev-rg \
                   --settings \
-                    COSMOS_ENDPOINT="https://gamer-uncle-dev-cosmos.documents.azure.com:443/" \
-                    AZURE_TENANT_ID="c88223a3-60b3-4697-9374-209fc154bdf1" \
-                    SyncGameCount="10"
+                    'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
+                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+                    'SyncGameCount=10'
+                
+                echo "Verifying settings were applied..."
+                az functionapp config appsettings list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+                  -o table
 
           - task: AzureCLI@2
             displayName: 'Deploy Function App (Flex Consumption)'
@@ -161,10 +168,12 @@ stages:
                 
                 # Check Function App logs for errors
                 echo "Checking Function App logs for errors..."
-                az functionapp logs tail \
-                  --name gamer-uncle-dev-function \
+                az monitor activity-log list \
                   --resource-group gamer-uncle-dev-rg \
-                  --timeout 30 || echo "Could not retrieve logs"
+                  --resource-id "/subscriptions/e1a26719-3504-42e4-bc8c-05aa63259e4b/resourceGroups/gamer-uncle-dev-rg/providers/Microsoft.Web/sites/gamer-uncle-dev-function" \
+                  --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
+                  --query "[?level=='Error'].{Time:eventTimestamp, Message:properties.statusMessage}" \
+                  -o table || echo "Could not retrieve logs"
                 
                 if [[ "$HTTP_CODE" == "2"* ]]; then
                   echo "✅ Function triggered successfully!"
