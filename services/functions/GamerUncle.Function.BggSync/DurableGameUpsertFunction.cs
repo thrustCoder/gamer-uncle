@@ -21,7 +21,12 @@ namespace GamerUncle.Functions
 
         public DurableGameUpsertFunction()
         {
-            var credential = new DefaultAzureCredential();
+            var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                TenantId = tenantId
+            });
+            
             var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT") ?? "https://gamer-uncle-dev-cosmos.documents.azure.com:443/";
             _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
             _container = _cosmosClient.GetContainer("gamer-uncle-dev-cosmos-container", "Games");

@@ -2,9 +2,8 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
-    "CosmosDBConnectionString": "<Your_Cosmos_DB_Connection_String>",
-    "CosmosDBDatabaseName": "<Your_Database_Name>",
-    "CosmosDBContainerName": "<Your_Container_Name>"
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "COSMOS_ENDPOINT": "https://gamer-uncle-dev-cosmos.documents.azure.com:443/",
+    "AZURE_TENANT_ID": "c88223a3-60b3-4697-9374-209fc154bdf1"
   }
 }
