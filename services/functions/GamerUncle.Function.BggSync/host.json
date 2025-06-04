@@ -1,0 +1,20 @@
+{
+  "version": "2.0",
+  "extensions": {
+    "durableTask": {
+      "hubName": "DurableFunctionsHub",
+      "taskHubWorkerCount": 1,
+      "maxConcurrentActivityFunctions": 10,
+      "maxConcurrentOrchestratorFunctions": 10,
+      "functionTimeout": "00:10:00"
+    }
+  },
+  "logging": {
+    "logLevel": {
+      "Function": "Information",
+      "Host.Results": "Information",
+      "Host.Aggregator": "Information",
+      "Host.General": "Information"
+    }
+  }
+}
