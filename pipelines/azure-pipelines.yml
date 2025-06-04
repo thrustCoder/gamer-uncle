@@ -92,6 +92,22 @@ stages:
             artifact: dropFunction
 
           - task: AzureCLI@2
+            displayName: 'Configure Function App Settings'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Setting Function App application settings..."
+                az functionapp config appsettings set \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --settings \
+                    COSMOS_ENDPOINT="https://gamer-uncle-dev-cosmos.documents.azure.com:443/" \
+                    AZURE_TENANT_ID="c88223a3-60b3-4697-9374-209fc154bdf1" \
+                    SyncGameCount="10"
+
+          - task: AzureCLI@2
             displayName: 'Deploy Function App (Flex Consumption)'
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
@@ -133,13 +149,27 @@ stages:
                   "https://gamer-uncle-dev-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
                   -H "Content-Type: application/json" \
                   -d '{}' \
-                  -w "HTTP_CODE:%{http_code}")
+                  -w "\nHTTP_CODE:%{http_code}" \
+                  --include)
                 
-                echo "Response: $RESPONSE"
+                echo "Full Response:"
+                echo "$RESPONSE"
                 
-                if [[ $RESPONSE == *"HTTP_CODE:2"* ]]; then
+                # Get just the HTTP code for validation
+                HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+                echo "HTTP Status Code: $HTTP_CODE"
+                
+                # Check Function App logs for errors
+                echo "Checking Function App logs for errors..."
+                az functionapp logs tail \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --timeout 30 || echo "Could not retrieve logs"
+                
+                if [[ "$HTTP_CODE" == "2"* ]]; then
                   echo "✅ Function triggered successfully!"
                 else
-                  echo "❌ Function trigger failed"
+                  echo "❌ Function trigger failed with status: $HTTP_CODE"
+                  echo "Check the Function App logs in Azure Portal for detailed error information"
                   exit 1
                 fi
