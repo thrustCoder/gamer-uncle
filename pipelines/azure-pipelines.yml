@@ -13,8 +13,10 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  csprojPath: 'services/api/GamerUncle.Api.csproj'
-  publishOutput: '$(Build.ArtifactStagingDirectory)/publish'
+  apiProject: 'services/api/GamerUncle.Api.csproj'
+  functionAppProject: 'services/functions/GamerUncle.Function.BggSync/GamerUncle.Function.BggSync.csproj'
+  publishOutputApiProject: '$(Build.ArtifactStagingDirectory)/publish/api'
+  publishOutputFunctionProject: '$(Build.ArtifactStagingDirectory)/publish/function'
 
 stages:
 - stage: DevBuild
@@ -29,19 +31,33 @@ stages:
         version: '8.x'
         installationPath: $(Agent.ToolsDirectory)/dotnet
 
-    - script: dotnet restore $(csprojPath)
+    - script: dotnet restore $(apiProject)
       displayName: 'Restore Dependencies'
 
-    - script: dotnet build $(csprojPath) --configuration $(buildConfiguration) --no-restore
+    - script: dotnet build $(apiProject) --configuration $(buildConfiguration) --no-restore
       displayName: 'Build Project'
 
-    - script: dotnet publish $(csprojPath) --configuration $(buildConfiguration) --output $(publishOutput) --no-build
+    - script: dotnet publish $(apiProject) --configuration $(buildConfiguration) --output $(publishOutputApiProject) --no-build
       displayName: 'Publish Project'
 
     - task: PublishBuildArtifacts@1
       inputs:
-        PathtoPublish: '$(publishOutput)'
-        ArtifactName: 'drop'
+        PathtoPublish: '$(publishOutputApiProject)'
+        ArtifactName: 'dropApi'
+
+    - script: dotnet restore $(functionAppProject)
+      displayName: 'Restore Dependencies'
+
+    - script: dotnet build $(functionAppProject) --configuration $(buildConfiguration) --no-restore
+      displayName: 'Build Function App'
+
+    - script: dotnet publish $(functionAppProject) --configuration $(buildConfiguration) --output $(publishOutputFunctionProject) --no-build
+      displayName: 'Publish Function App'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(publishOutputFunctionProject)'
+        ArtifactName: 'dropFunction'
 
 - stage: DevDeploy
   displayName: 'Dev Deploy'
@@ -57,11 +73,28 @@ stages:
         deploy:
           steps:
           - download: current
-            artifact: drop
+            artifact: dropApi
 
           - task: AzureWebApp@1
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
               appType: 'webApp'
               appName: 'gamer-uncle-dev-app-svc'
-              package: '$(Pipeline.Workspace)/drop'
+              package: '$(Pipeline.Workspace)/dropApi'
+
+  - deployment: DeployFunctionApp
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: dropFunction
+
+          - task: AzureFunctionApp@1
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              appType: 'functionApp'
+              appName: 'gamer-uncle-dev-function'
+              package: '$(Pipeline.Workspace)/dropFunction'
+              deploymentMethod: 'auto'

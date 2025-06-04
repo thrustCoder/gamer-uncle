@@ -8,11 +8,11 @@ using Microsoft.DurableTask;
 using GamerUncle.Functions.Models;
 using GamerUncle.Functions.Helpers;
 using System.Net.Http;
-
 using Microsoft.DurableTask.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace GamerUncle.Functions
 {
@@ -87,7 +87,7 @@ namespace GamerUncle.Functions
             //     narrationTTS = new NarrationTTS()
             // });
             #endregion
-            
+
             var httpClient = new HttpClient();
             var client = new BggApiClient(httpClient);
             var gameDocument = await client.FetchGameDataAsync(gameId);
@@ -118,6 +118,20 @@ namespace GamerUncle.Functions
             response.Headers.Add("Content-Type", "application/json");
             await response.WriteStringAsync($"{{\"instanceId\": \"{instanceId}\"}}");
             return response;
+        }
+        
+        [Function("GameSyncTimerTrigger")]
+        public async Task GameSyncTimerTrigger(
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 6 * * *")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [DurableClient] DurableTaskClient client,
+            ILogger log)
+        {
+            log.LogInformation($"Game sync timer trigger executed at: {DateTime.Now}");
+            
+            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
+            
+            log.LogInformation($"Started orchestration with ID = '{instanceId}'");
         }
     }
 }
