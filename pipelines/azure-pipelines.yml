@@ -101,3 +101,35 @@ stages:
               enableCustomDeployment: true
               TakeAppOfflineFlag: false
               RemoveAdditionalFilesFlag: false
+
+          - task: AzureCLI@2
+            displayName: 'Trigger Function via HTTP'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Getting Function App host key..."
+                HOST_KEY=$(az functionapp keys list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "functionKeys.default" -o tsv)
+                
+                echo "Waiting for Function App to be ready..."
+                sleep 30
+                
+                echo "Triggering GameSyncHttpStart function..."
+                RESPONSE=$(curl -s -X POST \
+                  "https://gamer-uncle-dev-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                  -H "Content-Type: application/json" \
+                  -d '{}' \
+                  -w "HTTP_CODE:%{http_code}")
+                
+                echo "Response: $RESPONSE"
+                
+                if [[ $RESPONSE == *"HTTP_CODE:2"* ]]; then
+                  echo "✅ Function triggered successfully!"
+                else
+                  echo "❌ Function trigger failed"
+                  exit 1
+                fi
