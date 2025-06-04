@@ -91,16 +91,26 @@ stages:
           - download: current
             artifact: dropFunction
 
-          - task: AzureFunctionApp@1
+          - task: AzureCLI@2
+            displayName: 'Deploy Function App (Flex Consumption)'
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
-              appType: 'functionApp'
-              appName: 'gamer-uncle-dev-function'
-              package: '$(Pipeline.Workspace)/dropFunction'
-              deploymentMethod: 'zipDeploy'
-              enableCustomDeployment: true
-              TakeAppOfflineFlag: false
-              RemoveAdditionalFilesFlag: false
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Deploying to Flex Consumption Function App..."
+                cd $(Pipeline.Workspace)/dropFunction
+                
+                # Create deployment package
+                zip -r ../functionapp.zip .
+                
+                # Deploy using Azure CLI (supports Flex Consumption)
+                az functionapp deployment source config-zip \
+                  --resource-group gamer-uncle-dev-rg \
+                  --name gamer-uncle-dev-function \
+                  --src ../functionapp.zip
+                
+                echo "Deployment completed"
 
           - task: AzureCLI@2
             displayName: 'Trigger Function via HTTP'
