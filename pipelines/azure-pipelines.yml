@@ -142,14 +142,47 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                echo "Getting Function App host key..."
+                echo "Checking Function App status..."
+                az functionapp show \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
+                
+                echo "Listing deployed functions..."
+                az functionapp function list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "[].{Name:name,TriggerType:config.bindings[0].type}" -o table || echo "No functions found or error listing functions"
+                
+                echo "Attempting to get Function App host key..."
                 HOST_KEY=$(az functionapp keys list \
                   --name gamer-uncle-dev-function \
                   --resource-group gamer-uncle-dev-rg \
-                  --query "functionKeys.default" -o tsv)
+                  --query "functionKeys.default" -o tsv 2>/dev/null || echo "FAILED")
                 
+                if [[ "$HOST_KEY" == "FAILED" ]] || [[ -z "$HOST_KEY" ]]; then
+                  echo "❌ Failed to get host key. Trying master key..."
+                  HOST_KEY=$(az functionapp keys list \
+                    --name gamer-uncle-dev-function \
+                    --resource-group gamer-uncle-dev-rg \
+                    --query "masterKey" -o tsv 2>/dev/null || echo "FAILED")
+                fi
+                
+                if [[ "$HOST_KEY" == "FAILED" ]] || [[ -z "$HOST_KEY" ]]; then
+                  echo "❌ Cannot get function keys. Function App might not be ready."
+                  echo "Checking Function App deployment status..."
+                  az functionapp deployment source show \
+                    --name gamer-uncle-dev-function \
+                    --resource-group gamer-uncle-dev-rg || echo "No deployment info available"
+                  exit 1
+                fi
+                
+                echo "✅ Got function key successfully"
                 echo "Waiting for Function App to be ready..."
                 sleep 30
+                
+                echo "Testing basic Function App health..."
+                curl -s "https://gamer-uncle-dev-function.azurewebsites.net/api/health" || echo "Health endpoint not available"
                 
                 echo "Triggering GameSyncHttpStart function..."
                 RESPONSE=$(curl -s -X POST \
@@ -166,16 +199,16 @@ stages:
                 HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
                 echo "HTTP Status Code: $HTTP_CODE"
                 
-                # Check Function App logs for errors
-                echo "Checking Function App logs for errors..."
-                az monitor activity-log list \
-                  --resource-group gamer-uncle-dev-rg \
-                  --resource-id "/subscriptions/e1a26719-3504-42e4-bc8c-05aa63259e4b/resourceGroups/gamer-uncle-dev-rg/providers/Microsoft.Web/sites/gamer-uncle-dev-function" \
-                  --start-time $(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%S) \
-                  --query "[?level=='Error'].{Time:eventTimestamp, Message:properties.statusMessage}" \
-                  -o table || echo "Could not retrieve logs"
-                
-                if [[ "$HTTP_CODE" == "2"* ]]; then
+                if [[ "$HTTP_CODE" == "404" ]]; then
+                  echo "❌ Function not found. Available functions:"
+                  az functionapp function list \
+                    --name gamer-uncle-dev-function \
+                    --resource-group gamer-uncle-dev-rg \
+                    --query "[].name" -o table || echo "Could not list functions"
+                  
+                  echo "Check if the function name is correct and deployment was successful"
+                  exit 1
+                elif [[ "$HTTP_CODE" == "2"* ]]; then
                   echo "✅ Function triggered successfully!"
                 else
                   echo "❌ Function trigger failed with status: $HTTP_CODE"
