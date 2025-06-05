@@ -59,14 +59,15 @@ stages:
         PathtoPublish: '$(publishOutputFunctionProject)'
         ArtifactName: 'dropFunction'
 
-- stage: DevDeploy
-  displayName: 'Dev Deploy'
+- stage: DevDeployApi
+  displayName: 'Dev Deploy Api'
   dependsOn: DevBuild
   condition: |
     and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
 
   jobs:
   - deployment: DeployWebApp
+    displayName: 'Deploy Web App'
     environment: 'Dev'
     strategy:
       runOnce:
@@ -82,7 +83,16 @@ stages:
               appName: 'gamer-uncle-dev-app-svc'
               package: '$(Pipeline.Workspace)/dropApi'
 
+
+- stage: DevDeployFunctions
+  displayName: 'Dev Deploy Functions'
+  dependsOn: DevBuild
+  condition: |
+    and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  jobs:
   - deployment: DeployFunctionApp
+    displayName: 'Deploy Function App'
     environment: 'Dev'
     strategy:
       runOnce:
@@ -91,10 +101,113 @@ stages:
           - download: current
             artifact: dropFunction
 
-          - task: AzureFunctionApp@1
+          - task: AzureCLI@2
+            displayName: 'Configure Function App Settings'
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
-              appType: 'functionApp'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Setting Function App application settings..."
+                az functionapp config appsettings set \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --settings \
+                    'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
+                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
+                    'SyncGameCount=25'
+                
+                echo "Verifying settings were applied..."
+                az functionapp config appsettings list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+                  -o table
+
+          - task: AzureFunctionApp@1
+            displayName: 'Deploy Function App (Consumption Linux)'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              appType: 'functionAppLinux'
               appName: 'gamer-uncle-dev-function'
               package: '$(Pipeline.Workspace)/dropFunction'
-              deploymentMethod: 'auto'
+              runtimeStack: 'DOTNET-ISOLATED|8.0'
+
+          - task: AzureCLI@2
+            displayName: 'Verify and Trigger Function'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Waiting for Function App to be ready after deployment..."
+                sleep 60
+                
+                echo "Checking Function App status..."
+                az functionapp show \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
+                
+                echo "Listing deployed functions..."
+                FUNCTIONS=$(az functionapp function list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "[].name" -o tsv 2>/dev/null || echo "")
+                
+                if [[ -z "$FUNCTIONS" ]]; then
+                  echo "❌ No functions found. Waiting and retrying..."
+                  sleep 30
+                  FUNCTIONS=$(az functionapp function list \
+                    --name gamer-uncle-dev-function \
+                    --resource-group gamer-uncle-dev-rg \
+                    --query "[].name" -o tsv 2>/dev/null || echo "")
+                fi
+                
+                if [[ -z "$FUNCTIONS" ]]; then
+                  echo "❌ No functions deployed! Check deployment logs"
+                  exit 1
+                else
+                  echo "✅ Found functions: $FUNCTIONS"
+                fi
+                
+                # Get function key
+                echo "Getting Function App host key..."
+                HOST_KEY=$(az functionapp keys list \
+                  --name gamer-uncle-dev-function \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "masterKey" -o tsv)
+                
+                if [[ -z "$HOST_KEY" ]]; then
+                  echo "❌ Could not get function key"
+                  exit 1
+                fi
+                
+                # Trigger function if it exists
+                if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
+                  echo "✅ GameSyncHttpStart function found, triggering..."
+                  
+                  RESPONSE=$(curl -s -X POST \
+                    "https://gamer-uncle-dev-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                    -H "Content-Type: application/json" \
+                    -d '{}' \
+                    -w "\nHTTP_CODE:%{http_code}" \
+                    --include)
+                  
+                  echo "Response:"
+                  echo "$RESPONSE"
+                  
+                  HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+                  
+                  if [[ "$HTTP_CODE" == "2"* ]]; then
+                    echo "✅ Function triggered successfully!"
+                  else
+                    echo "❌ Function trigger failed with status: $HTTP_CODE"
+                    exit 1
+                  fi
+                else
+                  echo "❌ GameSyncHttpStart function not found"
+                  echo "Available functions: $FUNCTIONS"
+                  exit 1
+                fi

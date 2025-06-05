@@ -3,13 +3,12 @@ using System.Threading.Tasks;
 using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.DurableTask.Client;
 using Microsoft.DurableTask;
 using GamerUncle.Functions.Models;
 using GamerUncle.Functions.Helpers;
 using System.Net.Http;
-using Microsoft.DurableTask.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
 using System.Net;
 using System;
 using Microsoft.Extensions.Logging;
@@ -24,21 +23,59 @@ namespace GamerUncle.Functions
         public DurableGameUpsertFunction()
         {
             var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-            {
-                TenantId = tenantId
-            });
+            var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+            var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT");
 
-            var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT") ?? "https://gamer-uncle-dev-cosmos.documents.azure.com:443/";
-            _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+            Console.WriteLine($"🔍 Tenant ID: {tenantId}");
+            Console.WriteLine($"🔍 Client ID: {clientId}");
+            Console.WriteLine($"🔍 Cosmos Endpoint: {cosmosEndpoint}");
+
+            if (!string.IsNullOrEmpty(clientId))
+            {
+                Console.WriteLine("🔐 Using Managed Identity for Azure environment");
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    TenantId = tenantId,
+                    ManagedIdentityClientId = clientId,
+                    ExcludeEnvironmentCredential = true,
+                    ExcludeAzureCliCredential = true,
+                    ExcludeAzurePowerShellCredential = true,
+                    ExcludeVisualStudioCredential = true,
+                    ExcludeVisualStudioCodeCredential = true,
+                    ExcludeInteractiveBrowserCredential = true
+                });
+                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+            }
+            else
+            {
+                Console.WriteLine("🔓 Using DefaultAzureCredential for local development (Azure CLI/VS)");
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    TenantId = tenantId,
+                    // Don't exclude Azure CLI and VS for local development
+                    ExcludeEnvironmentCredential = true,
+                    ExcludeAzurePowerShellCredential = true,
+                    ExcludeInteractiveBrowserCredential = true
+                });
+                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+            }
             _container = _cosmosClient.GetContainer("gamer-uncle-dev-cosmos-container", "Games");
         }
 
         [Function(nameof(DurableGameUpsertOrchestrator))]
         public async Task DurableGameUpsertOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
         {
+            // Get the input and handle potential JSON serialization issues
+            var input = context.GetInput<string>();
+            
+            // Remove any extra quotes that might come from JSON serialization
+            if (input != null && input.StartsWith("\"") && input.EndsWith("\""))
+            {
+                input = input.Trim('"');
+            }
+
             int syncCount = int.TryParse(
-                context.GetInput<string>(),
+                input,
                 out var result
             ) ? result : 5;
 
@@ -88,6 +125,12 @@ namespace GamerUncle.Functions
             // });
             #endregion
 
+            // Remove any extra quotes that might come from JSON serialization
+            if (gameId != null && gameId.StartsWith("\"") && gameId.EndsWith("\""))
+            {
+                gameId = gameId.Trim('"');
+            }
+
             var httpClient = new HttpClient();
             var client = new BggApiClient(httpClient);
             var gameDocument = await client.FetchGameDataAsync(gameId);
@@ -124,8 +167,9 @@ namespace GamerUncle.Functions
         public async Task GameSyncTimerTrigger(
             [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 6 * * *")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
-            ILogger log)
+            FunctionContext context)
         {
+            var log = context.GetLogger("GameSyncTimerTrigger");
             log.LogInformation($"Game sync timer trigger executed at: {DateTime.Now}");
             
             string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
