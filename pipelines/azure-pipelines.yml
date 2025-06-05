@@ -59,8 +59,8 @@ stages:
         PathtoPublish: '$(publishOutputFunctionProject)'
         ArtifactName: 'dropFunction'
 
-- stage: DevDeploy
-  displayName: 'Dev Deploy'
+- stage: DevDeployApi
+  displayName: 'Dev Deploy Api'
   dependsOn: DevBuild
   condition: |
     and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
@@ -83,6 +83,14 @@ stages:
               appName: 'gamer-uncle-dev-app-svc'
               package: '$(Pipeline.Workspace)/dropApi'
 
+
+- stage: DevDeployFunctions
+  displayName: 'Dev Deploy Functions'
+  dependsOn: DevBuild
+  condition: |
+    and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+
+  jobs:
   - deployment: DeployFunctionApp
     displayName: 'Deploy Function App'
     environment: 'Dev'
