@@ -30,19 +30,35 @@ namespace GamerUncle.Functions
             Console.WriteLine($"🔍 Client ID: {clientId}");
             Console.WriteLine($"🔍 Cosmos Endpoint: {cosmosEndpoint}");
 
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            if (!string.IsNullOrEmpty(clientId))
             {
-                TenantId = tenantId,
-                ManagedIdentityClientId = clientId,
-                ExcludeEnvironmentCredential = true,
-                ExcludeAzureCliCredential = true,
-                ExcludeAzurePowerShellCredential = true,
-                ExcludeVisualStudioCredential = true,
-                ExcludeVisualStudioCodeCredential = true,
-                ExcludeInteractiveBrowserCredential = true
-            });
-
-            _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+                Console.WriteLine("🔐 Using Managed Identity for Azure environment");
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    TenantId = tenantId,
+                    ManagedIdentityClientId = clientId,
+                    ExcludeEnvironmentCredential = true,
+                    ExcludeAzureCliCredential = true,
+                    ExcludeAzurePowerShellCredential = true,
+                    ExcludeVisualStudioCredential = true,
+                    ExcludeVisualStudioCodeCredential = true,
+                    ExcludeInteractiveBrowserCredential = true
+                });
+                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+            }
+            else
+            {
+                Console.WriteLine("🔓 Using DefaultAzureCredential for local development (Azure CLI/VS)");
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    TenantId = tenantId,
+                    // Don't exclude Azure CLI and VS for local development
+                    ExcludeEnvironmentCredential = true,
+                    ExcludeAzurePowerShellCredential = true,
+                    ExcludeInteractiveBrowserCredential = true
+                });
+                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
+            }
             _container = _cosmosClient.GetContainer("gamer-uncle-dev-cosmos-container", "Games");
         }
 
@@ -151,8 +167,9 @@ namespace GamerUncle.Functions
         public async Task GameSyncTimerTrigger(
             [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 6 * * *")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
-            ILogger log)
+            FunctionContext context)
         {
+            var log = context.GetLogger("GameSyncTimerTrigger");
             log.LogInformation($"Game sync timer trigger executed at: {DateTime.Now}");
             
             string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
