@@ -105,6 +105,7 @@ stages:
                   --settings \
                     'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
                     'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+                    'AZURE_CLIENT_ID=ed29ac5e-cee9-4607-b564-c858738b2e62' \
                     'SyncGameCount=10'
                 
                 echo "Verifying settings were applied..."
