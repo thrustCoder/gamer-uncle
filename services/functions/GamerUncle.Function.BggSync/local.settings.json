@@ -5,6 +5,6 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "COSMOS_ENDPOINT": "https://gamer-uncle-dev-cosmos.documents.azure.com:443/",
     "AZURE_TENANT_ID": "c88223a3-60b3-4697-9374-209fc154bdf1",
-    "SyncGameCount": "10"
+    "SyncGameCount": "5"
   }
 }

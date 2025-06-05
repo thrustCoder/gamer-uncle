@@ -109,6 +109,12 @@ namespace GamerUncle.Functions
             // });
             #endregion
 
+            // Remove any extra quotes that might come from JSON serialization
+            if (gameId != null && gameId.StartsWith("\"") && gameId.EndsWith("\""))
+            {
+                gameId = gameId.Trim('"');
+            }
+
             var httpClient = new HttpClient();
             var client = new BggApiClient(httpClient);
             var gameDocument = await client.FetchGameDataAsync(gameId);
