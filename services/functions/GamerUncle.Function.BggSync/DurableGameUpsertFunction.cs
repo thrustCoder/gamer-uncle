@@ -59,7 +59,7 @@ namespace GamerUncle.Functions
             }
 
             int syncCount = int.TryParse(
-                context.GetInput<string>(),
+                input,
                 out var result
             ) ? result : 5;
 
