@@ -49,6 +49,15 @@ namespace GamerUncle.Functions
         [Function(nameof(DurableGameUpsertOrchestrator))]
         public async Task DurableGameUpsertOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
         {
+            // Get the input and handle potential JSON serialization issues
+            var input = context.GetInput<string>();
+            
+            // Remove any extra quotes that might come from JSON serialization
+            if (input != null && input.StartsWith("\"") && input.EndsWith("\""))
+            {
+                input = input.Trim('"');
+            }
+
             int syncCount = int.TryParse(
                 context.GetInput<string>(),
                 out var result
