@@ -67,6 +67,7 @@ stages:
 
   jobs:
   - deployment: DeployWebApp
+    displayName: 'Deploy Web App'
     environment: 'Dev'
     strategy:
       runOnce:
@@ -83,6 +84,7 @@ stages:
               package: '$(Pipeline.Workspace)/dropApi'
 
   - deployment: DeployFunctionApp
+    displayName: 'Deploy Function App'
     environment: 'Dev'
     strategy:
       runOnce:
