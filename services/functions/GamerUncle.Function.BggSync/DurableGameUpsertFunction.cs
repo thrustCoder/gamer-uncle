@@ -6,12 +6,12 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.DurableTask.Client;
 using Microsoft.DurableTask;
-using GamerUncle.Functions.Models;
 using GamerUncle.Functions.Helpers;
 using System.Net.Http;
 using System.Net;
 using System;
 using Microsoft.Extensions.Logging;
+using GamerUncle.Shared.Models;
 
 namespace GamerUncle.Functions
 {

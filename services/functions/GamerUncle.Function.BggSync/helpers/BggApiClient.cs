@@ -2,11 +2,11 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
-using GamerUncle.Functions.Models;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using System.Linq;
 using System.Text.RegularExpressions;
+using GamerUncle.Shared.Models;
 
 namespace GamerUncle.Functions.Helpers
 {

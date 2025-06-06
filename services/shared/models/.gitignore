@@ -1,0 +1,39 @@
+# Ignore build output
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code settings
+.vscode/
+.vs/
+
+# ASP.NET secrets
+secrets.json
+
+# Logs
+*.log
+
+# Publish output
+publish/
+out/
+
+# Test results
+TestResults/
+*.trx
+
+# NuGet packages
+*.nupkg
+packages/
+.nuget/
+
+# Resharper files
+*.DotSettings.user
+
+# Other common ignores
+*.DS_Store
+Thumbs.db

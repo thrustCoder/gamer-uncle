@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System;
 using System.Text.Json.Serialization;
 
-namespace GamerUncle.Functions.Models
+namespace GamerUncle.Shared.Models
 {
     public class GameDocument
     {

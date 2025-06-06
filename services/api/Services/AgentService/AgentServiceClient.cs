@@ -5,6 +5,7 @@ using Azure.AI.Agents.Persistent;
 using Azure.AI.Projects;
 using Azure.Core;
 using Azure.Identity;
+using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
 
 namespace GamerUncle.Api.Services.AgentService
@@ -25,7 +26,8 @@ namespace GamerUncle.Api.Services.AgentService
             _agentsClient = _projectClient.GetPersistentAgentsClient();
         }
 
-        public async Task<string> GetRecommendationsAsync(string userInput)
+        // TODO: Remove this backup method once the new one is stable
+        public async Task<string> GetRecommendationsAsync_bkp(string userInput)
         {
             try
             {
@@ -101,6 +103,87 @@ namespace GamerUncle.Api.Services.AgentService
                 throw;
             }
         }
+
+        public async Task<string> GetRecommendationsAsync(string userInput)
+        {
+            try
+            {
+                Console.WriteLine($"Starting agent request with input: {userInput}");
+
+                // Step 1: Extract query criteria using AI Agent
+                var criteria = await ExtractGameCriteriaViaAgent(userInput);
+
+                // Step 2: Query Cosmos DB for matching games
+                var matchingGames = await _cosmosDbService.QueryGamesAsync(criteria);
+
+                // Step 3: Format RAG context
+                var ragContext = FormatGamesForRag(matchingGames); // Converts game list to plain text
+
+                // Step 4: Start agent conversation with context + input
+                var messages = new[]
+                {
+                    new { role = "system", content = "Use the following board games data to help answer the query." },
+                    new { role = "user", content = ragContext },
+                    new { role = "user", content = userInput }
+                };
+
+                var requestPayload = new { messages };
+
+                // Step 5: Create and run agent thread
+                var response = await RunAgentWithMessagesAsync(requestPayload);
+                return response ?? "No response from agent.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput)
+        {
+            var messages = new[]
+            {
+                new { role = "system", content = "Extract relevant game filter parameters from the following user request and return as a JSON object with fields like MinPlayers, MaxPlaytime, Mechanics, MaxWeight." },
+                new { role = "user", content = userInput }
+            };
+
+            var requestPayload = new { messages };
+            var json = await RunAgentWithMessagesAsync(requestPayload);
+
+            return JsonSerializer.Deserialize<GameQueryCriteria>(json ?? "{}") ?? new GameQueryCriteria();
+        }
+
+        private async Task<string?> RunAgentWithMessagesAsync(object requestPayload)
+        {
+            PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
+            PersistentAgentThread thread = _agentsClient.Threads.CreateThread();
+            _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));
+            ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
+
+            int pollCount = 0;
+            do
+            {
+                await Task.Delay(500);
+                run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
+                pollCount++;
+            } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
+
+            var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Descending);
+            var response = messagesResult.FirstOrDefault(m => m.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase));
+            var responseText = response?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+            return responseText;
+        }
+
+        // Converts games to plain text
+        private string FormatGamesForRag(IEnumerable<GameDocument> games)
+        {
+            var sb = new StringBuilder();
+            foreach (var game in games)
+            {
+                sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight})");
+            }
+            return sb.ToString();
+        }        
 
     }
 }
