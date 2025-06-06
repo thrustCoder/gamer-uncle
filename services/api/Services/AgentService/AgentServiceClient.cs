@@ -3,10 +3,10 @@ using System.Text.Json;
 using Azure;
 using Azure.AI.Agents.Persistent;
 using Azure.AI.Projects;
-using Azure.Core;
 using Azure.Identity;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
+using GamerUncle.Api.Services.Cosmos; // Add the correct namespace for CosmosDbService
 
 namespace GamerUncle.Api.Services.AgentService
 {
@@ -15,8 +15,9 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly AIProjectClient _projectClient;
         private readonly PersistentAgentsClient _agentsClient;
         private readonly string _agentId;
+        private readonly CosmosDbService _cosmosDbService;
 
-        public AgentServiceClient(IConfiguration config)
+        public AgentServiceClient(IConfiguration config, CosmosDbService cosmosDbService)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             _agentId = config["AgentService:AgentId"] ?? throw new InvalidOperationException("Agent ID missing");
@@ -24,6 +25,7 @@ namespace GamerUncle.Api.Services.AgentService
             // Uses DefaultAzureCredential - works in Codespaces with Azure login or local dev with `az login`
             _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential());
             _agentsClient = _projectClient.GetPersistentAgentsClient();
+            _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
         }
 
         // TODO: Remove this backup method once the new one is stable
@@ -143,7 +145,10 @@ namespace GamerUncle.Api.Services.AgentService
         {
             var messages = new[]
             {
-                new { role = "system", content = "Extract relevant game filter parameters from the following user request and return as a JSON object with fields like MinPlayers, MaxPlaytime, Mechanics, MaxWeight." },
+                new {
+                    role = "system",
+                    content = "Extract relevant game filter parameters from the following user request and return as a JSON object using these fields: name, MinPlayers, MaxPlayers, MinPlaytime, MaxPlaytime, Mechanics (array), Categories (array), MaxWeight, averageRating, ageRequirement."
+                },
                 new { role = "user", content = userInput }
             };
 
@@ -168,10 +173,9 @@ namespace GamerUncle.Api.Services.AgentService
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
 
-            var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Descending);
-            var response = messagesResult.FirstOrDefault(m => m.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase));
-            var responseText = response?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
-            return responseText;
+            var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
+            var lastMessage = messagesResult.LastOrDefault();
+            return lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
         }
 
         // Converts games to plain text
@@ -183,7 +187,6 @@ namespace GamerUncle.Api.Services.AgentService
                 sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight})");
             }
             return sb.ToString();
-        }        
-
+        }
     }
 }
