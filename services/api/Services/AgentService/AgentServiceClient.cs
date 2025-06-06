@@ -77,11 +77,12 @@ namespace GamerUncle.Api.Services.AgentService
                                 3. If a field is mentioned with a count of players range (e.g., '2-4 players'), use the min and max values.
                                 4. If a field is mentioned with a single value for count of players (e.g., '2 players'), set both Min and Max to that value.
                                 5. If a field is mentioned with a list of mechanics or categories (e.g., 'strategy, card game'), split into an array.
-                                6. If a field is mentioned with a rating (e.g., 'average rating 4.5'), set averageRating to that value.
-                                7. If a field is mentioned with an age requirement (e.g., 'age 12+'), set ageRequirement to that value.
-                                8. If a field is mentioned with a weight (e.g., 'lightweight'), set MaxWeight to a reasonable value based on the context.
-                                9. If the user asks for a specific game, set name to that game title. However, if the user asks for games similar to a specific game, do not set name.
-                                10. If the user asks for games with specific mechanics or categories, set Mechanics and Categories arrays accordingly."
+                                6. If a field is mentioned with a rating (e.g., 'average rating 4.5'), adjust the value to a scale of 1 to 10 and set averageRating to that value.
+                                7. If a field is mentioned with a play time (e.g., '60 minutes'), adjust the value to the number of minutes and set MinPlaytime or MaxPlaytime according to context.
+                                8. If a field is mentioned with an age requirement (e.g., 'age 12+'), set ageRequirement to that value assuming years as the unit.
+                                9. If a field is mentioned with a weight (e.g., 'lightweight'), set MaxWeight to a reasonable value on a scale of 1 to 5.
+                                10. If the user asks for a specific game, set name to that value in title case. However, if the user asks for games similar to a specific game, do not set name. Try to be really conservative with setting name.
+                                11. If the user asks for games with specific mechanics or categories, set Mechanics and Categories arrays accordingly."
                 },
                 new { role = "user", content = userInput }
             };
