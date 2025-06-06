@@ -15,8 +15,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // DI registration
-builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
+builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
 
 var app = builder.Build();
 

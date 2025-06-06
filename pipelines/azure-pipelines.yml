@@ -76,7 +76,22 @@ stages:
           - download: current
             artifact: dropApi
 
+          - task: AzureCLI@2
+            displayName: 'Configure API App Settings'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az webapp config appsettings set \
+                  --name gamer-uncle-dev-app-svc \
+                  --resource-group gamer-uncle-dev-rg \
+                  --settings \
+                    'CosmosDb__Endpoint=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
+                    'CosmosDb__TenantId=c88223a3-60b3-4697-9374-209fc154bdf1'
+
           - task: AzureWebApp@1
+            displayName: 'Deploy Web App'
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
               appType: 'webApp'
@@ -116,7 +131,7 @@ stages:
                     'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
                     'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
                     'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
-                    'SyncGameCount=25'
+                    'SyncGameCount=50'
                 
                 echo "Verifying settings were applied..."
                 az functionapp config appsettings list \

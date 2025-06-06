@@ -14,7 +14,16 @@ namespace GamerUncle.Api.Services.Cosmos
             var endpoint = config["CosmosDb:Endpoint"]
                 ?? throw new InvalidOperationException("Missing Cosmos DB endpoint config.");
 
-            var credential = new DefaultAzureCredential();
+            var tenantId = config["CosmosDb:TenantId"]
+                ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
+
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                TenantId = tenantId,
+                // For API running in Azure, you might also need to specify:
+                // ManagedIdentityClientId = config["CosmosDb:ClientId"] // if using UAMI
+            });
+
             var client = new CosmosClient(endpoint, credential);
             _container = client.GetContainer("gamer-uncle-dev-cosmos-container", "Games");
         }
@@ -22,68 +31,111 @@ namespace GamerUncle.Api.Services.Cosmos
         public async Task<IEnumerable<GameDocument>> QueryGamesAsync(GameQueryCriteria criteria)
         {
             var query = "SELECT * FROM c WHERE 1=1";
-            var queryDef = new QueryDefinition(query);
+            var parameters = new Dictionary<string, object>();
 
             if (!string.IsNullOrEmpty(criteria.name))
             {
                 query += " AND CONTAINS(LOWER(c.name), LOWER(@name))";
-                queryDef.WithParameter("@name", criteria.name);
+                parameters.Add("@name", criteria.name);
             }
-            if (criteria.MinPlayers.HasValue)
+
+            // Player count logic - corrected for proper range overlap
+            if (criteria.MinPlayers.HasValue && criteria.MaxPlayers.HasValue)
             {
-                query += " AND c.minPlayers <= @minPlayers";
-                queryDef.WithParameter("@minPlayers", criteria.MinPlayers.Value);
+                // Range query: "2-4 players" - find games that overlap with this range
+                query += " AND c.maxPlayers >= @minPlayers AND c.minPlayers <= @maxPlayers";
+                parameters.Add("@minPlayers", criteria.MinPlayers.Value);
+                parameters.Add("@maxPlayers", criteria.MaxPlayers.Value);
             }
-            if (criteria.MaxPlayers.HasValue)
+            else if (criteria.MinPlayers.HasValue)
             {
-                query += " AND c.maxPlayers >= @maxPlayers";
-                queryDef.WithParameter("@maxPlayers", criteria.MaxPlayers.Value);
+                // "At least X players" - game must support AT LEAST this many
+                query += " AND c.maxPlayers >= @minPlayers";
+                parameters.Add("@minPlayers", criteria.MinPlayers.Value);
             }
-            if (criteria.MinPlaytime.HasValue)
+            else if (criteria.MaxPlayers.HasValue)
             {
-                query += " AND c.minPlaytime >= @minPlaytime";
-                queryDef.WithParameter("@minPlaytime", criteria.MinPlaytime.Value);
+                // "Up to X players" - game must work with this few players
+                query += " AND c.minPlayers <= @maxPlayers";
+                parameters.Add("@maxPlayers", criteria.MaxPlayers.Value);
             }
-            if (criteria.MaxPlaytime.HasValue)
+
+            // Playtime logic - same pattern as player count
+            if (criteria.MinPlaytime.HasValue && criteria.MaxPlaytime.HasValue)
             {
-                query += " AND c.maxPlaytime <= @maxPlaytime";
-                queryDef.WithParameter("@maxPlaytime", criteria.MaxPlaytime.Value);
+                // Range query: "30-60 minutes" - find games that overlap with this range
+                query += " AND c.maxPlaytime >= @minPlaytime AND c.minPlaytime <= @maxPlaytime";
+                parameters.Add("@minPlaytime", criteria.MinPlaytime.Value);
+                parameters.Add("@maxPlaytime", criteria.MaxPlaytime.Value);
             }
+            else if (criteria.MinPlaytime.HasValue)
+            {
+                // "At least X minutes" - game can be played for at least this long
+                query += " AND c.maxPlaytime >= @minPlaytime";
+                parameters.Add("@minPlaytime", criteria.MinPlaytime.Value);
+            }
+            else if (criteria.MaxPlaytime.HasValue)
+            {
+                // "Up to X minutes" - game doesn't require more time than this
+                query += " AND c.minPlaytime <= @maxPlaytime";
+                parameters.Add("@maxPlaytime", criteria.MaxPlaytime.Value);
+            }
+
             if (criteria.MaxWeight.HasValue)
             {
                 query += " AND c.weight <= @maxWeight";
-                queryDef.WithParameter("@maxWeight", criteria.MaxWeight.Value);
+                parameters.Add("@maxWeight", criteria.MaxWeight.Value);
             }
+
             if (criteria.averageRating.HasValue)
             {
                 query += " AND c.averageRating >= @averageRating";
-                queryDef.WithParameter("@averageRating", criteria.averageRating.Value);
+                parameters.Add("@averageRating", criteria.averageRating.Value);
             }
+
             if (criteria.ageRequirement.HasValue)
             {
                 query += " AND c.ageRequirement <= @ageRequirement";
-                queryDef.WithParameter("@ageRequirement", criteria.ageRequirement.Value);
+                parameters.Add("@ageRequirement", criteria.ageRequirement.Value);
             }
+
+            // More flexible mechanics and categories matching
+            var allSearchTerms = new List<string>();
             if (criteria.Mechanics?.Any() == true)
             {
-                for (int i = 0; i < criteria.Mechanics.Length; i++)
-                {
-                    var name = "@mech" + i;
-                    query += $" AND ARRAY_CONTAINS(c.mechanics, {name}, true)";
-                    queryDef.WithParameter(name, criteria.Mechanics[i]);
-                }
+                // Convert to title case to match database format
+                allSearchTerms.AddRange(criteria.Mechanics.Select(ToTitleCase));
             }
             if (criteria.Categories?.Any() == true)
             {
-                for (int i = 0; i < criteria.Categories.Length; i++)
-                {
-                    var name = "@cat" + i;
-                    query += $" AND ARRAY_CONTAINS(c.categories, {name}, true)";
-                    queryDef.WithParameter(name, criteria.Categories[i]);
-                }
+                // Convert to title case to match database format
+                allSearchTerms.AddRange(criteria.Categories.Select(ToTitleCase));
             }
 
-            // queryDef is already built with parameters above
+            if (allSearchTerms.Any())
+            {
+                // Search in both mechanics AND categories arrays for any of the terms
+                var mechanicsOrCategories = "(";
+                for (int i = 0; i < allSearchTerms.Count; i++)
+                {
+                    var paramName = $"@term{i}";
+                    if (i > 0) mechanicsOrCategories += " OR ";
+                    mechanicsOrCategories += $"ARRAY_CONTAINS(c.mechanics, {paramName}, true) OR ARRAY_CONTAINS(c.categories, {paramName}, true)";
+                    parameters.Add(paramName, allSearchTerms[i]);
+                }
+                mechanicsOrCategories += ")";
+
+                query += $" AND {mechanicsOrCategories}";
+            }
+
+            // Create QueryDefinition with final query string
+            var queryDef = new QueryDefinition(query);
+
+            // Add all parameters to the QueryDefinition
+            foreach (var param in parameters)
+            {
+                queryDef.WithParameter(param.Key, param.Value);
+            }
 
             var results = new List<GameDocument>();
             using var iterator = _container.GetItemQueryIterator<GameDocument>(queryDef);
@@ -94,6 +146,14 @@ namespace GamerUncle.Api.Services.Cosmos
             }
 
             return results;
+        }
+
+        private static string ToTitleCase(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            
+            var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
+            return textInfo.ToTitleCase(input.ToLowerInvariant());
         }
     }
 }
