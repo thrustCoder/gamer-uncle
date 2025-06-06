@@ -1,5 +1,6 @@
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
+using GamerUncle.Api.Services.Cosmos;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // DI registration
+builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
 
 var app = builder.Build();

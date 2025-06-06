@@ -23,7 +23,8 @@
     <PackageReference Include="Microsoft.DurableTask.Client" Version="1.10.0" />
     <PackageReference Include="Microsoft.DurableTask.Worker" Version="1.10.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- Add other packages as needed -->
+    
+    <ProjectReference Include="..\..\shared\models\GamerUncle.Shared.Models.csproj" />
   </ItemGroup>
 
 </Project>
