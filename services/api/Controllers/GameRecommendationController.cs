@@ -18,8 +18,8 @@ namespace GamerUncle.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> RecommendGame([FromBody] UserQuery query)
         {
-            var result = await _agentService.GetRecommendationsAsync(query.Query);
-            return Ok(new AgentResponse { ResponseText = result });
+            var result = await _agentService.GetRecommendationsAsync(query.Query, query.ConversationId);
+            return Ok(result);
         }
     }
 }
