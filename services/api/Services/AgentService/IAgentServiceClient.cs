@@ -1,7 +1,9 @@
+using GamerUncle.Api.Models;
+
 namespace GamerUncle.Api.Services.Interfaces
 {
     public interface IAgentServiceClient
     {
-        Task<string> GetRecommendationsAsync(string userInput);
+        Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null);
     }
 }

@@ -5,6 +5,7 @@ using Azure.AI.Agents.Persistent;
 using Azure.AI.Projects;
 using Azure.Identity;
 using GamerUncle.Shared.Models;
+using GamerUncle.Api.Models;
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.Cosmos; // Add the correct namespace for CosmosDbService
 
@@ -28,42 +29,72 @@ namespace GamerUncle.Api.Services.AgentService
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
         }
 
-        public async Task<string> GetRecommendationsAsync(string userInput)
+        public async Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null)
         {
             try
             {
                 Console.WriteLine($"Starting agent request with input: {userInput}");
 
                 // Step 1: Extract query criteria using AI Agent
-                var criteria = await ExtractGameCriteriaViaAgent(userInput);
-
+                var criteria = await ExtractGameCriteriaViaAgent(userInput, threadId);
+                
                 // Step 2: Query Cosmos DB for matching games
-                var matchingGames = await _cosmosDbService.QueryGamesAsync(criteria);
-
-                // Step 3: Format RAG context
-                var ragContext = FormatGamesForRag(matchingGames); // Converts game list to plain text
-
-                // Step 4: Start agent conversation with context + input
-                var messages = new[]
+                List<GameDocument> matchingGames;
+                var messages = new List<object>();
+                if (criteria == null ||
+                    (string.IsNullOrEmpty(criteria.name) &&
+                    !criteria.MinPlayers.HasValue &&
+                    !criteria.MaxPlayers.HasValue &&
+                    !criteria.MinPlaytime.HasValue &&
+                    !criteria.MaxPlaytime.HasValue &&
+                    criteria.Mechanics == null &&
+                    criteria.Categories == null &&
+                    !criteria.MaxWeight.HasValue &&
+                    !criteria.averageRating.HasValue &&
+                    !criteria.ageRequirement.HasValue))
                 {
-                    new { role = "system", content = "Use the following board games data to help answer the query." },
-                    new { role = "user", content = ragContext },
-                    new { role = "user", content = userInput }
-                };
+                    matchingGames = new List<GameDocument>();
+                    messages = new[]
+                    {
+                        new { role = "user", content = userInput }
+                    }.ToList<object>();
+                }
+                else
+                {
+                    matchingGames = (await _cosmosDbService.QueryGamesAsync(criteria)).ToList();
+                    var ragContext = FormatGamesForRag(matchingGames);
+                    messages = new[]
+                    {
+                        new { role = "system", content = "Use the following board games data to help answer the query." },
+                        new { role = "user", content = ragContext },
+                        new { role = "user", content = userInput }
+                    }.ToList<object>();
+                }
 
                 var requestPayload = new { messages };
 
                 // Step 5: Create and run agent thread
-                var response = await RunAgentWithMessagesAsync(requestPayload);
-                return response ?? "No response from agent.";
+                var (response, currentThreadId) = await RunAgentWithMessagesAsync(requestPayload, threadId);
+                
+                return new AgentResponse
+                {
+                    ResponseText = response ?? "No response from agent.",
+                    ThreadId = currentThreadId,
+                    MatchingGamesCount = matchingGames.Count
+                };
             }
             catch (Exception ex)
             {
-                return $"Error: {ex.Message}";
+                return new AgentResponse
+                {
+                    ResponseText = $"Error: {ex.Message}",
+                    ThreadId = null,
+                    MatchingGamesCount = 0
+                };
             }
         }
 
-        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput)
+        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
         {
             var messages = new[]
             {
@@ -88,18 +119,38 @@ namespace GamerUncle.Api.Services.AgentService
             };
 
             var requestPayload = new { messages };
-            var json = await RunAgentWithMessagesAsync(requestPayload);
+            var (json, _) = await RunAgentWithMessagesAsync(requestPayload, sessionId);
 
             return JsonSerializer.Deserialize<GameQueryCriteria>(json ?? "{}") ?? new GameQueryCriteria();
         }
 
-        private async Task<string?> RunAgentWithMessagesAsync(object requestPayload)
+        private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
         {
             PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
-            PersistentAgentThread thread = _agentsClient.Threads.CreateThread();
+        
+            PersistentAgentThread thread;
+            try
+            {
+                if (!string.IsNullOrEmpty(threadId))
+                {
+                    Console.WriteLine($"Using existing thread: {threadId}");
+                    thread = _agentsClient.Threads.GetThread(threadId);
+                }
+                else
+                {
+                    Console.WriteLine("Creating new thread");
+                    thread = _agentsClient.Threads.CreateThread();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving thread {threadId}: {ex.Message}. Creating new thread.");
+                thread = _agentsClient.Threads.CreateThread();
+            }
+        
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
-
+        
             int pollCount = 0;
             do
             {
@@ -107,10 +158,12 @@ namespace GamerUncle.Api.Services.AgentService
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
-
+        
             var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
             var lastMessage = messagesResult.LastOrDefault();
-            return lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+            var response = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+            
+            return (response, thread.Id);
         }
 
         // Converts games to plain text
