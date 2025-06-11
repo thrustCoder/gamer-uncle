@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
+import BackButton from '../components/BackButton';
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([
@@ -39,6 +40,7 @@ export default function ChatScreen() {
       style={styles.background}
       resizeMode="cover"
     >
+      <BackButton />
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Explore Games</Text>
