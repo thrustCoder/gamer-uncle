@@ -6,12 +6,11 @@ export const chatStyles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: 'column',
   },
   header: {
     alignItems: 'center',
     paddingTop: 35,
-    marginBottom: 10,
+    paddingBottom: 10,
   },
   title: {
     fontSize: 40,
@@ -27,11 +26,12 @@ export const chatStyles = StyleSheet.create({
     marginTop: 10,
   },
   messagesWrapper: {
-    flex: 1, // This takes up remaining space
+    flex: 1, // Takes remaining space between header and input
     paddingHorizontal: 16,
   },
   messagesContainer: {
     paddingVertical: 10,
+    // Remove flexGrow to prevent over-scroll
   },
   systemBubble: {
     backgroundColor: '#D68F20',
@@ -60,7 +60,7 @@ export const chatStyles = StyleSheet.create({
     elevation: 2,
   },
   bubbleText: {
-    color: '#fff',
+    color: '#fbe8c9',
     fontSize: 18,
     lineHeight: 24,
   },
@@ -75,7 +75,7 @@ export const chatStyles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#fff',
+    color: '#fbe8c9',
     fontSize: 18,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -90,6 +90,6 @@ export const chatStyles = StyleSheet.create({
   },
   sendText: {
     fontSize: 20,
-    color: '#fff',
+    color: '#fbe8c9',
   },
 });

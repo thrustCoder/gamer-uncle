@@ -15,7 +15,8 @@ import { chatStyles as styles } from '../styles/chatStyles';
 export default function ChatScreen() {
   const [messages, setMessages] = useState([
     { id: '1', type: 'system', text: 'Hi! Need help finding a new board game?' },
-    { id: '2', type: 'user', text: 'Yes, please recommend me a game!' }
+    { id: '2', type: 'user', text: 'Ok!' },
+    { id: '3', type: 'system', text: 'What kind of game are you looking for? Think about the number of players, mechanics, max play time, age restrictions etc.' }
   ]);
   const [input, setInput] = useState('');
 
@@ -56,20 +57,18 @@ export default function ChatScreen() {
           />
         </View>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={styles.inputBar}>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder="Message"
-              placeholderTextColor="#ddd"
-              style={styles.input}
-            />
-            <TouchableOpacity onPress={handleSend} style={styles.sendButton}>
-              <Text style={styles.sendText}>➤</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+        <View style={styles.inputBar}>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder="Message"
+            placeholderTextColor="#ddd"
+            style={styles.input}
+          />
+          <TouchableOpacity onPress={handleSend} style={styles.sendButton}>
+            <Text style={styles.sendText}>➤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ImageBackground>
   );
