@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GameProvider } from './store/GameContext';
 import LandingScreen from './screens/LandingScreen';
+import ChatScreen from './screens/ChatScreen';
 
 const Stack = createStackNavigator();
 
@@ -12,6 +13,7 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Landing" component={LandingScreen} />
+          <Stack.Screen name="Chat" component={ChatScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </GameProvider>

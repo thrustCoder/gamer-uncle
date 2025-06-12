@@ -18,6 +18,17 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
 
+// CORS policy configuration
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:8081") // Adjust based on Expo port
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Enable Swagger in development
@@ -30,5 +41,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+app.UseCors();
 
 app.Run();
