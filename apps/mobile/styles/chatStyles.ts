@@ -3,14 +3,18 @@ import { StyleSheet } from 'react-native';
 export const chatStyles = StyleSheet.create({
   background: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   header: {
     alignItems: 'center',
     paddingTop: 35,
     paddingBottom: 10,
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 40,
@@ -18,20 +22,22 @@ export const chatStyles = StyleSheet.create({
     color: '#fbe8c9',
   },
   avatar: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     borderWidth: 4,
     borderColor: '#fbe8c9',
     marginTop: 10,
   },
   messagesWrapper: {
-    flex: 1, // Takes remaining space between header and input
+    flex: 1,
     paddingHorizontal: 16,
+    backgroundColor: 'transparent',
   },
   messagesContainer: {
     paddingVertical: 10,
-    // Remove flexGrow to prevent over-scroll
+    backgroundColor: 'transparent',
+    // REMOVE flexGrow and paddingBottom here!
   },
   systemBubble: {
     backgroundColor: '#D68F20',
@@ -66,27 +72,32 @@ export const chatStyles = StyleSheet.create({
   },
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: '#265C2E',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    minHeight: 60,
   },
   input: {
     flex: 1,
     color: '#fbe8c9',
     fontSize: 18,
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: '#3E7A4A',
     borderRadius: 32,
     marginRight: 10,
+    maxHeight: 100,
+    textAlignVertical: 'top',
   },
   sendButton: {
     backgroundColor: '#3E7A4A',
     borderRadius: 24,
-    padding: 10,
+    padding: 12,
+    alignSelf: 'flex-end',
+    marginBottom: 2,
   },
   sendText: {
     fontSize: 20,
