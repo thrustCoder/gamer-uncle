@@ -5,6 +5,7 @@ import { GameProvider } from './store/GameContext';
 import LandingScreen from './screens/LandingScreen';
 import ChatScreen from './screens/ChatScreen';
 import DiceRollerScreen from './screens/DiceRollerScreen';
+import TimerScreen from './screens/TimerScreen';
 
 const Stack = createStackNavigator();
 
@@ -16,6 +17,7 @@ export default function App() {
           <Stack.Screen name="Landing" component={LandingScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Dice" component={DiceRollerScreen} />
+          <Stack.Screen name="Timer" component={TimerScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </GameProvider>
