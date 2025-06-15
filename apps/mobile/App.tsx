@@ -6,6 +6,7 @@ import LandingScreen from './screens/LandingScreen';
 import ChatScreen from './screens/ChatScreen';
 import DiceRollerScreen from './screens/DiceRollerScreen';
 import TimerScreen from './screens/TimerScreen';
+import TurnSelectorScreen from './screens/TurnSelectorScreen';
 
 const Stack = createStackNavigator();
 
@@ -18,6 +19,7 @@ export default function App() {
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Dice" component={DiceRollerScreen} />
           <Stack.Screen name="Timer" component={TimerScreen} />
+          <Stack.Screen name="Turn" component={TurnSelectorScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </GameProvider>
