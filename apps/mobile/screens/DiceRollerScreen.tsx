@@ -103,7 +103,7 @@ export default function DiceRollerScreen() {
   };
 
   return (
-    <ImageBackground source={require('../assets/images/dice_background.png')} style={styles.bg}>
+    <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.bg}>
       <BackButton onPress={() => navigation.goBack()} />
 
       <View style={styles.toggleContainer}>

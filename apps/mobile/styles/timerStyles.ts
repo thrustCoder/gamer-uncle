@@ -56,7 +56,7 @@ export const timerStyles = StyleSheet.create({
   presetContainer: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    marginVertical: 10, // Reduced from 20 to bring closer to center ring
+    marginVertical: 20, // Reduced from 20 to bring closer to center ring
     paddingHorizontal: 20,
     width: '100%',
   },

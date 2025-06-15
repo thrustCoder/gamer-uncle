@@ -171,13 +171,26 @@ export default function TimerScreen() {
 
   return (
     <ImageBackground
-      source={require('../assets/images/wood_bg.png')}
+      source={require('../assets/images/tool_background.png')}
       style={styles.background}
       resizeMode="repeat"
     >
       <BackButton />
       <View style={styles.container}>
-        <Text style={styles.title}>Timer</Text>
+
+        {/* Additive presets: 10s, 30s, 1m, 5m */}
+        <View style={styles.presetContainer}>
+          {PRESET_VALUES.map((preset, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={[styles.presetButton, isRunning && styles.disabledButton]}
+              onPress={() => handlePresetSelect(preset.seconds)}
+              disabled={isRunning}
+            >
+              <Text style={styles.presetText}>{preset.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Circular progress ring using SVG for accurate circular shape */}
         <View style={styles.circleContainer}>
@@ -219,21 +232,6 @@ export default function TimerScreen() {
         </Animated.View>
         </View>
 
-
-        {/* Additive presets: 10s, 30s, 1m, 5m */}
-        <View style={styles.presetContainer}>
-          {PRESET_VALUES.map((preset, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={[styles.presetButton, isRunning && styles.disabledButton]}
-              onPress={() => handlePresetSelect(preset.seconds)}
-              disabled={isRunning}
-            >
-              <Text style={styles.presetText}>{preset.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         <View style={styles.buttonContainer}>
           {/* Show START button only after preset selection */}
           {showStartButton && !isRunning && (
@@ -242,6 +240,16 @@ export default function TimerScreen() {
               onPress={handleStart}
             >
               <Text style={styles.mainButtonText}>START</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Show RESET button when presets are selected but timer not running */}
+          {showStartButton && !isRunning && (
+            <TouchableOpacity 
+              style={styles.resetButton} 
+              onPress={handleReset}
+            >
+              <Text style={styles.resetText}>RESET</Text>
             </TouchableOpacity>
           )}
 
@@ -264,6 +272,7 @@ export default function TimerScreen() {
             </TouchableOpacity>
           )}
         </View>
+
       </View>
     </ImageBackground>
   );
