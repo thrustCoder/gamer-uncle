@@ -55,14 +55,15 @@ export default function TurnSelectorScreen() {
           marginBottom: 20 
         }}>
           <Text style={[styles.label, { 
-            fontSize: 28, 
+            fontSize: 23, 
             color: '#fbe8c9', 
             flex: 1, 
             fontWeight: 'bold',
             textShadowColor: '#000',
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
-            marginRight: 20
+            marginRight: 20,
+            marginLeft: 5,
           }]}>Number of players</Text>
           <View style={{ 
             backgroundColor: 'rgba(139, 69, 19, 0.8)', 
@@ -103,7 +104,8 @@ export default function TurnSelectorScreen() {
             flexDirection: 'row',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
-            marginBottom: 20
+            marginBottom: 20,
+            paddingHorizontal: 5,
           }}>
             {Array.from({ length: playerCount }).map((_, i) => (
               <TextInput
@@ -120,7 +122,9 @@ export default function TurnSelectorScreen() {
                   shadowOpacity: 0.2,
                   shadowRadius: 4,
                   elevation: 4,
-                  width: playerCount <= 4 ? '48%' : '31%',
+                  width: playerCount <= 2 ? '48%' : 
+                        playerCount <= 4 ? '48%' : 
+                        '31%', // For 5-6 players, smaller width
                 }}
                 placeholder={`Player ${i + 1}`}
                 placeholderTextColor="#666"
@@ -129,10 +133,9 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
+
+        <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
       </View>
-
-      <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
-
       {celebrate && (
         <ConfettiCannon
           count={100}

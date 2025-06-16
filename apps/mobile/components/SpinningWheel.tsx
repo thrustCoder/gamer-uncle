@@ -60,8 +60,8 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
         />
       </View>
       <TouchableOpacity onPress={spinWheel} activeOpacity={0.9}>
-        <Animated.View style={{ transform: [{ rotate: interpolatedRotate }] }}>
-          <Svg height="380" width="380" viewBox="0 0 380 380">
+        <Animated.View style={{ transform: [{ rotate: interpolatedRotate }], width: '100%', aspectRatio: 1 }}>
+          <Svg height="100%" width="100%" viewBox="0 0 380 380">
             <G>
               {/* Outer black rim - thinner */}
               <Circle
@@ -119,6 +119,7 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
           </Svg>
         </Animated.View>
       </TouchableOpacity>
+
       <View style={{ marginTop: 15 }}>
         <Text style={{ 
           color: '#fff', 

@@ -95,11 +95,11 @@ export default function DiceRollerScreen() {
     );
 
     // Delay result update by 3000ms to allow animation to play
-    withDelay(2000, runOnJS(() => {
+    setTimeout(() => {
       const newValues = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
       setDiceValues(newValues);
       setRolling(false);
-    })());
+    }, 2000);
   };
 
   return (
