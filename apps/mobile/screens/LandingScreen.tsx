@@ -28,20 +28,20 @@ export default function LandingScreen() {
         </TouchableOpacity>
 
         <View style={styles.grid}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Dice')}>
-            <Image source={require('../assets/images/dice_icon.png')} style={styles.iconFull} />
+          <TouchableOpacity style={styles.iconButtonTurn} onPress={() => navigation.navigate('Turn')}>
+            <Image source={require('../assets/images/turn_icon.png')} style={styles.iconFull} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Timer')}>
-            <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Team')}>
+          <TouchableOpacity style={styles.iconButtonTeam} onPress={() => navigation.navigate('Team')}>
             <Image source={require('../assets/images/team_icon.png')} style={styles.iconFull} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Turn')}>
-            <Image source={require('../assets/images/turn_icon.png')} style={styles.iconFull} />
+          <TouchableOpacity style={styles.iconButtonDice} onPress={() => navigation.navigate('Dice')}>
+            <Image source={require('../assets/images/dice_icon.png')} style={styles.iconFull} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButtonTimer} onPress={() => navigation.navigate('Timer')}>
+            <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
           </TouchableOpacity>
         </View>
       </ScrollView>

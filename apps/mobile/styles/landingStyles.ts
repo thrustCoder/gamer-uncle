@@ -34,28 +34,57 @@ export const landingStyles = StyleSheet.create({
         : screenHeight < 740 
           ? 15 // Increased for small phones like iPhone SE
           : 50, // Standard for regular phones
-    marginBottom: 20, // Increased bottom margin
+    marginBottom: 10, // Increased bottom margin
     marginHorizontal: 0,
+    marginLeft: 10,
     paddingHorizontal: 0,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: isLandscape ? 'nowrap' : 'wrap', // Single row in landscape
     justifyContent: isLandscape ? 'space-around' : 'space-between',
-    paddingHorizontal: 15,
+    marginHorizontal: 10,
     paddingTop: 10,
-    paddingBottom: 30, // Increased bottom padding
+    paddingBottom: 10, // Increased bottom padding
   },
-  iconButton: {
-    width: isLandscape ? '22%' : '48%', // Smaller width for single row in landscape
+  iconButtonTurn: {
+    width: 167,
+    height: 167,
     aspectRatio: 1,
     borderRadius: 24,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginLeft: 5
+  },
+  iconButtonTeam: {
+    width: 160,
+    height: 160,
+    aspectRatio: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginTop: 5,
+    marginRight: 5
+  },
+  iconButtonDice: {
+    width: 128,
+    height: 128,
+    aspectRatio: 1,
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginLeft: 26,
+    marginTop: 22
+  },
+  iconButtonTimer: {
+    width: 160,
+    height: 160,
+    aspectRatio: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginTop: 5,
+    marginRight: 5
   },
   iconFull: {
     width: '100%',
     height: '100%',
-    borderRadius: 24,
+    // borderRadius: 24,
   },
 });

@@ -55,14 +55,15 @@ export default function TurnSelectorScreen() {
           marginBottom: 20 
         }}>
           <Text style={[styles.label, { 
-            fontSize: 28, 
+            fontSize: 23, 
             color: '#fbe8c9', 
             flex: 1, 
             fontWeight: 'bold',
             textShadowColor: '#000',
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
-            marginRight: 20
+            marginRight: 20,
+            marginLeft: 5,
           }]}>Number of players</Text>
           <View style={{ 
             backgroundColor: 'rgba(139, 69, 19, 0.8)', 
