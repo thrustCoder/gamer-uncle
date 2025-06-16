@@ -103,7 +103,8 @@ export default function TurnSelectorScreen() {
             flexDirection: 'row',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
-            marginBottom: 20
+            marginBottom: 20,
+            paddingHorizontal: 5,
           }}>
             {Array.from({ length: playerCount }).map((_, i) => (
               <TextInput
@@ -120,7 +121,9 @@ export default function TurnSelectorScreen() {
                   shadowOpacity: 0.2,
                   shadowRadius: 4,
                   elevation: 4,
-                  width: playerCount <= 4 ? '48%' : '31%',
+                  width: playerCount <= 2 ? '48%' : 
+                        playerCount <= 4 ? '48%' : 
+                        '31%', // For 5-6 players, smaller width
                 }}
                 placeholder={`Player ${i + 1}`}
                 placeholderTextColor="#666"
@@ -129,10 +132,9 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
+
+        <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
       </View>
-
-      <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
-
       {celebrate && (
         <ConfettiCannon
           count={100}

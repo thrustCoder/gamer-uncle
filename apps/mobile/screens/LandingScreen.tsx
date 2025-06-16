@@ -8,7 +8,7 @@ export default function LandingScreen() {
 
   return (
     <ImageBackground
-      source={require('../assets/images/wood_bg.png')}
+      source={require('../assets/images/tool_background.png')}
       style={styles.background}
       resizeMode="repeat"
     >
