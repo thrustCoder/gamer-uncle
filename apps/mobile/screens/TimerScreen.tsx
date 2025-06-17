@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import BackButton from '../components/BackButton';
 import { timerStyles as styles } from '../styles/timerStyles';
 import { Dimensions } from 'react-native';
+import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
 const MAX_SECONDS = 600; // 10 minutes maximum
@@ -49,18 +50,18 @@ export default function TimerScreen() {
     return () => clearInterval(intervalRef.current!);
   }, [isRunning, isPaused]);
 
-  const handleTimerComplete = () => {
+  const handleTimerComplete = async () => {
     // Vibration
     Vibration.vibrate([0, 500, 200, 500]);
     
-    // System sound (iOS only)
-    if (Platform.OS === 'ios') {
-        // You can use different system sound IDs
-        // 1007 = SMS received, 1016 = tweet sent, etc.
-        const SystemSounds = require('react-native').NativeModules.SystemSounds;
-        if (SystemSounds) {
-        SystemSounds.playSystemSound(1007);
-        }
+    // Play bell sound
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/sounds/bell-ring.mp3')
+      );
+      await sound.playAsync();
+    } catch (error) {
+      console.warn('Sound playback error:', error);
     }
 
     // Pulse animation

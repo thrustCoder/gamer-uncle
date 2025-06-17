@@ -165,7 +165,7 @@ namespace GamerUncle.Functions
         
         [Function("GameSyncTimerTrigger")]
         public async Task GameSyncTimerTrigger(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 6 * * *")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 1 * * 1,3,5")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
