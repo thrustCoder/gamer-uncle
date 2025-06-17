@@ -11,6 +11,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-masked-view/masked-view": "github:react-native-masked-view/masked-view",
+    "@react-native-picker/picker": "2.11.0",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/stack": "^7.3.3",
     "axios": "^1.9.0",
@@ -27,12 +28,12 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
-    "react-native-web": "^0.20.0",
-    "@react-native-picker/picker": "2.11.0"
+    "react-native-web": "^0.20.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "@types/react-native": "^0.73.0",
     "typescript": "~5.8.3"
   },
   "private": true
