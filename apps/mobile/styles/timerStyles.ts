@@ -14,6 +14,7 @@ export const timerStyles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     backgroundColor: 'transparent',
+    marginTop: 50, // Adjusted for better spacing
   },
   title: {
     fontSize: 70,

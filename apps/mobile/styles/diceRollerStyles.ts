@@ -15,7 +15,7 @@ export const diceRollerStyles = StyleSheet.create({
     backgroundColor: '#4e3b78',
     borderRadius: 20,
     padding: 10,
-    marginTop: 100,
+    marginTop: 150,
   },
   toggleBtn: {
     paddingHorizontal: 20,
