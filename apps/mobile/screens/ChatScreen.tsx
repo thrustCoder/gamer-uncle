@@ -58,6 +58,7 @@ export default function ChatScreen() {
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
   // Auto-scroll to bottom when new messages are added
@@ -81,7 +82,15 @@ export default function ChatScreen() {
     };
     
     setMessages(prev => [...prev, userMessageObj]);
+    
+    // More aggressive input clearing for button press
     setInput('');
+    textInputRef.current?.clear(); // Add this line
+    textInputRef.current?.blur();
+    setTimeout(() => {
+      textInputRef.current?.focus();
+    }, 100);
+    
     setIsLoading(true);
 
     // Add typing indicator
@@ -183,16 +192,16 @@ export default function ChatScreen() {
 
           <View style={styles.inputBar}>
             <TextInput
+              ref={textInputRef}
               value={input}
               onChangeText={setInput}
-              onKeyPress={handleKeyPress}
               placeholder="Message"
               placeholderTextColor="#ddd"
               style={styles.input}
               editable={!isLoading}
-              multiline
               maxLength={500}
-              blurOnSubmit={false}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
             />
             <TouchableOpacity 
               onPress={handleSend} 
@@ -202,6 +211,7 @@ export default function ChatScreen() {
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>
           </View>
+
         </View>
 
       </ImageBackground>

@@ -23,10 +23,10 @@ export const landingStyles = StyleSheet.create({
     height: isLandscape
       ? screenHeight * 0.7 // Larger percentage for landscape devices
       : isTablet 
-        ? screenHeight * 0.45 // Smaller percentage for tablets in portrait
+        ? screenHeight * 0.55 // Smaller percentage for tablets in portrait
         : screenHeight < 740 
-          ? screenHeight * 0.45 // Reduced for small phones
-          : screenHeight * 0.3, // Standard for regular phones
+          ? screenHeight * 0.55 // Reduced for small phones
+          : screenHeight * 0.4, // Standard for regular phones
     marginTop: isLandscape
       ? 30 // Moderate top margin for landscape devices
       : isTablet 
@@ -34,7 +34,7 @@ export const landingStyles = StyleSheet.create({
         : screenHeight < 740 
           ? 105 // Increased for small phones like iPhone SE
           : 140, // Standard for regular phones
-    marginBottom: 10, // Increased bottom margin
+    marginBottom: 0, // Increased bottom margin
     marginHorizontal: 0,
     marginLeft: 0,
     paddingHorizontal: 0,
@@ -44,7 +44,7 @@ export const landingStyles = StyleSheet.create({
     flexWrap: isLandscape ? 'nowrap' : 'wrap', // Single row in landscape
     justifyContent: isLandscape ? 'space-around' : 'space-around',
     marginHorizontal: 10,
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 10, // Increased bottom padding
   },
   iconButtonTurn: {
