@@ -88,9 +88,6 @@ export default function TimerScreen() {
       }),
     ]).start();
 
-    // Audio alert (using Alert as audio substitute)
-    Alert.alert('⏰ Timer Complete!', 'Your timer has finished!');
-    
     setIsRunning(false);
     setIsPaused(false);
     setShowStartButton(false);

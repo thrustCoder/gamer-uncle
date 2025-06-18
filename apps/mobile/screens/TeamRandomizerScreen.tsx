@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   ImageBackground,
   FlatList,
+  Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
@@ -28,6 +28,42 @@ export default function TeamRandomizerScreen() {
     const updated = [...playerNames];
     updated[index] = name;
     setPlayerNames(updated);
+  };
+
+  const showPlayerCountPicker = () => {
+    Alert.alert(
+      "Select Number of Players",
+      "",
+      [
+        ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => ({
+          text: `${i + 2}`,
+          onPress: () => {
+            const newCount = i + 2;
+            setPlayerCount(newCount);
+            setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
+            setTeamCount(Math.min(teamCount, Math.floor(newCount / 2)));
+          }
+        })),
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const showTeamCountPicker = () => {
+    const maxTeams = Math.floor(playerCount / 2);
+    if (maxTeams < 2) return;
+    
+    Alert.alert(
+      "Select Number of Teams",
+      "",
+      [
+        ...Array.from({ length: maxTeams - 1 }, (_, i) => ({
+          text: `${i + 2}`,
+          onPress: () => setTeamCount(i + 2)
+        })),
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
   };
 
   const randomizeTeams = async () => {
@@ -54,18 +90,32 @@ export default function TeamRandomizerScreen() {
       <View style={styles.container}>
         <View style={styles.inlineRow}>
           <Text style={styles.title}>Number of players</Text>
-          <Picker
-            selectedValue={playerCount}
-            style={styles.inlinePicker}
-            onValueChange={(itemValue) => {
-              setPlayerCount(itemValue);
-              setPlayerNames(Array.from({ length: itemValue }, (_, i) => `P${i + 1}`));
-              setTeamCount(Math.min(teamCount, Math.floor(itemValue / 2)));
+          <TouchableOpacity 
+            onPress={showPlayerCountPicker}
+            style={{ 
+              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              borderRadius: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              width: 80,
+              height: 50,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: '#fbe8c9',
+            }}
+          >
+            <Text style={{
+              color: '#fbe8c9',
+              fontSize: 18,
+              fontWeight: 'bold',
             }}>
-            {Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => i + 2).map((n) => (
-              <Picker.Item label={`${n}`} value={n} key={n} />
-            ))}
-          </Picker>
+              {playerCount}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {playerCount < 7 && (
@@ -83,14 +133,32 @@ export default function TeamRandomizerScreen() {
 
         <View style={styles.inlineRow}>
           <Text style={styles.title}>Number of teams</Text>
-          <Picker
-            selectedValue={teamCount}
-            style={styles.inlinePicker}
-            onValueChange={(itemValue) => setTeamCount(itemValue)}>
-            {Array.from({ length: Math.floor(playerCount / 2) - 1 }, (_, i) => i + 2).map((n) => (
-              <Picker.Item label={`${n}`} value={n} key={n} />
-            ))}
-          </Picker>
+          <TouchableOpacity 
+            onPress={showTeamCountPicker}
+            style={{ 
+              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              borderRadius: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              width: 80,
+              height: 50,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: '#fbe8c9',
+            }}
+          >
+            <Text style={{
+              color: '#fbe8c9',
+              fontSize: 18,
+              fontWeight: 'bold',
+            }}>
+              {teamCount}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={[styles.randomizeButton, { width: '98%', marginHorizontal: '1%' }]} onPress={randomizeTeams}>

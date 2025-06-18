@@ -3,13 +3,13 @@ import { StyleSheet } from 'react-native';
 export const backButtonStyles = StyleSheet.create({
   backButton: {
     position: 'absolute',
-    top: 10, // Moved down to avoid overlapping with title
-    left: 10,
+    top: 60, // Moved down to avoid overlapping with title
+    left: 20,
     zIndex: 10,
     backgroundColor: '#D68F20', // Slightly more opaque
     borderRadius: 25, // Increased for larger button
-    width: 30, // Increased width
-    height: 30, // Increased height
+    width: 40, // Increased width
+    height: 40, // Increased height
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -23,7 +23,7 @@ export const backButtonStyles = StyleSheet.create({
     color: '#fbe8c9', // Yellow color matching your theme
     fontWeight: '900', // Much thicker/bolder
     lineHeight: 30, // Ensure proper alignment
-    marginTop: -6, // Adjusted to center vertically
+    marginTop: 5, // Adjusted to center vertically
     textAlign: 'center', // Center the arrow
   },
 });

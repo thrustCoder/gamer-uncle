@@ -161,7 +161,6 @@ export default function ChatScreen() {
 
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Explore Games</Text>
             <Image source={require('../assets/images/uncle_avatar.png')} style={styles.avatar} />
           </View>
 

@@ -9,17 +9,13 @@ export const chatStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
+    marginTop: 50,
   },
   header: {
     alignItems: 'center',
     paddingTop: 35,
     paddingBottom: 10,
     backgroundColor: 'transparent',
-  },
-  title: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#fbe8c9',
   },
   avatar: {
     width: 150,
