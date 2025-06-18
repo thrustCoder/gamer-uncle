@@ -134,3 +134,14 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# macOS system files
+.DS_Store
+
+# Expo local state
+.expo/
+
+# Expo-specific log and packager files
+.expo-shared/
+.expo/*
+.expo/*
