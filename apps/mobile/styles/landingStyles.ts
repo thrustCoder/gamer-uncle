@@ -23,37 +23,37 @@ export const landingStyles = StyleSheet.create({
     height: isLandscape
       ? screenHeight * 0.7 // Larger percentage for landscape devices
       : isTablet 
-        ? screenHeight * 0.45 // Smaller percentage for tablets in portrait
+        ? screenHeight * 0.55 // Smaller percentage for tablets in portrait
         : screenHeight < 740 
-          ? screenHeight * 0.45 // Reduced for small phones
-          : screenHeight * 0.3, // Standard for regular phones
+          ? screenHeight * 0.55 // Reduced for small phones
+          : screenHeight * 0.4, // Standard for regular phones
     marginTop: isLandscape
-      ? 20 // Moderate top margin for landscape devices
+      ? 30 // Moderate top margin for landscape devices
       : isTablet 
-        ? 20 // Larger top margin for tablets (status bar + safe area)
+        ? 110 // Larger top margin for tablets (status bar + safe area)
         : screenHeight < 740 
-          ? 15 // Increased for small phones like iPhone SE
-          : 50, // Standard for regular phones
-    marginBottom: 10, // Increased bottom margin
+          ? 105 // Increased for small phones like iPhone SE
+          : 140, // Standard for regular phones
+    marginBottom: 0, // Increased bottom margin
     marginHorizontal: 0,
-    marginLeft: 10,
+    marginLeft: 0,
     paddingHorizontal: 0,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: isLandscape ? 'nowrap' : 'wrap', // Single row in landscape
-    justifyContent: isLandscape ? 'space-around' : 'space-between',
+    justifyContent: isLandscape ? 'space-around' : 'space-around',
     marginHorizontal: 10,
-    paddingTop: 10,
+    paddingTop: 0,
     paddingBottom: 10, // Increased bottom padding
   },
   iconButtonTurn: {
-    width: 167,
-    height: 167,
+    width: 166,
+    height: 166,
     aspectRatio: 1,
     borderRadius: 24,
     overflow: 'hidden',
-    marginLeft: 5
+    marginLeft: 18
   },
   iconButtonTeam: {
     width: 160,
@@ -62,7 +62,7 @@ export const landingStyles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginTop: 5,
-    marginRight: 5
+    marginRight: 16
   },
   iconButtonDice: {
     width: 128,
@@ -85,6 +85,5 @@ export const landingStyles = StyleSheet.create({
   iconFull: {
     width: '100%',
     height: '100%',
-    // borderRadius: 24,
   },
 });

@@ -8,8 +8,8 @@ import {
   Platform,
   Animated,
   ImageBackground,
+  Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
@@ -39,11 +39,31 @@ export default function TurnSelectorScreen() {
     }, 100);
   };
 
+  const showPlayerCountPicker = () => {
+    const options = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => `${i + 2} Players`);
+    
+    Alert.alert(
+      "Select Number of Players",
+      "",
+      [
+        ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => ({
+          text: `${i + 2}`,
+          onPress: () => {
+            const newCount = i + 2;
+            setPlayerCount(newCount);
+            setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
+          }
+        })),
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
   return (
     <ImageBackground 
       source={require('../assets/images/tool_background.png')} 
-      style={styles.container}
-      resizeMode="contain"
+      style={[styles.container, { flex: 1 }]}
+      resizeMode="cover"
     >
       <BackButton />
 
@@ -55,48 +75,44 @@ export default function TurnSelectorScreen() {
           marginBottom: 20 
         }}>
           <Text style={[styles.label, { 
-            fontSize: 23, 
+            fontSize: 25, 
             color: '#fbe8c9', 
             flex: 1, 
             fontWeight: 'bold',
             textShadowColor: '#000',
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
-            marginRight: 20,
-            marginLeft: 5,
+            marginRight: 0,
+            marginLeft: 20,
           }]}>Number of players</Text>
-          <View style={{ 
-            backgroundColor: 'rgba(139, 69, 19, 0.8)', 
-            borderRadius: 12,
-            overflow: 'hidden',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-            width: 50,
-            alignItems: 'center'
-          }}>
-            <Picker
-              selectedValue={playerCount}
-              style={{ 
-                color: '#5e5a5a', 
-                fontSize: 18, 
-                height: 50, 
-                width: 50
-              }}
-              itemStyle={{ fontSize: 18 }}
-              mode="dropdown"
-              dropdownIconColor="#fbe8c9"
-              onValueChange={(value) => {
-                setPlayerCount(value);
-                setPlayerNames(Array.from({ length: value }, (_, i) => `P${i + 1}`));
-              }}>
-              {Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => (
-                <Picker.Item key={i} label={`${i + 2}`} value={i + 2} />
-              ))}
-            </Picker>
-          </View>
+
+          <TouchableOpacity 
+            onPress={showPlayerCountPicker}
+            style={{ 
+              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              borderRadius: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              width: 80,
+              height: 50,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 2,
+              borderColor: '#fbe8c9',
+            }}
+          >
+            <Text style={{
+              color: '#fbe8c9',
+              fontSize: 18,
+              fontWeight: 'bold',
+            }}>
+              {playerCount}
+            </Text>
+          </TouchableOpacity>
+
         </View>
 
         {playerCount <= 6 && (

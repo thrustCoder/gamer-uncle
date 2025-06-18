@@ -127,7 +127,7 @@ namespace GamerUncle.Api.Services.AgentService
         private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
         {
             PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
-        
+
             PersistentAgentThread thread;
             try
             {
@@ -147,10 +147,11 @@ namespace GamerUncle.Api.Services.AgentService
                 Console.WriteLine($"Error retrieving thread {threadId}: {ex.Message}. Creating new thread.");
                 thread = _agentsClient.Threads.CreateThread();
             }
-        
+
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));
+
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
-        
+
             int pollCount = 0;
             do
             {
@@ -158,11 +159,47 @@ namespace GamerUncle.Api.Services.AgentService
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
-        
+
             var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
             var lastMessage = messagesResult.LastOrDefault();
             var response = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
-            
+
+            // Add this section to handle JSON responses
+            if (!string.IsNullOrEmpty(response))
+            {
+                // Check if the response is JSON and extract the actual content
+                try
+                {
+                    // Try to parse as JSON first
+                    var jsonDoc = JsonDocument.Parse(response);
+
+                    // If it's a messages array, extract the content
+                    if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
+                    {
+                        foreach (var message in messagesProperty.EnumerateArray())
+                        {
+                            if (message.TryGetProperty("role", out var role) &&
+                                role.GetString() == "assistant" &&
+                                message.TryGetProperty("content", out var content))
+                            {
+                                response = content.GetString();
+                                break;
+                            }
+                        }
+                    }
+                    // If it's a direct content object
+                    else if (jsonDoc.RootElement.TryGetProperty("content", out var directContent))
+                    {
+                        response = directContent.GetString();
+                    }
+                }
+                catch (JsonException)
+                {
+                    // If it's not JSON, use the response as-is
+                    // This is the expected case for normal text responses
+                }
+            }
+
             return (response, thread.Id);
         }
 
