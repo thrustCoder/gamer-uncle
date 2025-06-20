@@ -23,17 +23,17 @@ export const landingStyles = StyleSheet.create({
     height: isLandscape
       ? screenHeight * 0.7 // Larger percentage for landscape devices
       : isTablet 
-        ? screenHeight * 0.55 // Smaller percentage for tablets in portrait
+        ? screenHeight * 0.7 // Smaller percentage for tablets in portrait
         : screenHeight < 740 
           ? screenHeight * 0.55 // Reduced for small phones
           : screenHeight * 0.4, // Standard for regular phones
     marginTop: isLandscape
       ? 30 // Moderate top margin for landscape devices
       : isTablet 
-        ? 110 // Larger top margin for tablets (status bar + safe area)
+        ? 100 // Larger top margin for tablets (status bar + safe area)
         : screenHeight < 740 
-          ? 105 // Increased for small phones like iPhone SE
-          : 140, // Standard for regular phones
+          ? 95 // Increased for small phones like iPhone SE
+          : 130, // Standard for regular phones
     marginBottom: 0, // Increased bottom margin
     marginHorizontal: 0,
     marginLeft: 0,
@@ -53,7 +53,7 @@ export const landingStyles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 24,
     overflow: 'hidden',
-    marginLeft: 18
+    marginLeft: 15
   },
   iconButtonTeam: {
     width: 160,
@@ -62,7 +62,7 @@ export const landingStyles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginTop: 5,
-    marginRight: 16
+    marginRight: 13
   },
   iconButtonDice: {
     width: 128,
@@ -70,7 +70,7 @@ export const landingStyles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 15,
     overflow: 'hidden',
-    marginLeft: 26,
+    marginLeft: 23,
     marginTop: 22
   },
   iconButtonTimer: {
@@ -80,10 +80,17 @@ export const landingStyles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginTop: 5,
-    marginRight: 5
+    marginRight: 2
   },
   iconFull: {
     width: '100%',
     height: '100%',
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#fff',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 10,
   },
 });
