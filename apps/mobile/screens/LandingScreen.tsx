@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, ImageBackground, ScrollView } from 'react-native';
+import { View, Image, TouchableOpacity, ImageBackground, ScrollView, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
+import Constants from 'expo-constants';
 
 export default function LandingScreen() {
   const navigation = useNavigation();
@@ -44,6 +45,9 @@ export default function LandingScreen() {
             <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
           </TouchableOpacity>
         </View>
+
+        <Text style={styles.versionText}>App Version: {Constants.manifest.version}</Text>
+
       </ScrollView>
     </ImageBackground>
   );
