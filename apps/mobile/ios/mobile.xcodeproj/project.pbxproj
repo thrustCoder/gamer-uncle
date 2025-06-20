@@ -9,27 +9,29 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		809364A72F76A874379DDE64 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF1D478B01E21F507E879E67 /* ExpoModulesProvider.swift */; };
-		8E20A1CA4D2FFA5A6171E95D /* libPods-mobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 79BB8ABE7792B1D8BA414C42 /* libPods-mobile.a */; };
+		99ED3F4F561BE61E1C71BA88 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE34AF8B3967432E3B3591EF /* ExpoModulesProvider.swift */; };
 		AD21D6506B01887185B1AEA1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2757CD42F98EE9BDDC1756B9 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		BE98132F476098E9958005B0 /* libPods-GamerUncle.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F404BD4E05B87D04E2BD7A39 /* libPods-GamerUncle.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07F961A680F5B00A75B9A /* Gamer Uncle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Gamer Uncle.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = mobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = mobile/Info.plist; sourceTree = "<group>"; };
 		2757CD42F98EE9BDDC1756B9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = mobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		660BB23CB5F1B5DC51B04583 /* Pods-mobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobile.release.xcconfig"; path = "Target Support Files/Pods-mobile/Pods-mobile.release.xcconfig"; sourceTree = "<group>"; };
-		79BB8ABE7792B1D8BA414C42 /* libPods-mobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		74B6AC4D4D33EB9E79639B41 /* Pods-GamerUncle.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GamerUncle.release.xcconfig"; path = "Target Support Files/Pods-GamerUncle/Pods-GamerUncle.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = mobile/SplashScreen.storyboard; sourceTree = "<group>"; };
+		BAD803AAE272A248DA5DBE38 /* Pods-GamerUncle.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GamerUncle.debug.xcconfig"; path = "Target Support Files/Pods-GamerUncle/Pods-GamerUncle.debug.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		DE34AF8B3967432E3B3591EF /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-GamerUncle/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = mobile/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* mobile-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "mobile-Bridging-Header.h"; path = "mobile/mobile-Bridging-Header.h"; sourceTree = "<group>"; };
+		F404BD4E05B87D04E2BD7A39 /* libPods-GamerUncle.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-GamerUncle.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F653D54F2F5E3FE98DBA1EEF /* Pods-mobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobile.debug.xcconfig"; path = "Target Support Files/Pods-mobile/Pods-mobile.debug.xcconfig"; sourceTree = "<group>"; };
-		FF1D478B01E21F507E879E67 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-mobile/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,22 +39,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8E20A1CA4D2FFA5A6171E95D /* libPods-mobile.a in Frameworks */,
+				BE98132F476098E9958005B0 /* libPods-GamerUncle.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		03B57E9639014B3B56F0945D /* mobile */ = {
-			isa = PBXGroup;
-			children = (
-				FF1D478B01E21F507E879E67 /* ExpoModulesProvider.swift */,
-			);
-			name = Gamer Uncle;
-			sourceTree = "<group>";
-		};
-		13B07FAE1A68108700A75B9A /* mobile */ = {
+		13B07FAE1A68108700A75B9A /* Gamer Uncle */ = {
 			isa = PBXGroup;
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
@@ -63,14 +57,14 @@
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				2757CD42F98EE9BDDC1756B9 /* PrivacyInfo.xcprivacy */,
 			);
-			name = Gamer Uncle;
+			name = "Gamer Uncle";
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				79BB8ABE7792B1D8BA414C42 /* libPods-mobile.a */,
+				F404BD4E05B87D04E2BD7A39 /* libPods-GamerUncle.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -80,8 +74,18 @@
 			children = (
 				F653D54F2F5E3FE98DBA1EEF /* Pods-mobile.debug.xcconfig */,
 				660BB23CB5F1B5DC51B04583 /* Pods-mobile.release.xcconfig */,
+				BAD803AAE272A248DA5DBE38 /* Pods-GamerUncle.debug.xcconfig */,
+				74B6AC4D4D33EB9E79639B41 /* Pods-GamerUncle.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		7F51540109EA23D52857EA63 /* GamerUncle */ = {
+			isa = PBXGroup;
+			children = (
+				DE34AF8B3967432E3B3591EF /* ExpoModulesProvider.swift */,
+			);
+			name = GamerUncle;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -94,7 +98,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* mobile */,
+				13B07FAE1A68108700A75B9A /* Gamer Uncle */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -109,7 +113,7 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* mobile.app */,
+				13B07F961A680F5B00A75B9A /* Gamer Uncle.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -126,7 +130,7 @@
 		FD52DDE65F0E40A5F8EA28BD /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				03B57E9639014B3B56F0945D /* mobile */,
+				7F51540109EA23D52857EA63 /* GamerUncle */,
 			);
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
@@ -134,9 +138,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		13B07F861A680F5B00A75B9A /* mobile */ = {
+		13B07F861A680F5B00A75B9A /* GamerUncle */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Gamer Uncle" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "GamerUncle" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
 				A54CFCCFDC68DAD4CBD55880 /* [Expo] Configure project */,
@@ -151,9 +155,9 @@
 			);
 			dependencies = (
 			);
-			name = Gamer Uncle;
-			productName = Gamer Uncle;
-			productReference = 13B07F961A680F5B00A75B9A /* mobile.app */;
+			name = GamerUncle;
+			productName = "Gamer Uncle";
+			productReference = 13B07F961A680F5B00A75B9A /* Gamer Uncle.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -169,7 +173,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Gamer Uncle" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "mobile" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -182,7 +186,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* mobile */,
+				13B07F861A680F5B00A75B9A /* GamerUncle */,
 			);
 		};
 /* End PBXProject section */
@@ -232,7 +236,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-mobile-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-GamerUncle-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -245,7 +249,7 @@
 			files = (
 			);
 			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-mobile/Pods-mobile-resources.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-GamerUncle/Pods-GamerUncle-resources.sh",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
@@ -274,7 +278,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-mobile/Pods-mobile-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-GamerUncle/Pods-GamerUncle-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		A54CFCCFDC68DAD4CBD55880 /* [Expo] Configure project */ = {
@@ -294,7 +298,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-mobile/expo-configure-project.sh\"\n";
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-GamerUncle/expo-configure-project.sh\"\n";
 		};
 		E1C0603B03D7BDA773BB140C /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -302,7 +306,7 @@
 			files = (
 			);
 			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-mobile/Pods-mobile-frameworks.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-GamerUncle/Pods-GamerUncle-frameworks.sh",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
 			name = "[CP] Embed Pods Frameworks";
@@ -311,7 +315,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-mobile/Pods-mobile-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-GamerUncle/Pods-GamerUncle-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -322,7 +326,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				809364A72F76A874379DDE64 /* ExpoModulesProvider.swift in Sources */,
+				99ED3F4F561BE61E1C71BA88 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,7 +335,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = F653D54F2F5E3FE98DBA1EEF /* Pods-mobile.debug.xcconfig */;
+			baseConfigurationReference = BAD803AAE272A248DA5DBE38 /* Pods-GamerUncle.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -357,7 +361,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.thrustCoder.gamerUncle;
-				PRODUCT_NAME = Gamer Uncle;
+				PRODUCT_NAME = "Gamer Uncle";
 				SWIFT_OBJC_BRIDGING_HEADER = "mobile/mobile-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -368,7 +372,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 660BB23CB5F1B5DC51B04583 /* Pods-mobile.release.xcconfig */;
+			baseConfigurationReference = 74B6AC4D4D33EB9E79639B41 /* Pods-GamerUncle.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -389,7 +393,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.thrustCoder.gamerUncle;
-				PRODUCT_NAME = Gamer Uncle;
+				PRODUCT_NAME = "Gamer Uncle";
 				SWIFT_OBJC_BRIDGING_HEADER = "mobile/mobile-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -524,7 +528,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Gamer Uncle" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "GamerUncle" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -533,7 +537,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Gamer Uncle" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "mobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
