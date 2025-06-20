@@ -1,6 +1,6 @@
 {
-  "name": "mobile",
-  "version": "1.0.2",
+  "name": "gamer-uncle",
+  "version": "1.0.3",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

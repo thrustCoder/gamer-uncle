@@ -95,11 +95,18 @@ export default function DiceRollerScreen() {
     );
 
     // Delay result update by 3000ms to allow animation to play
-    setTimeout(() => {
-      const newValues = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
-      setDiceValues(newValues);
-      setRolling(false);
-    }, 2000);
+    let frame = 0;
+    const interval = setInterval(() => {
+      const randomValues = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
+      setDiceValues(randomValues);
+      frame++;
+      if (frame >= 20) { // run for ~2 seconds
+        clearInterval(interval);
+        const finalValues = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
+        setDiceValues(finalValues);
+        setRolling(false);
+      }
+    }, 100);  
   };
 
   return (
