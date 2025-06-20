@@ -1,0 +1,18 @@
+{
+  "build": {
+    "production": {
+      "ios": {
+        "distribution": "store",
+        "developmentClient": false
+      }
+    }
+  },  
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "rpsingh129@gmail.com",
+        "ascAppId": "6747456645"
+      }
+    }
+  }
+}
