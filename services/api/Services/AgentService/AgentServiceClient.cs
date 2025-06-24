@@ -75,34 +75,34 @@ namespace GamerUncle.Api.Services.AgentService
 
                 // Step 5: Create and run agent thread
                 var (response, currentThreadId) = await RunAgentWithMessagesAsync(requestPayload, threadId);
-                
-                return new AgentResponse
+                  return new AgentResponse
                 {
-                    ResponseText = response ?? "No response from agent.",
+                    ResponseText = response ?? "Oops! It seems I didn't get a response from my brain 🤖 Let's try that again - I'm usually much better at this!",
                     ThreadId = currentThreadId,
                     MatchingGamesCount = matchingGames.Count
                 };
-            }
-            catch (Exception ex)
+            }            catch (Exception ex)
             {
                 return new AgentResponse
                 {
-                    ResponseText = $"Error: {ex.Message}",
+                    ResponseText = $"Whoops! Something unexpected happened while I was searching for games: {ex.Message}. Don't worry though - let's give it another shot! 🎲",
                     ThreadId = null,
                     MatchingGamesCount = 0
                 };
             }
-        }
-
-        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
+        }        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
         {
             var messages = new[]
             {
                 new {
                     role = "system",
-                    content = @"Extract relevant game filter parameters from the following user request and return as a JSON object using these fields: 
+                    content = @"You are a criteria extraction service. Extract relevant game filter parameters from the following user request and return ONLY a valid JSON object using these fields: 
                                 name, MinPlayers, MaxPlayers, MinPlaytime, MaxPlaytime, Mechanics (array), Categories (array), MaxWeight, averageRating, 
-                                ageRequirement. Remember the following rules:
+                                ageRequirement. 
+                                
+                                CRITICAL: Your response must be ONLY valid JSON with no additional text, explanations, or formatting.
+                                
+                                Rules:
                                 1. If a field is not mentioned, it should be null or omitted.
                                 2. If a field is mentioned but not specified, it should be null.
                                 3. If a field is mentioned with a count of players range (e.g., '2-4 players'), use the min and max values.
@@ -119,12 +119,20 @@ namespace GamerUncle.Api.Services.AgentService
             };
 
             var requestPayload = new { messages };
-            var (json, _) = await RunAgentWithMessagesAsync(requestPayload, sessionId);
+            
+            // Use a direct agent call for criteria extraction, bypassing the JSON format modification
+            var (json, _) = await RunAgentForCriteriaExtractionAsync(requestPayload, sessionId);
 
-            return JsonSerializer.Deserialize<GameQueryCriteria>(json ?? "{}") ?? new GameQueryCriteria();
-        }
-
-        private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
+            try
+            {
+                return JsonSerializer.Deserialize<GameQueryCriteria>(json ?? "{}") ?? new GameQueryCriteria();
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"Failed to parse criteria JSON: {json}. Error: {ex.Message}");
+                return new GameQueryCriteria();
+            }
+        }private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
         {
             PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
 
@@ -148,6 +156,56 @@ namespace GamerUncle.Api.Services.AgentService
                 thread = _agentsClient.Threads.CreateThread();
             }
 
+            // Modify the request payload to include instructions for JSON response format
+            var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
+            
+            _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
+
+            ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
+
+            int pollCount = 0;
+            do
+            {
+                await Task.Delay(500);
+                run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
+                pollCount++;
+            } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
+
+            var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
+            var lastMessage = messagesResult.LastOrDefault();
+            var rawResponse = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+
+            // Extract the actual response content and ensure it's valid
+            var response = ExtractAndValidateResponse(rawResponse);
+
+            return (response, thread.Id);
+        }
+
+        private async Task<(string? response, string threadId)> RunAgentForCriteriaExtractionAsync(object requestPayload, string? threadId)
+        {
+            PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
+
+            PersistentAgentThread thread;
+            try
+            {
+                if (!string.IsNullOrEmpty(threadId))
+                {
+                    Console.WriteLine($"Using existing thread for criteria extraction: {threadId}");
+                    thread = _agentsClient.Threads.GetThread(threadId);
+                }
+                else
+                {
+                    Console.WriteLine("Creating new thread for criteria extraction");
+                    thread = _agentsClient.Threads.CreateThread();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving thread {threadId}: {ex.Message}. Creating new thread.");
+                thread = _agentsClient.Threads.CreateThread();
+            }
+
+            // For criteria extraction, use the payload as-is without modification
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));
 
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
@@ -162,45 +220,72 @@ namespace GamerUncle.Api.Services.AgentService
 
             var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
             var lastMessage = messagesResult.LastOrDefault();
-            var response = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+            var rawResponse = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
 
-            // Add this section to handle JSON responses
-            if (!string.IsNullOrEmpty(response))
-            {
-                // Check if the response is JSON and extract the actual content
-                try
-                {
-                    // Try to parse as JSON first
-                    var jsonDoc = JsonDocument.Parse(response);
-
-                    // If it's a messages array, extract the content
-                    if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
-                    {
-                        foreach (var message in messagesProperty.EnumerateArray())
-                        {
-                            if (message.TryGetProperty("role", out var role) &&
-                                role.GetString() == "assistant" &&
-                                message.TryGetProperty("content", out var content))
-                            {
-                                response = content.GetString();
-                                break;
-                            }
-                        }
-                    }
-                    // If it's a direct content object
-                    else if (jsonDoc.RootElement.TryGetProperty("content", out var directContent))
-                    {
-                        response = directContent.GetString();
-                    }
-                }
-                catch (JsonException)
-                {
-                    // If it's not JSON, use the response as-is
-                    // This is the expected case for normal text responses
-                }
-            }
+            // For criteria extraction, expect JSON response and extract it properly
+            var response = ExtractCriteriaJsonResponse(rawResponse);
 
             return (response, thread.Id);
+        }
+
+        private string? ExtractCriteriaJsonResponse(string? rawResponse)
+        {
+            if (string.IsNullOrEmpty(rawResponse))
+                return "{}";
+
+            try
+            {
+                // Try to parse as JSON to see if it's a structured response
+                var jsonDoc = JsonDocument.Parse(rawResponse);
+                
+                // If it's a messages array, extract the assistant's content
+                if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
+                {
+                    foreach (var message in messagesProperty.EnumerateArray())
+                    {
+                        if (message.TryGetProperty("role", out var role) &&
+                            role.GetString() == "assistant" &&
+                            message.TryGetProperty("content", out var content))
+                        {
+                            return content.GetString();
+                        }
+                    }
+                }
+                // If it's a direct content object
+                else if (jsonDoc.RootElement.TryGetProperty("content", out var directContent))
+                {
+                    return directContent.GetString();
+                }
+                
+                // If it's already valid JSON that looks like criteria, return as-is
+                return rawResponse;
+            }
+            catch (JsonException)
+            {
+                // If it's not JSON, try to extract JSON from the text
+                // Look for JSON patterns in the response
+                var jsonStart = rawResponse.IndexOf('{');
+                var jsonEnd = rawResponse.LastIndexOf('}');
+                
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    var potentialJson = rawResponse.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    try
+                    {
+                        // Validate it's proper JSON
+                        JsonDocument.Parse(potentialJson);
+                        return potentialJson;
+                    }
+                    catch (JsonException)
+                    {
+                        // If extraction failed, return empty criteria
+                        return "{}";
+                    }
+                }
+                
+                // If no JSON found, return empty criteria
+                return "{}";
+            }
         }
 
         // Converts games to plain text
@@ -221,6 +306,141 @@ namespace GamerUncle.Api.Services.AgentService
                 sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight})");
             }
             return sb.ToString();
+        }
+
+        private object ModifyPayloadForJsonResponse(object requestPayload)
+        {
+            // Extract the messages from the payload
+            var payloadType = requestPayload.GetType();
+            var messagesProperty = payloadType.GetProperty("messages");
+            var messages = messagesProperty?.GetValue(requestPayload) as IEnumerable<object>;
+            
+            if (messages == null)
+                return requestPayload;
+
+            var messagesList = messages.ToList();
+            
+            // Find if there's already a system message
+            bool hasSystemMessage = false;
+            for (int i = 0; i < messagesList.Count; i++)
+            {
+                var message = messagesList[i];
+                var messageType = message.GetType();
+                var roleProperty = messageType.GetProperty("role");
+                var role = roleProperty?.GetValue(message)?.ToString();
+                  if (role == "system")
+                {
+                    hasSystemMessage = true;
+                    // Modify existing system message to include JSON instruction and friendly tone
+                    var contentProperty = messageType.GetProperty("content");
+                    var existingContent = contentProperty?.GetValue(message)?.ToString() ?? "";
+                    var newContent = existingContent + @"
+
+IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria. 
+
+TONE & STYLE: Be friendly, warm, and playful in your responses! You're Gamer Uncle - a enthusiastic board game expert who loves helping people discover amazing games. Use:
+- Warm, welcoming language (""Oh, you're going to love..."", ""I have just the perfect games for you!"")
+- Excitement about games (""This one is absolutely fantastic!"", ""You're in for a treat!"")
+- Personal touches (""Trust me on this one"", ""One of my all-time favorites"")
+- Playful expressions (""Get ready for some serious fun!"", ""This will have you on the edge of your seat!"")
+- Show genuine enthusiasm for helping people find their next favorite game
+- Make recommendations feel personal and exciting, not just informational";
+                    
+                    messagesList[i] = new { role = "system", content = newContent };
+                    break;
+                }
+            }
+              // If no system message exists, add one
+            if (!hasSystemMessage)
+            {
+                messagesList.Insert(0, new 
+                { 
+                    role = "system", 
+                    content = @"You are Gamer Uncle - a friendly, enthusiastic board game expert who absolutely loves helping people discover amazing games!
+
+IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria.
+
+TONE & STYLE: Be friendly, warm, and playful in your responses! Use:
+- Warm, welcoming language (""Oh, you're going to love..."", ""I have just the perfect games for you!"")
+- Excitement about games (""This one is absolutely fantastic!"", ""You're in for a treat!"")
+- Personal touches (""Trust me on this one"", ""One of my all-time favorites"")
+- Playful expressions (""Get ready for some serious fun!"", ""This will have you on the edge of your seat!"")
+- Show genuine enthusiasm for helping people find their next favorite game
+- Make recommendations feel personal and exciting, not just informational
+
+Your goal is to make every interaction feel like chatting with a knowledgeable friend who can't wait to share their passion for board games!" 
+                });
+            }
+            
+            return new { messages = messagesList };
+        }
+
+        private string? ExtractAndValidateResponse(string? rawResponse)
+        {
+            if (string.IsNullOrEmpty(rawResponse))
+                return rawResponse;
+
+            try
+            {
+                // Try to parse as JSON to see if it's a structured response
+                var jsonDoc = JsonDocument.Parse(rawResponse);
+                
+                // If it's a messages array, extract the assistant's content
+                if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
+                {
+                    foreach (var message in messagesProperty.EnumerateArray())
+                    {
+                        if (message.TryGetProperty("role", out var role) &&
+                            role.GetString() == "assistant" &&
+                            message.TryGetProperty("content", out var content))
+                        {
+                            return content.GetString();
+                        }
+                    }
+                }
+                // If it's a direct content object
+                else if (jsonDoc.RootElement.TryGetProperty("content", out var directContent))
+                {
+                    return directContent.GetString();
+                }                // Check if this looks like a criteria extraction response (only contains fields like name, MinPlayers, etc.)
+                else if (IsLikelyCriteriaResponse(jsonDoc.RootElement))
+                {
+                    // This is probably a criteria extraction response being returned as the main response
+                    // Return a user-friendly message instead
+                    return "Oh, I love helping with game recommendations! Let me find some absolutely fantastic games that are perfect for you! 🎲";
+                }
+                
+                // If we can parse it as JSON but it doesn't match expected patterns, 
+                // it might be an unwanted JSON response - return a friendly message
+                return "I'm so excited to help you discover your next favorite game! Give me just a moment to find some amazing recommendations for you! 🎯";
+            }
+            catch (JsonException)
+            {
+                // If it's not JSON, return as-is (this is the expected case for normal responses)
+                return rawResponse;
+            }
+        }
+
+        private bool IsLikelyCriteriaResponse(JsonElement element)
+        {
+            // Check if the JSON contains typical criteria fields
+            var criteriaFields = new[] { "name", "MinPlayers", "MaxPlayers", "MinPlaytime", "MaxPlaytime", "Mechanics", "Categories", "MaxWeight", "averageRating", "ageRequirement" };
+            
+            // If it has any of these fields and relatively few other fields, it's likely a criteria response
+            int criteriaFieldCount = 0;
+            int totalFieldCount = 0;
+            
+            foreach (var property in element.EnumerateObject())
+            {
+                totalFieldCount++;
+                if (criteriaFields.Contains(property.Name))
+                {
+                    criteriaFieldCount++;
+                }
+            }
+            
+            // If most fields are criteria fields, this is likely a criteria extraction response
+            return totalFieldCount > 0 && (criteriaFieldCount / (double)totalFieldCount) > 0.5;
         }
     }
 }
