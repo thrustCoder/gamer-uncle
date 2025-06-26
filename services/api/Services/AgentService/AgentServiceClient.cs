@@ -61,7 +61,11 @@ namespace GamerUncle.Api.Services.AgentService
                 }
                 else
                 {
-                    matchingGames = (await _cosmosDbService.QueryGamesAsync(criteria)).ToList();
+                    var queryResults = await _cosmosDbService.QueryGamesAsync(criteria);
+                    // Sort games by user rating in descending order (highest rated first)
+                    matchingGames = queryResults
+                        .OrderByDescending(game => game.averageRating)
+                        .ToList();
                     var ragContext = FormatGamesForRag(matchingGames);
                     messages = new[]
                     {
@@ -303,7 +307,7 @@ namespace GamerUncle.Api.Services.AgentService
 
             foreach (var game in games)
             {
-                sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight})");
+                sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight}, Rating: {game.averageRating:F1}/10)");
             }
             return sb.ToString();
         }

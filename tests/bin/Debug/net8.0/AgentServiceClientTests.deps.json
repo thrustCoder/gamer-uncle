@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "AgentServiceClientTests/1.0.0": {
+        "dependencies": {
+          "GamerUncle.Shared.Models": "1.0.0"
+        },
+        "runtime": {
+          "AgentServiceClientTests.dll": {}
+        }
+      },
+      "GamerUncle.Shared.Models/1.0.0": {
+        "runtime": {
+          "GamerUncle.Shared.Models.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "AgentServiceClientTests/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GamerUncle.Shared.Models/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -13,7 +13,7 @@ import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import BackButton from '../components/BackButton';
 
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 20;
 
 export default function TeamRandomizerScreen() {
   const [playerCount, setPlayerCount] = useState(4);
