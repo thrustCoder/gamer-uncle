@@ -16,7 +16,7 @@ import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import SpinningWheel from '../components/SpinningWheel';
 import BackButton from '../components/BackButton';
 
-const MAX_PLAYERS = 10;
+const MAX_PLAYERS = 20;
 
 export default function TurnSelectorScreen() {
   const [playerCount, setPlayerCount] = useState(4);

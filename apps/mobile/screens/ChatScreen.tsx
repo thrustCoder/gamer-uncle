@@ -159,7 +159,7 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ImageBackground
-        source={require('../assets/images/wood_bg.png')}
+        source={require('../assets/images/tool_background.png')}
         style={styles.background}
         resizeMode="repeat"
       >
