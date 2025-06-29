@@ -136,7 +136,9 @@ stages:
 
 - stage: DevDeployApi
   displayName: 'Dev Deploy Api'
-  dependsOn: DevBuild
+  dependsOn: 
+    - DevBuild
+    - DevTest
   condition: |
     and(
       succeeded(), 
@@ -183,7 +185,9 @@ stages:
 
 - stage: DevDeployFunctions
   displayName: 'Dev Deploy Functions'
-  dependsOn: DevBuild
+  dependsOn: 
+    - DevBuild
+    - DevTest
   condition: |
     and(
       succeeded(), 
@@ -315,3 +319,169 @@ stages:
                   echo "Available functions: $FUNCTIONS"
                   exit 1
                 fi
+
+- stage: Test
+  displayName: 'Run Tests'
+  jobs:
+  - job: TestJob
+    displayName: 'Run All Tests'
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet restore pipelines/tests/GamerUncle.Pipeline.Tests.csproj
+      displayName: 'Restore Pipeline Test Dependencies'
+
+    - script: dotnet test pipelines/tests/GamerUncle.Pipeline.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
+      displayName: 'Run Pipeline Tests'
+
+    - script: dotnet restore services/tests/api/GamerUncle.Api.Tests.csproj
+      displayName: 'Restore API Test Dependencies'
+
+    - script: dotnet test services/tests/api/GamerUncle.Api.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
+      displayName: 'Run API Tests'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/*.trx'
+        searchFolder: '$(Agent.TempDirectory)'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+      displayName: 'Publish Test Results'
+      condition: succeededOrFailed()
+
+- stage: DevDeployMobile
+  displayName: 'Dev Deploy Mobile'
+  dependsOn: 
+    - DevBuild
+    - DevTest
+  condition: |
+    and(
+      succeeded(), 
+      ne(variables['Build.Reason'], 'PullRequest'),
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    )
+
+  jobs:
+  - deployment: DeployMobileApp
+    displayName: 'Deploy Mobile Web App'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: dropMobile
+
+          - task: ExtractFiles@1
+            displayName: 'Extract Mobile Build'
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/dropMobile/mobile-web-build.zip'
+              destinationFolder: '$(Pipeline.Workspace)/mobile-extracted'
+              cleanDestinationFolder: true
+
+          # This step could be used to deploy to Azure Static Web Apps or similar
+          - script: |
+              echo "Mobile web build extracted to: $(Pipeline.Workspace)/mobile-extracted"
+              echo "Contents:"
+              ls -la $(Pipeline.Workspace)/mobile-extracted/
+              echo "Mobile web app is ready for deployment to hosting service"
+            displayName: 'Verify Mobile Build Extraction'
+
+          # Add actual deployment steps here when you have a hosting target
+          # Example for Azure Static Web Apps:
+          # - task: AzureStaticWebApp@0
+          #   inputs:
+          #     app_location: '$(Pipeline.Workspace)/mobile-extracted'
+          #     api_location: ''
+          #     output_location: ''
+          #     azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN)
+
+- stage: DevTest
+  displayName: 'Dev Test'
+  dependsOn: DevBuild
+  jobs:
+  - job: TestApiJob
+    displayName: 'Run API Tests'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet restore services/tests/api/GamerUncle.Api.Tests.csproj
+      displayName: 'Restore API Test Dependencies'
+
+    - script: dotnet test services/tests/api/GamerUncle.Api.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
+      displayName: 'Run API Unit Tests'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/*.trx'
+        failTaskOnFailedTests: true
+      displayName: 'Publish API Test Results'
+
+  - job: TestPipelineJob
+    displayName: 'Run Pipeline Tests'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'pipelines/'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet restore pipelines/tests/GamerUncle.Pipeline.Tests.csproj
+      displayName: 'Restore Pipeline Test Dependencies'
+
+    - script: dotnet test pipelines/tests/GamerUncle.Pipeline.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
+      displayName: 'Run Pipeline Validation Tests'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/*.trx'
+        failTaskOnFailedTests: true
+      displayName: 'Publish Pipeline Test Results'
+
+  - job: TestMobileJob
+    displayName: 'Run Mobile Tests'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        npm install
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npm run test --if-present
+      displayName: 'Run Mobile Tests'
+      continueOnError: true

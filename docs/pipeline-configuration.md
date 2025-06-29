@@ -11,6 +11,7 @@ The pipeline is configured with path-based triggers to only run relevant builds 
 - **API Builds**: Triggered when changes are made to `services/api/*`
 - **Function Builds**: Triggered when changes are made to `services/functions/*`  
 - **Mobile Builds**: Triggered when changes are made to `apps/mobile/*`
+- **Pipeline Tests**: Triggered when changes are made to `pipelines/*`
 
 ### Build Jobs
 
@@ -33,23 +34,45 @@ The pipeline is configured with path-based triggers to only run relevant builds 
 - Creates archived mobile artifacts in `dropMobile`
 - Only runs when mobile app files change
 
+### Test Jobs
+
+#### API Test Job (`TestApiJob`)
+- Runs unit tests for API components
+- Located in `services/tests/api/`
+- Publishes test results to Azure DevOps
+- Fails pipeline if tests fail
+
+#### Pipeline Test Job (`TestPipelineJob`)
+- Runs validation tests for pipeline configuration
+- Located in `pipelines/tests/`
+- Validates project structure and configuration files
+- Ensures pipeline integrity
+
+#### Mobile Test Job (`TestMobileJob`)
+- Runs mobile app tests (if configured)
+- Validates mobile dependencies and configuration
+- Uses npm test script
+
 ### Deployment Stages
 
 #### API Deployment (`DevDeployApi`)
 - Deploys API to Azure App Service
 - Configures app settings for Cosmos DB integration
 - Only runs for non-PR builds when API changes are detected
+- Depends on successful build and test completion
 
 #### Function Deployment (`DevDeployFunctions`)
 - Deploys Azure Functions to Function App
 - Configures function app settings
 - Triggers the GameSyncHttpStart function after deployment
 - Only runs for non-PR builds when Function changes are detected
+- Depends on successful build and test completion
 
 #### Mobile Deployment (`DevDeployMobile`)
 - Extracts mobile build artifacts
 - Prepared for deployment to static hosting service
 - Only runs for non-PR builds when mobile changes are detected
+- Depends on successful build and test completion
 
 ## Testing and Validation
 
@@ -133,10 +156,12 @@ npx expo export --platform web --output-dir ../../dist/mobile-web
 
 ### Testing Files
 
+- `pipelines/tests/PipelineBuildTests.cs` - C# pipeline validation tests
+- `pipelines/tests/GamerUncle.Pipeline.Tests.csproj` - Pipeline test project configuration
+- `services/tests/api/AgentServiceClientTests.cs` - API service tests
+- `services/tests/api/GamerUncle.Api.Tests.csproj` - API test project configuration
 - `pipelines/validate-pipeline.ps1` - PowerShell validation script
 - `pipelines/validate-pipeline.sh` - Bash validation script  
-- `services/tests/PipelineBuildTests.cs` - C# unit tests
-- `services/tests/GamerUncle.Pipeline.Tests.csproj` - Test project configuration
 - `.vscode/tasks-pipeline.json` - VS Code task definitions
 
 ## Pipeline Variables

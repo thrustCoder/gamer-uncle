@@ -206,6 +206,24 @@ test_pipeline_yaml() {
         return 1
     fi
     
+    # Check for test stage
+    if ! grep -q "DevTest" pipelines/azure-pipelines.yml; then
+        echo "❌ Missing test stage in pipeline"
+        return 1
+    fi
+    
+    # Check for pipeline tests
+    if [ ! -f "pipelines/tests/GamerUncle.Pipeline.Tests.csproj" ]; then
+        echo "❌ Missing pipeline test project file"
+        return 1
+    fi
+    
+    # Check for API tests  
+    if [ ! -f "services/tests/api/GamerUncle.Api.Tests.csproj" ]; then
+        echo "❌ Missing API test project file"
+        return 1
+    fi
+    
     echo "✅ Pipeline YAML validation passed"
     return 0
 }

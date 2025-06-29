@@ -46,7 +46,7 @@
             "command": "dotnet",
             "args": [
                 "test",
-                "services/tests/GamerUncle.Pipeline.Tests.csproj",
+                "pipelines/tests/GamerUncle.Pipeline.Tests.csproj",
                 "--verbosity",
                 "normal"
             ],
@@ -60,6 +60,47 @@
             },
             "problemMatcher": ["$msCompile"],
             "detail": "Run pipeline unit tests using .NET test runner"
+        },
+        {
+            "label": "test-api-unit-tests",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "services/tests/api/GamerUncle.Api.Tests.csproj",
+                "--verbosity",
+                "normal"
+            ],
+            "group": "test",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": ["$msCompile"],
+            "detail": "Run API unit tests using .NET test runner"
+        },
+        {
+            "label": "test-all-dotnet",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "--verbosity",
+                "normal"
+            ],
+            "group": "test",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": ["$msCompile"],
+            "detail": "Run all .NET tests in the solution"
         },
         {
             "label": "build-mobile-local",

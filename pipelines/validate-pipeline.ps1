@@ -217,6 +217,24 @@ function Test-PipelineYaml {
         return $false
     }
     
+    # Check for test stage
+    if ($pipelineContent -notmatch "DevTest") {
+        Write-Host "❌ Missing test stage in pipeline" -ForegroundColor Red
+        return $false
+    }
+    
+    # Check for pipeline tests
+    if (-not (Test-Path "pipelines/tests/GamerUncle.Pipeline.Tests.csproj")) {
+        Write-Host "❌ Missing pipeline test project file" -ForegroundColor Red
+        return $false
+    }
+    
+    # Check for API tests
+    if (-not (Test-Path "services/tests/api/GamerUncle.Api.Tests.csproj")) {
+        Write-Host "❌ Missing API test project file" -ForegroundColor Red
+        return $false
+    }
+    
     # Check for path-based triggers
     if ($pipelineContent -notmatch "paths:") {
         Write-Host "❌ Missing path-based triggers in pipeline" -ForegroundColor Red
