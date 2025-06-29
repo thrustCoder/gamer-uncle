@@ -13,7 +13,7 @@ export const chatStyles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 35,
+    paddingTop: 30,
     paddingBottom: 10,
     backgroundColor: 'transparent',
   },
