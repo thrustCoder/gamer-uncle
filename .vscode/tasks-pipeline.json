@@ -1,0 +1,113 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "validate-pipeline-powershell",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "./pipelines/validate-pipeline.ps1"
+            ],
+            "group": "test",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Run pipeline validation tests using PowerShell"
+        },
+        {
+            "label": "validate-pipeline-bash",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "./pipelines/validate-pipeline.sh"
+            ],
+            "group": "test",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Run pipeline validation tests using Bash"
+        },
+        {
+            "label": "test-pipeline-unit-tests",
+            "type": "shell",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "services/tests/GamerUncle.Pipeline.Tests.csproj",
+                "--verbosity",
+                "normal"
+            ],
+            "group": "test",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": ["$msCompile"],
+            "detail": "Run pipeline unit tests using .NET test runner"
+        },
+        {
+            "label": "build-mobile-local",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/apps/mobile"
+            },
+            "group": "build",
+            "isBackground": false,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Install mobile app dependencies locally"
+        },
+        {
+            "label": "export-mobile-web",
+            "type": "shell",
+            "command": "npx",
+            "args": [
+                "expo",
+                "export",
+                "--platform",
+                "web",
+                "--output-dir",
+                "../../dist/mobile-web"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/apps/mobile"
+            },
+            "group": "build",
+            "isBackground": false,
+            "dependsOn": "build-mobile-local",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Export mobile app for web deployment"
+        }
+    ]
+}

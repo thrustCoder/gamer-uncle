@@ -2,11 +2,21 @@ trigger:
   branches:
     include:
       - main
+  paths:
+    include:
+      - services/api/*
+      - services/functions/*
+      - apps/mobile/*
 
 pr:
   branches:
     include:
       - main
+  paths:
+    include:
+      - services/api/*
+      - services/functions/*
+      - apps/mobile/*
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -15,15 +25,22 @@ variables:
   buildConfiguration: 'Release'
   apiProject: 'services/api/GamerUncle.Api.csproj'
   functionAppProject: 'services/functions/GamerUncle.Function.BggSync/GamerUncle.Function.BggSync.csproj'
+  mobileProject: 'apps/mobile'
   publishOutputApiProject: '$(Build.ArtifactStagingDirectory)/publish/api'
   publishOutputFunctionProject: '$(Build.ArtifactStagingDirectory)/publish/function'
+  publishOutputMobileProject: '$(Build.ArtifactStagingDirectory)/publish/mobile'
 
 stages:
 - stage: DevBuild
   displayName: 'Dev Build'
   jobs:
-  - job: BuildJob
-    displayName: 'Build and Publish Artifacts'
+  - job: BuildApiJob
+    displayName: 'Build and Publish API Artifacts'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
     steps:
     - task: UseDotNet@2
       inputs:
@@ -32,21 +49,35 @@ stages:
         installationPath: $(Agent.ToolsDirectory)/dotnet
 
     - script: dotnet restore $(apiProject)
-      displayName: 'Restore Dependencies'
+      displayName: 'Restore API Dependencies'
 
     - script: dotnet build $(apiProject) --configuration $(buildConfiguration) --no-restore
-      displayName: 'Build Project'
+      displayName: 'Build API Project'
 
     - script: dotnet publish $(apiProject) --configuration $(buildConfiguration) --output $(publishOutputApiProject) --no-build
-      displayName: 'Publish Project'
+      displayName: 'Publish API Project'
 
     - task: PublishBuildArtifacts@1
       inputs:
         PathtoPublish: '$(publishOutputApiProject)'
         ArtifactName: 'dropApi'
 
+  - job: BuildFunctionJob
+    displayName: 'Build and Publish Function Artifacts'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'services/functions'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
     - script: dotnet restore $(functionAppProject)
-      displayName: 'Restore Dependencies'
+      displayName: 'Restore Function Dependencies'
 
     - script: dotnet build $(functionAppProject) --configuration $(buildConfiguration) --no-restore
       displayName: 'Build Function App'
@@ -59,11 +90,62 @@ stages:
         PathtoPublish: '$(publishOutputFunctionProject)'
         ArtifactName: 'dropFunction'
 
+  - job: BuildMobileJob
+    displayName: 'Build and Publish Mobile Artifacts'
+    condition: |
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        npm install
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npm run web
+      displayName: 'Build Mobile Web Bundle'
+      continueOnError: true
+
+    - script: |
+        cd $(mobileProject)
+        npx expo export --platform web --output-dir $(publishOutputMobileProject)
+      displayName: 'Export Mobile Web Build'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(publishOutputMobileProject)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/mobile-web-build.zip'
+        replaceExistingArchive: true
+      displayName: 'Archive Mobile Build'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/mobile-web-build.zip'
+        ArtifactName: 'dropMobile'
+      displayName: 'Publish Mobile Artifacts'
+
 - stage: DevDeployApi
   displayName: 'Dev Deploy Api'
   dependsOn: DevBuild
   condition: |
-    and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    and(
+      succeeded(), 
+      ne(variables['Build.Reason'], 'PullRequest'),
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    )
 
   jobs:
   - deployment: DeployWebApp
@@ -103,7 +185,14 @@ stages:
   displayName: 'Dev Deploy Functions'
   dependsOn: DevBuild
   condition: |
-    and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+    and(
+      succeeded(), 
+      ne(variables['Build.Reason'], 'PullRequest'),
+      or(
+        contains(variables['Build.SourceVersionMessage'], 'services/functions'),
+        eq(variables['Build.SourceBranchName'], 'main')
+      )
+    )
 
   jobs:
   - deployment: DeployFunctionApp
