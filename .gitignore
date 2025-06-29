@@ -144,4 +144,26 @@ dist
 # Expo-specific log and packager files
 .expo-shared/
 .expo/*
-.expo/*
+
+# .NET build output
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.cache
+*.docstates
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet packages
+*.nupkg
+packages/
+!packages/build/
+!packages/repositories.config
