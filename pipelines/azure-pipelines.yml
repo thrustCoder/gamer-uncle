@@ -6,7 +6,9 @@ trigger:
     include:
       - services/api/*
       - services/functions/*
+      - services/tests/*
       - apps/mobile/*
+      - pipelines/tests/*
 
 pr:
   branches:
@@ -16,7 +18,9 @@ pr:
     include:
       - services/api/*
       - services/functions/*
+      - services/tests/*
       - apps/mobile/*
+      - pipelines/tests/*
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -39,6 +43,7 @@ stages:
     condition: |
       or(
         contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
@@ -145,6 +150,7 @@ stages:
       ne(variables['Build.Reason'], 'PullRequest'),
       or(
         contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     )
@@ -413,6 +419,7 @@ stages:
     condition: |
       or(
         contains(variables['Build.SourceVersionMessage'], 'services/api'),
+        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
