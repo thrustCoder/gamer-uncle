@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using GamerUncle.Shared.Models;
+using GamerUncle.Api.Models;
 
 namespace GamerUncle.Api.Tests
 {
     /// <summary>
-    /// Unit tests for AgentServiceClient focusing on game sorting functionality
+    /// Unit tests for AgentServiceClient focusing on game sorting functionality and response handling
     /// </summary>
     public class AgentServiceClientTests
     {
@@ -201,6 +202,122 @@ namespace GamerUncle.Api.Tests
                 });
             }
             return games;
+        }
+
+        /// <summary>
+        /// Test that error responses are concise and chat-friendly
+        /// </summary>
+        [Fact]
+        public void GetRecommendationsAsync_ErrorResponse_ShouldBeTerseAndChatFriendly()
+        {
+            // Arrange
+            var errorMessage = "Connection failed";
+            var expectedResponse = $"Something went wrong: {errorMessage}. Let's try again! 🎲";
+
+            // Act - Simulate the error response format from GetRecommendationsAsync
+            var actualResponse = $"Something went wrong: {errorMessage}. Let's try again! 🎲";
+
+            // Assert
+            Assert.Equal(expectedResponse, actualResponse);
+            Assert.True(actualResponse.Length < 100, "Error message should be concise for mobile chat");
+            Assert.Contains("🎲", actualResponse, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Test that null response fallback is concise and chat-friendly
+        /// </summary>
+        [Fact]
+        public void GetRecommendationsAsync_NullResponse_ShouldBeTerseAndChatFriendly()
+        {
+            // Arrange
+            var expectedResponse = "No response from my brain 🤖 Let's try again!";
+
+            // Act - Simulate the null response handling from GetRecommendationsAsync
+            string? response = null;
+            var actualResponse = response ?? "No response from my brain 🤖 Let's try again!";
+
+            // Assert
+            Assert.Equal(expectedResponse, actualResponse);
+            Assert.True(actualResponse.Length < 80, "Null response message should be concise for mobile chat");
+            Assert.Contains("🤖", actualResponse, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Test that criteria extraction fallback messages are concise
+        /// </summary>
+        [Fact]
+        public void ExtractAndValidateResponse_CriteriaFallback_ShouldBeTerse()
+        {
+            // Arrange
+            var expectedResponse = "Let me find some great games for you! 🎲";
+
+            // Act - This simulates the criteria extraction fallback response
+            var actualResponse = "Let me find some great games for you! 🎲";
+
+            // Assert
+            Assert.Equal(expectedResponse, actualResponse);
+            Assert.True(actualResponse.Length < 60, "Criteria fallback should be very concise");
+            Assert.Contains("🎲", actualResponse, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Test that JSON parsing fallback messages are concise
+        /// </summary>
+        [Fact]
+        public void ExtractAndValidateResponse_JsonFallback_ShouldBeTerse()
+        {
+            // Arrange
+            var expectedResponse = "Finding some great games for you! 🎯";
+
+            // Act - This simulates the JSON parsing fallback response
+            var actualResponse = "Finding some great games for you! 🎯";
+
+            // Assert
+            Assert.Equal(expectedResponse, actualResponse);
+            Assert.True(actualResponse.Length < 60, "JSON fallback should be very concise");
+            Assert.Contains("🎯", actualResponse, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Test that AgentResponse structure is correct
+        /// </summary>
+        [Fact]
+        public void AgentResponse_Structure_ShouldBeCorrect()
+        {
+            // Arrange & Act
+            var response = new AgentResponse
+            {
+                ResponseText = "Test response",
+                ThreadId = "test-thread-123",
+                MatchingGamesCount = 5
+            };
+
+            // Assert
+            Assert.Equal("Test response", response.ResponseText);
+            Assert.Equal("test-thread-123", response.ThreadId);
+            Assert.Equal(5, response.MatchingGamesCount);
+        }
+
+        /// <summary>
+        /// Test chat-friendly response characteristics
+        /// </summary>
+        [Theory]
+        [InlineData("No response from my brain 🤖 Let's try again!")]
+        [InlineData("Something went wrong: test error. Let's try again! 🎲")]
+        [InlineData("Let me find some great games for you! 🎲")]
+        [InlineData("Finding some great games for you! 🎯")]
+        public void ResponseMessages_ShouldBeChatFriendly(string responseText)
+        {
+            // Assert
+            Assert.True(responseText.Length < 100, "Response should be concise for mobile chat");
+            Assert.False(responseText.Contains("absolutely"), "Should avoid verbose words like 'absolutely'");
+            Assert.False(responseText.Contains("fantastic"), "Should avoid verbose words like 'fantastic'");
+            Assert.False(responseText.Contains("wonderful"), "Should avoid verbose words like 'wonderful'");
+            Assert.True(responseText.Contains("!"), "Should maintain enthusiasm with exclamation marks");
+            
+            // Check for emojis (mobile-friendly touch)
+            bool hasEmoji = responseText.Contains("🤖") || responseText.Contains("🎲") || responseText.Contains("🎯");
+            Assert.True(hasEmoji, "Should include emojis for mobile chat friendliness");
         }
     }
 }

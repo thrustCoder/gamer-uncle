@@ -79,9 +79,9 @@ namespace GamerUncle.Api.Services.AgentService
 
                 // Step 5: Create and run agent thread
                 var (response, currentThreadId) = await RunAgentWithMessagesAsync(requestPayload, threadId);
-                  return new AgentResponse
+                return new AgentResponse
                 {
-                    ResponseText = response ?? "Oops! It seems I didn't get a response from my brain 🤖 Let's try that again - I'm usually much better at this!",
+                    ResponseText = response ?? "No response from my brain 🤖 Let's try again!",
                     ThreadId = currentThreadId,
                     MatchingGamesCount = matchingGames.Count
                 };
@@ -89,12 +89,14 @@ namespace GamerUncle.Api.Services.AgentService
             {
                 return new AgentResponse
                 {
-                    ResponseText = $"Whoops! Something unexpected happened while I was searching for games: {ex.Message}. Don't worry though - let's give it another shot! 🎲",
+                    ResponseText = $"Something went wrong: {ex.Message}. Let's try again! 🎲",
                     ThreadId = null,
                     MatchingGamesCount = 0
                 };
             }
-        }        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
+        }
+
+        private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
         {
             var messages = new[]
             {
@@ -123,7 +125,7 @@ namespace GamerUncle.Api.Services.AgentService
             };
 
             var requestPayload = new { messages };
-            
+
             // Use a direct agent call for criteria extraction, bypassing the JSON format modification
             var (json, _) = await RunAgentForCriteriaExtractionAsync(requestPayload, sessionId);
 
@@ -136,7 +138,9 @@ namespace GamerUncle.Api.Services.AgentService
                 Console.WriteLine($"Failed to parse criteria JSON: {json}. Error: {ex.Message}");
                 return new GameQueryCriteria();
             }
-        }private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
+        }
+
+        private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
         {
             PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
 
@@ -162,7 +166,7 @@ namespace GamerUncle.Api.Services.AgentService
 
             // Modify the request payload to include instructions for JSON response format
             var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
-            
+
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
 
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
@@ -342,13 +346,13 @@ namespace GamerUncle.Api.Services.AgentService
 
 IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria. 
 
-TONE & STYLE: Be friendly, warm, and playful in your responses! You're Gamer Uncle - a enthusiastic board game expert who loves helping people discover amazing games. Use:
-- Warm, welcoming language (""Oh, you're going to love..."", ""I have just the perfect games for you!"")
-- Excitement about games (""This one is absolutely fantastic!"", ""You're in for a treat!"")
-- Personal touches (""Trust me on this one"", ""One of my all-time favorites"")
-- Playful expressions (""Get ready for some serious fun!"", ""This will have you on the edge of your seat!"")
-- Show genuine enthusiasm for helping people find their next favorite game
-- Make recommendations feel personal and exciting, not just informational";
+TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board game expert. Keep responses concise and chat-friendly for mobile users:
+- Use shorter, punchy sentences
+- Get straight to the recommendations 
+- Keep descriptions brief but enthusiastic
+- Use casual language (""Great pick!"", ""Perfect for..."", ""Try this one"")
+- Focus on 2-3 key details per game (players, time, why it's good)
+- Avoid long explanations - mobile users want quick, actionable advice";
                     
                     messagesList[i] = new { role = "system", content = newContent };
                     break;
@@ -360,19 +364,19 @@ TONE & STYLE: Be friendly, warm, and playful in your responses! You're Gamer Unc
                 messagesList.Insert(0, new 
                 { 
                     role = "system", 
-                    content = @"You are Gamer Uncle - a friendly, enthusiastic board game expert who absolutely loves helping people discover amazing games!
+                    content = @"You are Gamer Uncle - a friendly board game expert who helps people find great games quickly!
 
 IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria.
 
-TONE & STYLE: Be friendly, warm, and playful in your responses! Use:
-- Warm, welcoming language (""Oh, you're going to love..."", ""I have just the perfect games for you!"")
-- Excitement about games (""This one is absolutely fantastic!"", ""You're in for a treat!"")
-- Personal touches (""Trust me on this one"", ""One of my all-time favorites"")
-- Playful expressions (""Get ready for some serious fun!"", ""This will have you on the edge of your seat!"")
-- Show genuine enthusiasm for helping people find their next favorite game
-- Make recommendations feel personal and exciting, not just informational
+TONE & STYLE: Be helpful and concise for mobile chat users:
+- Keep responses short and scannable
+- Lead with your best 2-3 game recommendations
+- Use bullet points or short paragraphs
+- Focus on key details: players, time, and why it's good
+- Be enthusiastic but brief (""Great choice!"", ""Perfect for groups!"")
+- Avoid long explanations - give quick, actionable advice
 
-Your goal is to make every interaction feel like chatting with a knowledgeable friend who can't wait to share their passion for board games!" 
+Your goal is to quickly help users discover their next favorite game with concise, mobile-friendly recommendations!" 
                 });
             }
             
@@ -411,12 +415,12 @@ Your goal is to make every interaction feel like chatting with a knowledgeable f
                 {
                     // This is probably a criteria extraction response being returned as the main response
                     // Return a user-friendly message instead
-                    return "Oh, I love helping with game recommendations! Let me find some absolutely fantastic games that are perfect for you! 🎲";
+                    return "Let me find some great games for you! 🎲";
                 }
                 
                 // If we can parse it as JSON but it doesn't match expected patterns, 
                 // it might be an unwanted JSON response - return a friendly message
-                return "I'm so excited to help you discover your next favorite game! Give me just a moment to find some amazing recommendations for you! 🎯";
+                return "Finding some great games for you! 🎯";
             }
             catch (JsonException)
             {

@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\shared\models\GamerUncle.Shared.Models.csproj" />
+    <ProjectReference Include="..\..\api\GamerUncle.Api.csproj" />
   </ItemGroup>
 
 </Project>
