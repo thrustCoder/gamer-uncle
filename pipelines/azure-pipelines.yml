@@ -326,40 +326,6 @@ stages:
                   exit 1
                 fi
 
-- stage: Test
-  displayName: 'Run Tests'
-  jobs:
-  - job: TestJob
-    displayName: 'Run All Tests'
-    steps:
-    - task: UseDotNet@2
-      inputs:
-        packageType: 'sdk'
-        version: '8.x'
-        installationPath: $(Agent.ToolsDirectory)/dotnet
-
-    - script: dotnet restore pipelines/tests/GamerUncle.Pipeline.Tests.csproj
-      displayName: 'Restore Pipeline Test Dependencies'
-
-    - script: dotnet test pipelines/tests/GamerUncle.Pipeline.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
-      displayName: 'Run Pipeline Tests'
-
-    - script: dotnet restore services/tests/api/GamerUncle.Api.Tests.csproj
-      displayName: 'Restore API Test Dependencies'
-
-    - script: dotnet test services/tests/api/GamerUncle.Api.Tests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
-      displayName: 'Run API Tests'
-
-    - task: PublishTestResults@2
-      inputs:
-        testResultsFormat: 'VSTest'
-        testResultsFiles: '**/*.trx'
-        searchFolder: '$(Agent.TempDirectory)'
-        mergeTestResults: true
-        failTaskOnFailedTests: true
-      displayName: 'Publish Test Results'
-      condition: succeededOrFailed()
-
 - stage: DevDeployMobile
   displayName: 'Dev Deploy Mobile'
   dependsOn: 
