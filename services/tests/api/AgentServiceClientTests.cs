@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Xunit;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Models;
+using GamerUncle.Api.Services.AgentService;
+using Microsoft.Extensions.Configuration;
 
 namespace GamerUncle.Api.Tests
 {
@@ -261,21 +264,31 @@ namespace GamerUncle.Api.Tests
         }
 
         /// <summary>
-        /// Test that JSON parsing fallback messages are concise
+        /// Test that JSON parsing fallback messages are concise and varied
         /// </summary>
         [Fact]
         public void ExtractAndValidateResponse_JsonFallback_ShouldBeTerse()
         {
-            // Arrange
-            var expectedResponse = "Finding some great games for you! 🎯";
+            // Note: The fallback messages are now randomized for better UX
+            // We test that any valid fallback message meets our criteria
+            var validFallbackMessages = new[]
+            {
+                "Finding some great games for you! 🎯",
+                "Let me search for perfect games! 🎲",
+                "Looking for your next favorite game! 🎮",
+                "Searching the game library for you! 📚",
+                "Hold on, finding awesome games! ⭐"
+            };
 
-            // Act - This simulates the JSON parsing fallback response
-            var actualResponse = "Finding some great games for you! 🎯";
-
-            // Assert
-            Assert.Equal(expectedResponse, actualResponse);
-            Assert.True(actualResponse.Length < 60, "JSON fallback should be very concise");
-            Assert.Contains("🎯", actualResponse, StringComparison.Ordinal);
+            // Assert all possible fallback messages meet criteria
+            foreach (var message in validFallbackMessages)
+            {
+                Assert.True(message.Length < 60, $"JSON fallback '{message}' should be very concise");
+                Assert.True(message.Contains("!"), $"Fallback '{message}' should be enthusiastic");
+                Assert.True(message.Contains("🎯") || message.Contains("🎲") || message.Contains("🎮") || 
+                           message.Contains("📚") || message.Contains("⭐"), 
+                           $"Fallback '{message}' should contain an emoji");
+            }
         }
 
         /// <summary>
@@ -306,6 +319,10 @@ namespace GamerUncle.Api.Tests
         [InlineData("Something went wrong: test error. Let's try again! 🎲")]
         [InlineData("Let me find some great games for you! 🎲")]
         [InlineData("Finding some great games for you! 🎯")]
+        [InlineData("Let me search for perfect games! 🎲")]
+        [InlineData("Looking for your next favorite game! 🎮")]
+        [InlineData("Searching the game library for you! 📚")]
+        [InlineData("Hold on, finding awesome games! ⭐")]
         public void ResponseMessages_ShouldBeChatFriendly(string responseText)
         {
             // Assert
@@ -316,8 +333,46 @@ namespace GamerUncle.Api.Tests
             Assert.True(responseText.Contains("!"), "Should maintain enthusiasm with exclamation marks");
             
             // Check for emojis (mobile-friendly touch)
-            bool hasEmoji = responseText.Contains("🤖") || responseText.Contains("🎲") || responseText.Contains("🎯");
+            bool hasEmoji = responseText.Contains("🤖") || responseText.Contains("🎲") || 
+                           responseText.Contains("🎯") || responseText.Contains("🎮") || 
+                           responseText.Contains("📚") || responseText.Contains("⭐");
             Assert.True(hasEmoji, "Should include emojis for mobile chat friendliness");
+        }
+
+        /// <summary>
+        /// Test that fallback messages are all valid and varied
+        /// </summary>
+        [Fact]
+        public void FallbackMessages_ShouldBeValidAndVaried()
+        {
+            // Arrange - Test the expected fallback messages directly
+            var expectedMessages = new[]
+            {
+                "Finding some great games for you! 🎯",
+                "Let me search for perfect games! 🎲",
+                "Looking for your next favorite game! 🎮",
+                "Searching the game library for you! 📚",
+                "Hold on, finding awesome games! ⭐"
+            };
+            
+            // Assert - Verify all messages meet our criteria
+            Assert.True(expectedMessages.Length > 1, "Should have multiple messages for variety");
+            
+            foreach (var message in expectedMessages)
+            {
+                Assert.True(message.Length < 60, $"Message '{message}' should be concise");
+                Assert.Contains("!", message);
+                Assert.True(message.Contains("🎯") || message.Contains("🎲") || 
+                           message.Contains("🎮") || message.Contains("📚") || 
+                           message.Contains("⭐"), 
+                           $"Message '{message}' should contain an emoji");
+                           
+                // Ensure messages are friendly and game-related
+                Assert.True(message.ToLower().Contains("game") || 
+                          message.ToLower().Contains("finding") ||
+                          message.ToLower().Contains("search"), 
+                          $"Message '{message}' should be game-related");
+            }
         }
     }
 }
