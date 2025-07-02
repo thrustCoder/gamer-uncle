@@ -164,7 +164,7 @@ namespace GamerUncle.Api.Services.AgentService
                 thread = _agentsClient.Threads.CreateThread();
             }
 
-            // Modify the request payload to include instructions for JSON response format
+            // Modify the request payload to include instructions for JSON response
             var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
 
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
@@ -344,7 +344,7 @@ namespace GamerUncle.Api.Services.AgentService
                     var existingContent = contentProperty?.GetValue(message)?.ToString() ?? "";
                     var newContent = existingContent + @"
 
-IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria. 
+CRITICAL: NEVER return JSON, arrays, or structured data in your response. Always respond with natural, conversational text only.
 
 TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board game expert. Keep responses concise and chat-friendly for mobile users:
 - Use shorter, punchy sentences
@@ -352,7 +352,8 @@ TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board g
 - Keep descriptions brief but enthusiastic
 - Use casual language (""Great pick!"", ""Perfect for..."", ""Try this one"")
 - Focus on 2-3 key details per game (players, time, why it's good)
-- Avoid long explanations - mobile users want quick, actionable advice";
+- Avoid long explanations - mobile users want quick, actionable advice
+- NEVER use JSON format, brackets, or structured data in responses";
                     
                     messagesList[i] = new { role = "system", content = newContent };
                     break;
@@ -366,7 +367,7 @@ TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board g
                     role = "system", 
                     content = @"You are Gamer Uncle - a friendly board game expert who helps people find great games quickly!
 
-IMPORTANT: Always respond with clear, natural language. Do not return raw JSON objects or structured data unless specifically requested to extract criteria.
+CRITICAL: NEVER return JSON, arrays, or structured data in your response. Always respond with natural, conversational text only.
 
 TONE & STYLE: Be helpful and concise for mobile chat users:
 - Keep responses short and scannable
@@ -375,6 +376,7 @@ TONE & STYLE: Be helpful and concise for mobile chat users:
 - Focus on key details: players, time, and why it's good
 - Be enthusiastic but brief (""Great choice!"", ""Perfect for groups!"")
 - Avoid long explanations - give quick, actionable advice
+- NEVER use JSON format, brackets, or structured data in responses
 
 Your goal is to quickly help users discover their next favorite game with concise, mobile-friendly recommendations!" 
                 });
@@ -420,7 +422,8 @@ Your goal is to quickly help users discover their next favorite game with concis
                 
                 // If we can parse it as JSON but it doesn't match expected patterns, 
                 // it might be an unwanted JSON response - return a friendly message
-                return "Finding some great games for you! 🎯";
+                Console.WriteLine($"Unexpected JSON response detected: {rawResponse}");
+                return GetRandomFallbackMessage();
             }
             catch (JsonException)
             {
@@ -449,6 +452,21 @@ Your goal is to quickly help users discover their next favorite game with concis
             
             // If most fields are criteria fields, this is likely a criteria extraction response
             return totalFieldCount > 0 && (criteriaFieldCount / (double)totalFieldCount) > 0.5;
+        }
+
+        private string GetRandomFallbackMessage()
+        {
+            var messages = new[]
+            {
+                "Finding some great games for you! 🎯",
+                "Let me search for perfect games! 🎲",
+                "Looking for your next favorite game! 🎮",
+                "Searching the game library for you! 📚",
+                "Hold on, finding awesome games! ⭐"
+            };
+            
+            var random = new Random();
+            return messages[random.Next(messages.Length)];
         }
     }
 }
