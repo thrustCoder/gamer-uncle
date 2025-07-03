@@ -42,8 +42,7 @@ stages:
     displayName: 'Build and Publish API Artifacts'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'services/api'),
-        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
@@ -71,7 +70,7 @@ stages:
     displayName: 'Build and Publish Function Artifacts'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'services/functions'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
@@ -99,7 +98,7 @@ stages:
     displayName: 'Build and Publish Mobile Artifacts'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
@@ -208,11 +207,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        contains(variables['Build.SourceVersionMessage'], 'services/api'),
-        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
-        eq(variables['Build.SourceBranchName'], 'main')
-      )
+      eq(variables['Build.SourceBranchName'], 'main')
     )
 
   jobs:
@@ -258,10 +253,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        contains(variables['Build.SourceVersionMessage'], 'services/functions'),
-        eq(variables['Build.SourceBranchName'], 'main')
-      )
+      eq(variables['Build.SourceBranchName'], 'main')
     )
 
   jobs:
@@ -395,10 +387,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
-        eq(variables['Build.SourceBranchName'], 'main')
-      )
+      eq(variables['Build.SourceBranchName'], 'main')
     )
 
   jobs:
@@ -444,8 +433,7 @@ stages:
     displayName: 'Run API Tests'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'services/api'),
-        contains(variables['Build.SourceVersionMessage'], 'services/tests'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
@@ -499,7 +487,7 @@ stages:
     displayName: 'Run Mobile Tests'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'apps/mobile'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:
