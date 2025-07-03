@@ -35,10 +35,10 @@ namespace GamerUncle.Api.Services.AgentService
             {
                 Console.WriteLine($"Starting agent request with input: {userInput}");
 
-                // Step 1: Extract query criteria using AI Agent
+                // Step 1: Extract query criteria using AI Agent (for any board game question)
                 var criteria = await ExtractGameCriteriaViaAgent(userInput, threadId);
                 
-                // Step 2: Query Cosmos DB for matching games
+                // Step 2: Query Cosmos DB for relevant games (if criteria found)
                 List<GameDocument> matchingGames;
                 var messages = new List<object>();
                 if (criteria == null ||
@@ -53,6 +53,7 @@ namespace GamerUncle.Api.Services.AgentService
                     !criteria.averageRating.HasValue &&
                     !criteria.ageRequirement.HasValue))
                 {
+                    // No specific criteria found - proceed without RAG context
                     matchingGames = new List<GameDocument>();
                     messages = new[]
                     {
@@ -61,6 +62,7 @@ namespace GamerUncle.Api.Services.AgentService
                 }
                 else
                 {
+                    // Criteria found - use RAG approach with relevant games
                     var queryResults = await _cosmosDbService.QueryGamesAsync(criteria);
                     // Sort games by user rating in descending order (highest rated first)
                     matchingGames = queryResults
@@ -69,7 +71,7 @@ namespace GamerUncle.Api.Services.AgentService
                     var ragContext = FormatGamesForRag(matchingGames);
                     messages = new[]
                     {
-                        new { role = "system", content = "Use the following board games data to help answer the query." },
+                        new { role = "system", content = "Use the following board games data to help answer the user's question. This data contains relevant games from our database that may help provide context for your response." },
                         new { role = "user", content = ragContext },
                         new { role = "user", content = userInput }
                     }.ToList<object>();
@@ -77,7 +79,7 @@ namespace GamerUncle.Api.Services.AgentService
 
                 var requestPayload = new { messages };
 
-                // Step 5: Create and run agent thread
+                // Step 3: Create and run agent thread
                 var (response, currentThreadId) = await RunAgentWithMessagesAsync(requestPayload, threadId);
                 return new AgentResponse
                 {
@@ -102,14 +104,21 @@ namespace GamerUncle.Api.Services.AgentService
             {
                 new {
                     role = "system",
-                    content = @"You are a criteria extraction service. Extract relevant game filter parameters from the following user request and return ONLY a valid JSON object using these fields: 
+                    content = @"You are a criteria extraction service for board game queries. Extract relevant game filter parameters from ANY board game-related question and return ONLY a valid JSON object using these fields: 
                                 name, MinPlayers, MaxPlayers, MinPlaytime, MaxPlaytime, Mechanics (array), Categories (array), MaxWeight, averageRating, 
                                 ageRequirement. 
                                 
                                 CRITICAL: Your response must be ONLY valid JSON with no additional text, explanations, or formatting.
                                 
+                                Extract criteria from ALL types of board game questions, including:
+                                - Game recommendations (""suggest games for 4 players"")
+                                - Specific game questions (""tell me about Catan"" → name: ""Catan"")
+                                - Mechanic/category questions (""what are worker placement games?"" → Mechanics: [""Worker Placement""])
+                                - Strategy questions (""how to win at Ticket to Ride?"" → name: ""Ticket to Ride"")
+                                - General questions mentioning game attributes (""games for beginners"" → MaxWeight: 2.5)
+                                
                                 Rules:
-                                1. If a field is not mentioned, it should be null or omitted.
+                                1. If a field is not mentioned or implied, it should be null or omitted.
                                 2. If a field is mentioned but not specified, it should be null.
                                 3. If a field is mentioned with a count of players range (e.g., '2-4 players'), use the min and max values.
                                 4. If a field is mentioned with a single value for count of players (e.g., '2 players'), set both Min and Max to that value.
@@ -117,9 +126,10 @@ namespace GamerUncle.Api.Services.AgentService
                                 6. If a field is mentioned with a rating (e.g., 'average rating 4.5'), adjust the value to a scale of 1 to 10 and set averageRating to that value.
                                 7. If a field is mentioned with a play time (e.g., '60 minutes'), adjust the value to the number of minutes and set MinPlaytime or MaxPlaytime according to context.
                                 8. If a field is mentioned with an age requirement (e.g., 'age 12+'), set ageRequirement to that value assuming years as the unit.
-                                9. If a field is mentioned with a weight (e.g., 'lightweight'), set MaxWeight to a reasonable value on a scale of 1 to 5.
-                                10. If the user asks for a specific game, set name to that value in title case. However, if the user asks for games similar to a specific game, do not set name. Try to be really conservative with setting name.
-                                11. If the user asks for games with specific mechanics or categories, set Mechanics and Categories arrays accordingly."
+                                9. If a field is mentioned with a weight (e.g., 'lightweight', 'complex'), set MaxWeight to a reasonable value on a scale of 1 to 5.
+                                10. If the user asks about a specific game by name, ALWAYS set name to that value in title case.
+                                11. If the user asks for games with specific mechanics or categories, set Mechanics and Categories arrays accordingly.
+                                12. For beginner/family games, consider MaxWeight: 2.5. For complex/heavy games, consider weight ranges accordingly."
                 },
                 new { role = "user", content = userInput }
             };
@@ -296,11 +306,11 @@ namespace GamerUncle.Api.Services.AgentService
             }
         }
 
-        // Converts games to plain text
+        // Converts games to plain text for RAG context
         private string FormatGamesForRag(IEnumerable<GameDocument> games)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("Here are some board games that match the criteria:");
+            sb.AppendLine("Here are relevant board games from the database:");
             if (!games.Any())
             {
                 sb.AppendLine("No games found matching the criteria.");
@@ -346,12 +356,12 @@ namespace GamerUncle.Api.Services.AgentService
 
 CRITICAL: NEVER return JSON, arrays, or structured data in your response. Always respond with natural, conversational text only.
 
-TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board game expert. Keep responses concise and chat-friendly for mobile users:
+TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board game expert who answers ALL board game questions. Keep responses concise and chat-friendly for mobile users:
 - Use shorter, punchy sentences
-- Get straight to the recommendations 
+- Answer any board game question: recommendations, rules, strategies, mechanics, etc.
 - Keep descriptions brief but enthusiastic
-- Use casual language (""Great pick!"", ""Perfect for..."", ""Try this one"")
-- Focus on 2-3 key details per game (players, time, why it's good)
+- Use casual language (""Great pick!"", ""Perfect for..."", ""Here's how..."", ""The key is..."")
+- Focus on 2-3 key details per topic
 - Avoid long explanations - mobile users want quick, actionable advice
 - NEVER use JSON format, brackets, or structured data in responses";
                     
@@ -359,26 +369,26 @@ TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board g
                     break;
                 }
             }
-              // If no system message exists, add one
+            // If no system message exists, add one
             if (!hasSystemMessage)
             {
                 messagesList.Insert(0, new 
                 { 
                     role = "system", 
-                    content = @"You are Gamer Uncle - a friendly board game expert who helps people find great games quickly!
+                    content = @"You are Gamer Uncle - a friendly board game expert who helps with all board game questions!
 
 CRITICAL: NEVER return JSON, arrays, or structured data in your response. Always respond with natural, conversational text only.
 
 TONE & STYLE: Be helpful and concise for mobile chat users:
 - Keep responses short and scannable
-- Lead with your best 2-3 game recommendations
+- Answer any board game question: recommendations, rules, strategies, mechanics, etc.
 - Use bullet points or short paragraphs
-- Focus on key details: players, time, and why it's good
-- Be enthusiastic but brief (""Great choice!"", ""Perfect for groups!"")
+- Focus on key details that matter
+- Be enthusiastic but brief (""Great choice!"", ""Perfect for groups!"", ""Here's the key strategy..."")
 - Avoid long explanations - give quick, actionable advice
 - NEVER use JSON format, brackets, or structured data in responses
 
-Your goal is to quickly help users discover their next favorite game with concise, mobile-friendly recommendations!" 
+Your goal is to be the go-to expert for ALL board game questions with concise, mobile-friendly responses!" 
                 });
             }
             
@@ -458,11 +468,11 @@ Your goal is to quickly help users discover their next favorite game with concis
         {
             var messages = new[]
             {
-                "Finding some great games for you! 🎯",
-                "Let me search for perfect games! 🎲",
-                "Looking for your next favorite game! 🎮",
-                "Searching the game library for you! 📚",
-                "Hold on, finding awesome games! ⭐"
+                "Let me help you with that board game question! 🎯",
+                "Looking into that for you! 🎲",
+                "Great board game question! Let me think... 🎮",
+                "Checking my board game knowledge! 📚",
+                "On it! Give me a moment to help! ⭐"
             };
             
             var random = new Random();
