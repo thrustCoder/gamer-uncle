@@ -2,25 +2,11 @@ trigger:
   branches:
     include:
       - main
-  paths:
-    include:
-      - services/api/**
-      - services/functions/**
-      - services/tests/**
-      - apps/mobile/**
-      - pipelines/tests/**
 
 pr:
   branches:
     include:
       - main
-  paths:
-    include:
-      - services/api/**
-      - services/functions/**
-      - services/tests/**
-      - apps/mobile/**
-      - pipelines/tests/**
 
 pool:
   vmImage: 'ubuntu-latest'
