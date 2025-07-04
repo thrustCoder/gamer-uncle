@@ -446,7 +446,7 @@ stages:
     displayName: 'Run Pipeline Tests'
     condition: |
       or(
-        contains(variables['Build.SourceVersionMessage'], 'pipelines/'),
+        eq(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranchName'], 'main')
       )
     steps:

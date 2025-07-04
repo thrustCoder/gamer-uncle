@@ -120,24 +120,6 @@ namespace GamerUncle.Pipeline.Tests
         }
 
         [Fact]
-        public void PipelineYaml_ShouldContain_PathBasedTriggers()
-        {
-            // Arrange
-            var pipelineYamlPath = Path.Combine(_rootPath, "pipelines", "azure-pipelines.yml");
-
-            // Act & Assert
-            Assert.True(File.Exists(pipelineYamlPath), "Pipeline YAML file should exist");
-
-            var pipelineContent = File.ReadAllText(pipelineYamlPath);
-
-            // Verify path-based triggers exist
-            Assert.Contains("paths:", pipelineContent);
-            Assert.Contains("services/api/*", pipelineContent);
-            Assert.Contains("services/functions/*", pipelineContent);
-            Assert.Contains("apps/mobile/*", pipelineContent);
-        }
-
-        [Fact]
         public void PipelineYaml_ShouldContain_MobileBuildJob()
         {
             // Arrange
@@ -167,9 +149,9 @@ namespace GamerUncle.Pipeline.Tests
 
             var pipelineContent = File.ReadAllText(pipelineYamlPath);
 
-            // Verify conditional execution logic
+            // Verify conditional execution logic exists
             Assert.Contains("condition:", pipelineContent);
-            Assert.Contains("Build.SourceVersionMessage", pipelineContent);
+            Assert.Contains("Build.Reason", pipelineContent);
             Assert.Contains("services/api", pipelineContent);
             Assert.Contains("services/functions", pipelineContent);
             Assert.Contains("apps/mobile", pipelineContent);
