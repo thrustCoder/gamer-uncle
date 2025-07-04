@@ -25,6 +25,40 @@
       },
       "problemMatcher": "$msCompile",
       "detail": "Build GamerUncle API project"
+    },
+    {
+      "label": "run-functional-tests-local",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "services/tests/functional/run-local-tests.ps1"
+      ],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "problemMatcher": [],
+      "detail": "Run functional tests against locally hosted API"
+    },
+    {
+      "label": "test-functional-project",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "services/tests/functional/GamerUncle.Api.FunctionalTests.csproj",
+        "--logger",
+        "console;verbosity=normal"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "detail": "Run functional tests with current environment settings"
     }
   ]
 }
