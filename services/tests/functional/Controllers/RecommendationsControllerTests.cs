@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Newtonsoft.Json;
 using Xunit;
+using Xunit.Abstractions;
 using GamerUncle.Api.Models;
 using GamerUncle.Api.FunctionalTests.Infrastructure;
 
@@ -11,11 +12,52 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
     {
         private readonly TestFixture _fixture;
         private readonly HttpClient _httpClient;
+        private readonly ITestOutputHelper _output;
 
-        public RecommendationsControllerTests(TestFixture fixture)
+        public RecommendationsControllerTests(TestFixture fixture, ITestOutputHelper output)
         {
             _fixture = fixture;
             _httpClient = fixture.HttpClient;
+            _output = output;
+        }
+
+        [Fact]
+        public async Task HealthCheck_ApiIsRunning()
+        {
+            // This test ensures the API is reachable and running
+            _output.WriteLine($"Testing API connectivity at: {_fixture.Configuration.BaseUrl}");
+            
+            // Act
+            var response = await _httpClient.GetAsync("/");
+
+            // Assert - API should be reachable (any 2xx, 3xx, or 404 is fine)
+            _output.WriteLine($"Health check response: {response.StatusCode}");
+            Assert.True(response.StatusCode == HttpStatusCode.OK ||
+                       response.StatusCode == HttpStatusCode.NotFound ||
+                       response.StatusCode == HttpStatusCode.Redirect ||
+                       response.StatusCode == HttpStatusCode.MovedPermanently,
+                       $"API appears to be down. Status: {response.StatusCode}, Base URL: {_fixture.Configuration.BaseUrl}");
+        }
+
+        [Fact]
+        public async Task SmokeTest_ApiEndpointExists()
+        {
+            // Smoke test to verify the recommendations endpoint exists
+            _output.WriteLine("Running smoke test for /api/recommendations endpoint");
+            
+            // Act - Send a simple request to see if endpoint exists
+            var emptyContent = new StringContent("{}", Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/api/recommendations", emptyContent);
+
+            // Assert - Endpoint should exist (not return 404)
+            _output.WriteLine($"Smoke test response: {response.StatusCode}");
+            Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
+            
+            // Should be either OK or BadRequest, but not NotFound
+            Assert.True(response.StatusCode == HttpStatusCode.OK || 
+                       response.StatusCode == HttpStatusCode.BadRequest ||
+                       response.StatusCode == HttpStatusCode.InternalServerError,
+                       $"Expected OK, BadRequest, or InternalServerError, but got {response.StatusCode}");
         }
 
         [Fact]
@@ -32,10 +74,19 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(userQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine($"Testing valid query: {userQuery.Query}");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _output.WriteLine($"Error response: {errorContent}");
+            }
+            
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -61,10 +112,19 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(userQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine($"Testing minimal query: {userQuery.Query}");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _output.WriteLine($"Error response: {errorContent}");
+            }
+            
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -87,10 +147,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(userQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine("Testing empty query validation");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
             Assert.True(response.StatusCode == HttpStatusCode.BadRequest || 
                        response.StatusCode == HttpStatusCode.OK); // Some APIs might handle empty queries gracefully
         }
@@ -102,10 +165,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var invalidJson = "{ invalid json }";
             var content = new StringContent(invalidJson, Encoding.UTF8, "application/json");
 
+            _output.WriteLine("Testing invalid JSON handling");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
@@ -117,10 +183,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(incompleteQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine("Testing missing required field validation");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
@@ -138,10 +207,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(userQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine($"Testing long query (length: {longQuery.Length} characters)");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
             Assert.True(response.StatusCode == HttpStatusCode.OK || 
                        response.StatusCode == HttpStatusCode.BadRequest); // Might have length limits
         }
@@ -161,10 +233,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             var json = JsonConvert.SerializeObject(userQuery);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            _output.WriteLine($"Testing conversation tracking with ID: {conversationId}");
+
             // Act
             var response = await _httpClient.PostAsync("/api/recommendations", content);
 
             // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -178,21 +253,6 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             {
                 Assert.False(string.IsNullOrEmpty(agentResponse.ThreadId));
             }
-        }
-
-        [Fact]
-        public async Task HealthCheck_ApiIsRunning()
-        {
-            // This test ensures the API is reachable and running
-            // Act
-            var response = await _httpClient.GetAsync("/");
-
-            // Assert - API should be reachable (any 2xx, 3xx, or 404 is fine)
-            Assert.True(response.StatusCode == HttpStatusCode.OK ||
-                       response.StatusCode == HttpStatusCode.NotFound ||
-                       response.StatusCode == HttpStatusCode.Redirect ||
-                       response.StatusCode == HttpStatusCode.MovedPermanently,
-                       $"API appears to be down. Status: {response.StatusCode}");
         }
     }
 }

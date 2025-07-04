@@ -499,8 +499,8 @@ stages:
   dependsOn: DevBuild
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
-  - job: StartLocalApi
-    displayName: 'Start Local API for Testing'
+  - job: RunLocalFunctionalTests
+    displayName: 'Start API and Run Functional Tests'
     steps:
     - task: UseDotNet@2
       inputs:
@@ -514,45 +514,63 @@ stages:
     - script: dotnet build $(apiProject) --configuration $(buildConfiguration) --no-restore
       displayName: 'Build API Project'
 
-    - script: |
-        echo "Starting API in background..."
-        dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build &
-        API_PID=$!
-        echo "##vso[task.setvariable variable=apiPid;isOutput=true]$API_PID"
-        
-        echo "Waiting for API to start..."
-        sleep 30
-        
-        # Test if API is responding
-        for i in {1..12}; do
-          if curl -f http://localhost:5000/ 2>/dev/null || curl -f http://localhost:5000/api/recommendations 2>/dev/null; then
-            echo "API is responding"
-            break
-          fi
-          echo "Waiting for API... attempt $i/12"
-          sleep 10
-        done
-      displayName: 'Start API Service'
-      name: startApi
-
-  - job: RunFunctionalTests
-    displayName: 'Run Functional Tests Against Local API'
-    dependsOn: StartLocalApi
-    steps:
-    - task: UseDotNet@2
-      inputs:
-        packageType: 'sdk'
-        version: '8.x'
-        installationPath: $(Agent.ToolsDirectory)/dotnet
-
     - script: dotnet restore services/tests/functional/GamerUncle.Api.FunctionalTests.csproj
       displayName: 'Restore Functional Test Dependencies'
 
+    - script: dotnet build services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --no-restore
+      displayName: 'Build Functional Tests'
+
     - script: |
+        echo "Starting API in background..."
+        dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --urls "http://localhost:5000" &
+        API_PID=$!
+        echo "API PID: $API_PID"
+        
+        echo "Waiting for API to start..."
+        sleep 15
+        
+        # Test if API is responding
+        API_READY=false
+        for i in {1..24}; do
+          echo "Testing API connectivity... attempt $i/24"
+          if curl -f http://localhost:5000/ 2>/dev/null; then
+            echo "✅ API is responding on root endpoint"
+            API_READY=true
+            break
+          elif curl -f http://localhost:5000/api/recommendations -X POST -H "Content-Type: application/json" -d '{"query":"test"}' 2>/dev/null; then
+            echo "✅ API is responding on recommendations endpoint"
+            API_READY=true
+            break
+          elif curl -s http://localhost:5000/ 2>/dev/null; then
+            echo "✅ API is responding (got some response)"
+            API_READY=true
+            break
+          fi
+          echo "⏳ Waiting for API... attempt $i/24"
+          sleep 5
+        done
+        
+        if [ "$API_READY" = false ]; then
+          echo "❌ API failed to start or is not responding after 2 minutes"
+          ps aux | grep dotnet || true
+          netstat -tlnp | grep 5000 || true
+          kill $API_PID 2>/dev/null || true
+          exit 1
+        fi
+        
+        echo "🧪 Running functional tests..."
         export TEST_ENVIRONMENT=Local
         export API_BASE_URL=http://localhost:5000
-        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
-      displayName: 'Run Functional Tests'
+        
+        # Run the tests
+        TEST_RESULT=0
+        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory) || TEST_RESULT=$?
+        
+        echo "🧹 Stopping API service..."
+        kill $API_PID 2>/dev/null || true
+        
+        exit $TEST_RESULT
+      displayName: 'Start API and Run Functional Tests'
 
     - task: PublishTestResults@2
       inputs:
@@ -560,14 +578,6 @@ stages:
         testResultsFiles: '$(Agent.TempDirectory)/*.trx'
         failTaskOnFailedTests: true
       displayName: 'Publish Functional Test Results'
-
-    - script: |
-        API_PID=$(startApi.apiPid)
-        if [ ! -z "$API_PID" ]; then
-          echo "Stopping API service (PID: $API_PID)"
-          kill $API_PID 2>/dev/null || true
-        fi
-      displayName: 'Stop API Service'
       condition: always()
 
 - stage: FunctionalTestsDev
