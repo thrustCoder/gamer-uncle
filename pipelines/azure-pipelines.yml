@@ -495,7 +495,7 @@ stages:
       continueOnError: true
 
 - stage: FunctionalTestsPR
-  displayName: 'Functional Tests (PR)'
+  displayName: 'Dev Functional Tests (PR)'
   dependsOn: DevBuild
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
@@ -581,7 +581,7 @@ stages:
       condition: always()
 
 - stage: FunctionalTestsDev
-  displayName: 'Functional Tests (Dev Environment)'
+  displayName: 'Dev Functional Tests'
   dependsOn: DevDeployApi
   condition: |
     and(
