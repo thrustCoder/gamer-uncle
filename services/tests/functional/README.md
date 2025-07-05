@@ -6,14 +6,38 @@ This project contains end-to-end functional tests for the GamerUncle API. These 
 
 The functional tests cover the following scenarios for the `RecommendationsController`:
 
-1. **Valid Game Recommendation Request** - Tests successful recommendation with proper query
-2. **Minimal Query** - Tests handling of minimal/simple queries
-3. **Empty Query** - Tests error handling for empty queries
-4. **Invalid JSON** - Tests error handling for malformed requests
-5. **Missing Required Fields** - Tests validation of required fields
-6. **Long Query** - Tests handling of very long queries
-7. **Conversation ID** - Tests conversation tracking functionality
-8. **Health Check** - Tests API availability
+### **Infrastructure & Connectivity Tests**
+1. **Health Check** - Tests API availability and response
+2. **Smoke Test** - Tests endpoint existence and basic functionality
+
+### **Core Functionality Tests**
+3. **Valid Game Recommendation Request** - Tests successful recommendation with proper query
+4. **Minimal Query** - Tests handling of minimal/simple queries
+5. **Conversation ID** - Tests conversation tracking functionality
+
+### **Validation & Error Handling Tests**
+6. **Empty Query** - Tests error handling for empty queries
+7. **Invalid JSON** - Tests error handling for malformed requests
+8. **Missing Required Fields** - Tests validation of required fields
+9. **Long Query** - Tests handling of very long queries
+
+### **Response Structure Validation Tests**
+10. **Valid JSON Structure** - Ensures API returns properly formatted JSON
+11. **Correct Content Type** - Validates response headers and content type
+
+### **Security & Special Characters Tests**
+12. **Special Characters** - Tests handling of symbols and punctuation
+13. **Unicode Characters** - Tests international characters and emojis
+14. **SQL Injection Prevention** - Tests security against SQL injection attempts
+15. **XSS Prevention** - Tests protection against cross-site scripting
+
+### **Happy Path Realistic Scenarios**
+16. **Detailed Requirements** - "Suggest me a game for 4 players that involves bluffing..."
+17. **Simple Inquiry** - "I am looking for a new board game."
+18. **Specific Game Info** - "Tell me about Catan"
+19. **Category Questions** - "What are worker placement games?"
+20. **Strategy Questions** - "How to win at Ticket to Ride?"
+21. **Conceptual Questions** - "What makes a game family friendly?"
 
 ## Configuration
 
