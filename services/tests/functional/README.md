@@ -32,12 +32,34 @@ The functional tests cover the following scenarios for the `RecommendationsContr
 15. **XSS Prevention** - Tests protection against cross-site scripting
 
 ### **Happy Path Realistic Scenarios**
-16. **Detailed Requirements** - "Suggest me a game for 4 players that involves bluffing..."
-17. **Simple Inquiry** - "I am looking for a new board game."
-18. **Specific Game Info** - "Tell me about Catan"
-19. **Category Questions** - "What are worker placement games?"
-20. **Strategy Questions** - "How to win at Ticket to Ride?"
-21. **Conceptual Questions** - "What makes a game family friendly?"
+16. **Detailed Requirements** - "Suggest me a game for 4 players that involves bluffing..." *(with retry logic)*
+17. **Simple Inquiry** - "I am looking for a new board game." *(with retry logic)*
+18. **Specific Game Info** - "Tell me about Catan" *(with retry logic)*
+19. **Category Questions** - "What are worker placement games?" *(with retry logic)*
+20. **Strategy Questions** - "How to win at Ticket to Ride?" *(with retry logic)*
+21. **Conceptual Questions** - "What makes a game family friendly?" *(with retry logic)*
+
+**Note**: Realistic scenario tests now include retry logic (max 1 retry) to prevent fallback responses and ensure meaningful AI-generated answers.
+
+## Anti-Fallback Response Logic
+
+The functional tests include sophisticated logic to prevent fallback responses in realistic scenario tests:
+
+### **Fallback Response Detection**
+- Detects known fallback patterns from the API (e.g., "Let me help you with that board game question! 🎯")
+- Identifies suspiciously short responses (< 20 characters)
+- Ensures tests validate meaningful AI-generated content
+
+### **Retry Logic**
+- Realistic scenario tests automatically retry once if a fallback response is detected
+- Maximum of 2 attempts per test (initial + 1 retry)
+- 2-second delay between attempts to allow for API recovery
+- Tests fail with descriptive messages if all attempts return fallback responses
+
+### **Enhanced Validation**
+- Tests verify response quality, not just HTTP status codes
+- Ensures substantial responses for complex queries
+- Validates that AI provides educational content rather than generic responses
 
 ## Configuration
 

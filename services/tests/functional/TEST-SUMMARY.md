@@ -65,8 +65,9 @@
 | Validation & Errors | 4 | Input validation and error handling |
 | Response Structure | 2 | JSON format and content type validation |
 | Security | 4 | SQL injection, XSS, and special character handling |
-| Realistic Scenarios | 6 | Real-world usage patterns |
-| **Total** | **21** | Comprehensive end-to-end coverage |
+| Realistic Scenarios | 6 | Real-world usage patterns **with anti-fallback retry logic** |
+| Helper Method Tests | 1 | Validation of fallback detection logic |
+| **Total** | **22** | Comprehensive end-to-end coverage with quality assurance |
 
 ## 🔒 **Security Test Coverage**
 
@@ -120,6 +121,38 @@
 - Protection against common web vulnerabilities
 - Input sanitization verification
 - Safe error handling confirmation
+
+## 🔄 **Anti-Fallback Response Enhancement**
+
+### **Problem Addressed**
+- Realistic scenario tests were sometimes receiving fallback responses instead of meaningful AI-generated answers
+- Fallback responses (e.g., "Let me help you with that board game question! 🎯") don't validate actual AI functionality
+- Tests need to ensure the agent provides substantive answers for complex queries
+
+### **Solution Implemented**
+- ✅ **Fallback Detection**: Identifies known fallback patterns and suspiciously short responses
+- ✅ **Retry Logic**: Automatically retries realistic scenario tests up to 1 additional time
+- ✅ **Enhanced Validation**: Tests now verify response quality, not just HTTP success
+- ✅ **Descriptive Failures**: Clear error messages when tests fail due to persistent fallback responses
+
+### **Fallback Response Patterns Detected**
+```csharp
+// Known fallback messages from AgentServiceClient
+"Let me help you with that board game question! 🎯"
+"Looking into that for you! 🎲"
+"Great board game question! Let me think... 🎮"
+"Checking my board game knowledge! 📚"
+"On it! Give me a moment to help! ⭐"
+"Let me find some great games for you! 🎲"
+
+// Also detects responses < 20 characters as potential fallbacks
+```
+
+### **Retry Logic Implementation**
+- **Initial Attempt**: Execute test normally
+- **Fallback Detected**: Wait 2 seconds, retry once
+- **Success**: Return meaningful response
+- **Persistent Fallback**: Fail test with descriptive error message
 
 ## 🧪 **Test Execution**
 

@@ -474,24 +474,17 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-detailed-req"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing detailed requirements: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "detailed requirements test");
             
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
-            Assert.True(agentResponse.ResponseText.Length > 50, "Response should be substantial for detailed query");
+            // Additional assertions for detailed requirements
+            Assert.True(agentResponse.ResponseText!.Length > 50, "Response should be substantial for detailed query");
+            
+            // Should not be a fallback response
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected detailed game recommendation, but got fallback response: {agentResponse.ResponseText}");
         }
 
         [Fact]
@@ -504,24 +497,14 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-simple-inquiry"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing simple inquiry: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "simple inquiry test");
             
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
-            Assert.False(string.IsNullOrWhiteSpace(agentResponse.ResponseText));
+            // Should not be a fallback response
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected helpful game recommendations, but got fallback response: {agentResponse.ResponseText}");
         }
 
         [Fact]
@@ -534,23 +517,17 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-catan-info"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing specific game inquiry: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "specific game inquiry test");
             
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
+            // Should not be a fallback response and should mention the game
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected information about Catan, but got fallback response: {agentResponse.ResponseText}");
+                        
+            // Response should be substantial and likely mention the game name
+            Assert.True(agentResponse.ResponseText!.Length > 30, "Response should be substantial for game-specific inquiry");
         }
 
         [Fact]
@@ -563,23 +540,17 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-category-question"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing category question: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "category question test");
             
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
+            // Should not be a fallback response and should be educational
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected educational explanation about worker placement games, but got fallback response: {agentResponse.ResponseText}");
+                        
+            // Response should be substantial for educational content
+            Assert.True(agentResponse.ResponseText!.Length > 40, "Response should be substantial for educational question");
         }
 
         [Fact]
@@ -592,23 +563,17 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-strategy-question"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing strategy question: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "strategy question test");
             
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
+            // Should not be a fallback response and should provide strategy advice
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected strategy advice for Ticket to Ride, but got fallback response: {agentResponse.ResponseText}");
+                        
+            // Response should be substantial for strategy content
+            Assert.True(agentResponse.ResponseText!.Length > 40, "Response should be substantial for strategy question");
         }
 
         [Fact]
@@ -621,23 +586,40 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-conceptual-question"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing conceptual question: {userQuery.Query}");
 
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "conceptual question test");
+            
+            // Should not be a fallback response and should be informative
+            Assert.False(IsFallbackResponse(agentResponse.ResponseText!), 
+                        $"Expected informative explanation about family-friendly games, but got fallback response: {agentResponse.ResponseText}");
+                        
+            // Response should be substantial for conceptual content
+            Assert.True(agentResponse.ResponseText!.Length > 40, "Response should be substantial for conceptual question");
+        }
+
+        #endregion
+
+        #region Helper Method Tests
+
+        [Theory]
+        [InlineData("Let me help you with that board game question! 🎯", true)]
+        [InlineData("Looking into that for you! 🎲", true)]
+        [InlineData("Great board game question! Let me think... 🎮", true)]
+        [InlineData("Let me find some great games for you! 🎲", true)]
+        [InlineData("Short", true)] // Very short response
+        [InlineData("This is a detailed recommendation about Catan which is a fantastic board game.", false)]
+        [InlineData("Worker placement games are...", false)]
+        [InlineData("", true)] // Empty response
+        [InlineData("   ", true)] // Whitespace only
+        public void IsFallbackResponse_DetectsFallbackPatterns(string responseText, bool expectedIsFallback)
+        {
             // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
+            var result = IsFallbackResponse(responseText);
 
             // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-            
-            Assert.NotNull(agentResponse);
-            Assert.NotNull(agentResponse.ResponseText);
+            Assert.Equal(expectedIsFallback, result);
         }
 
         #endregion
@@ -655,6 +637,83 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Checks if the response is a fallback response that indicates the agent didn't provide a meaningful answer
+        /// </summary>
+        private static bool IsFallbackResponse(string responseText)
+        {
+            if (string.IsNullOrWhiteSpace(responseText))
+                return true;
+
+            // Known fallback patterns from AgentServiceClient.GetRandomFallbackMessage()
+            var fallbackPatterns = new[]
+            {
+                "Let me help you with that board game question! 🎯",
+                "Looking into that for you! 🎲", 
+                "Great board game question! Let me think... 🎮",
+                "Checking my board game knowledge! 📚",
+                "On it! Give me a moment to help! ⭐",
+                "Let me find some great games for you! 🎲"
+            };
+
+            // Also check for very short responses that might indicate a problem
+            var isVeryShort = responseText.Trim().Length < 20;
+            var containsFallbackPattern = fallbackPatterns.Any(pattern => 
+                responseText.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+
+            return containsFallbackPattern || isVeryShort;
+        }
+
+        /// <summary>
+        /// Executes a test with retry logic to avoid fallback responses
+        /// </summary>
+        private async Task<AgentResponse> ExecuteTestWithRetry(UserQuery userQuery, string testDescription, int maxRetries = 1)
+        {
+            AgentResponse? lastResponse = null;
+            
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                _output.WriteLine($"Attempt {attempt + 1}/{maxRetries + 1} for {testDescription}");
+                
+                var json = JsonConvert.SerializeObject(userQuery);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("/api/recommendations", content);
+                
+                _output.WriteLine($"Response status: {response.StatusCode}");
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _output.WriteLine($"Response content: {responseContent}");
+                
+                var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+                Assert.NotNull(agentResponse);
+                Assert.NotNull(agentResponse.ResponseText);
+                
+                lastResponse = agentResponse;
+
+                // If this is not a fallback response, we're good
+                if (!IsFallbackResponse(agentResponse.ResponseText))
+                {
+                    _output.WriteLine($"✅ Got meaningful response on attempt {attempt + 1}: {agentResponse.ResponseText.Substring(0, Math.Min(100, agentResponse.ResponseText.Length))}...");
+                    return agentResponse;
+                }
+                
+                _output.WriteLine($"⚠️ Got fallback response on attempt {attempt + 1}: {agentResponse.ResponseText}");
+                
+                // If this is not the last attempt, wait a bit before retrying
+                if (attempt < maxRetries)
+                {
+                    _output.WriteLine("Waiting 2 seconds before retry...");
+                    await Task.Delay(2000);
+                }
+            }
+
+            // If we've exhausted retries, fail the test with a descriptive message
+            Assert.True(false, $"Test failed after {maxRetries + 1} attempts. All responses were fallback responses. Last response: {lastResponse?.ResponseText}");
+            return lastResponse!; // This line will never execute due to Assert.True(false) above
         }
 
         #endregion
