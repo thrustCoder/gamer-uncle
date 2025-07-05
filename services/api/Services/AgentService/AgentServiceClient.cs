@@ -7,7 +7,10 @@ using Azure.Identity;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Models;
 using GamerUncle.Api.Services.Interfaces;
-using GamerUncle.Api.Services.Cosmos; // Add the correct namespace for CosmosDbService
+using GamerUncle.Api.Services.Cosmos;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
+using Microsoft.Extensions.Logging;
 
 namespace GamerUncle.Api.Services.AgentService
 {
@@ -17,8 +20,10 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly PersistentAgentsClient _agentsClient;
         private readonly string _agentId;
         private readonly ICosmosDbService _cosmosDbService;
+        private readonly TelemetryClient? _telemetryClient;
+        private readonly ILogger<AgentServiceClient> _logger;
 
-        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService)
+        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             _agentId = config["AgentService:AgentId"] ?? throw new InvalidOperationException("Agent ID missing");
@@ -27,13 +32,24 @@ namespace GamerUncle.Api.Services.AgentService
             _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential());
             _agentsClient = _projectClient.GetPersistentAgentsClient();
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
+            _telemetryClient = telemetryClient;
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentServiceClient>.Instance;
         }
 
         public async Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null)
         {
+            using var activity = _telemetryClient?.StartOperation<RequestTelemetry>("AgentServiceClient.GetRecommendations");
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
             try
             {
-                Console.WriteLine($"Starting agent request with input: {userInput}");
+                _logger.LogInformation("Starting agent request with input: {UserInput}", userInput);
+                _telemetryClient?.TrackEvent("AgentRequest.Started", new Dictionary<string, string>
+                {
+                    ["UserInput"] = userInput,
+                    ["ThreadId"] = threadId ?? "new",
+                    ["RequestId"] = activity?.Telemetry?.Id ?? Guid.NewGuid().ToString()
+                });
 
                 // Step 1: Extract query criteria using AI Agent (for any board game question)
                 var criteria = await ExtractGameCriteriaViaAgent(userInput, threadId);
@@ -59,6 +75,11 @@ namespace GamerUncle.Api.Services.AgentService
                     {
                         new { role = "user", content = userInput }
                     }.ToList<object>();
+                    
+                    _telemetryClient?.TrackEvent("AgentRequest.NoCriteria", new Dictionary<string, string>
+                    {
+                        ["UserInput"] = userInput
+                    });
                 }
                 else
                 {
@@ -75,20 +96,51 @@ namespace GamerUncle.Api.Services.AgentService
                         new { role = "user", content = ragContext },
                         new { role = "user", content = userInput }
                     }.ToList<object>();
+                    
+                    _telemetryClient?.TrackEvent("AgentRequest.WithRAG", new Dictionary<string, string>
+                    {
+                        ["UserInput"] = userInput,
+                        ["MatchingGamesCount"] = matchingGames.Count.ToString(),
+                        ["CriteriaUsed"] = JsonSerializer.Serialize(criteria)
+                    });
                 }
 
                 var requestPayload = new { messages };
 
                 // Step 3: Create and run agent thread
                 var (response, currentThreadId) = await RunAgentWithMessagesAsync(requestPayload, threadId);
+                
+                stopwatch.Stop();
+                _telemetryClient?.TrackEvent("AgentRequest.Completed", new Dictionary<string, string>
+                {
+                    ["UserInput"] = userInput,
+                    ["ThreadId"] = currentThreadId,
+                    ["MatchingGamesCount"] = matchingGames.Count.ToString(),
+                    ["ResponseLength"] = response?.Length.ToString() ?? "0",
+                    ["Duration"] = stopwatch.ElapsedMilliseconds.ToString()
+                });
+                
+                _telemetryClient?.TrackMetric("AgentRequest.Duration", stopwatch.ElapsedMilliseconds);
+                _telemetryClient?.TrackMetric("AgentRequest.MatchingGames", matchingGames.Count);
+                
                 return new AgentResponse
                 {
                     ResponseText = response ?? "No response from my brain 🤖 Let's try again!",
                     ThreadId = currentThreadId,
                     MatchingGamesCount = matchingGames.Count
                 };
-            }            catch (Exception ex)
+            }
+            catch (Exception ex)
             {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error in GetRecommendationsAsync for input: {UserInput}", userInput);
+                _telemetryClient?.TrackException(ex, new Dictionary<string, string>
+                {
+                    ["UserInput"] = userInput,
+                    ["ThreadId"] = threadId ?? "new",
+                    ["Duration"] = stopwatch.ElapsedMilliseconds.ToString()
+                });
+                
                 return new AgentResponse
                 {
                     ResponseText = $"Something went wrong: {ex.Message}. Let's try again! 🎲",

@@ -1,9 +1,30 @@
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
+using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Application Insights with RBAC (Managed Identity)
+var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+if (!string.IsNullOrEmpty(appInsightsConnectionString))
+{
+    // Use OpenTelemetry with Azure Monitor for modern telemetry
+    builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
+    {
+        options.ConnectionString = appInsightsConnectionString;
+        options.Credential = new DefaultAzureCredential();
+    });
+    
+    // Add traditional Application Insights as well for compatibility
+    builder.Services.AddApplicationInsightsTelemetry(options =>
+    {
+        options.ConnectionString = appInsightsConnectionString;
+        options.DeveloperMode = builder.Environment.IsDevelopment();
+    });
+}
 
 // Register services
 builder.Services.AddControllers();
