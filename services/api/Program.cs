@@ -44,6 +44,8 @@ builder.Services.AddRateLimiter(options =>
     var isTestEnvironment = builder.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase) 
                            || builder.Configuration.GetValue<bool>("Testing:DisableRateLimit");
     
+    var isRateLimitTestEnvironment = builder.Environment.EnvironmentName.Equals("RateLimitTesting", StringComparison.OrdinalIgnoreCase);
+    
     if (isTestEnvironment)
     {
         // Very permissive limits for testing
@@ -53,6 +55,21 @@ builder.Services.AddRateLimiter(options =>
             configure.Window = TimeSpan.FromMinutes(1);
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 1000;
+        });
+    }
+    else if (isRateLimitTestEnvironment)
+    {
+        // Strict limits for rate limiting integration tests
+        var permitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 1);
+        var windowMinutes = builder.Configuration.GetValue<int>("RateLimiting:WindowMinutes", 1);
+        var queueLimit = builder.Configuration.GetValue<int>("RateLimiting:QueueLimit", 0);
+        
+        options.AddFixedWindowLimiter("GameRecommendations", configure =>
+        {
+            configure.PermitLimit = permitLimit;
+            configure.Window = TimeSpan.FromSeconds(5); // Use shorter window for tests
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = queueLimit;
         });
     }
     else
@@ -91,9 +108,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Enable rate limiting
-app.UseRateLimiter();
-
 // Enable Swagger in development
 if (app.Environment.IsDevelopment())
 {
@@ -102,6 +116,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRouting();
+
+// Enable rate limiting after routing
+app.UseRateLimiter();
+
 app.UseAuthorization();
 app.MapControllers();
 app.UseCors();

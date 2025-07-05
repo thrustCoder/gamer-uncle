@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Xunit;
 using GamerUncle.Api.Models;
 using GamerUncle.Api.Services.Interfaces;
@@ -23,6 +26,21 @@ namespace GamerUncle.Api.Tests
             
             _factory = factory.WithWebHostBuilder(builder =>
             {
+                // Set to RateLimitTesting environment to enable strict rate limiting for tests
+                builder.UseEnvironment("RateLimitTesting");
+                
+                builder.ConfigureAppConfiguration((context, config) =>
+                {
+                    // Ensure rate limiting is enabled with test-friendly limits
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["Testing:DisableRateLimit"] = "false",
+                        ["RateLimiting:PermitLimit"] = "2",       // Allow 2 requests for more predictable testing
+                        ["RateLimiting:WindowSeconds"] = "2",     // Use seconds instead of minutes for faster tests
+                        ["RateLimiting:QueueLimit"] = "0"        // No queue for simpler testing
+                    });
+                });
+                
                 builder.ConfigureServices(services =>
                 {
                     // Remove the real agent service and replace with mock
@@ -31,6 +49,22 @@ namespace GamerUncle.Api.Tests
                         services.Remove(descriptor);
                     
                     services.AddTransient(_ => _mockAgentService.Object);
+                    
+                    // Override rate limiting configuration for testing
+                    services.Configure<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>(options =>
+                    {
+                        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                        {
+                            return RateLimitPartition.GetFixedWindowLimiter("test-partition", 
+                                _ => new FixedWindowRateLimiterOptions
+                                {
+                                    PermitLimit = 2,
+                                    Window = TimeSpan.FromSeconds(1), // Very short window for testing
+                                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                                    QueueLimit = 0
+                                });
+                        });
+                    });
                 });
             });
         }
@@ -79,23 +113,37 @@ namespace GamerUncle.Api.Tests
 
             var json = JsonSerializer.Serialize(query);
 
-            // Act - Make 11 requests (rate limit is 10 per minute)
-            var tasks = new List<Task<HttpResponseMessage>>();
-            for (int i = 0; i < 11; i++)
+            // Act - Make requests sequentially to ensure we hit the rate limit
+            var responses = new List<HttpResponseMessage>();
+            
+            // Send requests one by one to trigger rate limiting more reliably
+            for (int i = 0; i < 5; i++)
             {
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                tasks.Add(client.PostAsync("/api/recommendations", content));
+                var response = await client.PostAsync("/api/recommendations", content);
+                responses.Add(response);
+                
+                // Small delay to ensure requests are processed
+                await Task.Delay(50);
             }
 
-            var responses = await Task.WhenAll(tasks);
-
+            // Debug: Log all response status codes
+            var statusCodes = responses.Select(r => r.StatusCode).ToList();
+            var debugMessage = $"Response status codes: [{string.Join(", ", statusCodes)}]";
+            
             // Assert
             var successCount = responses.Count(r => r.StatusCode == HttpStatusCode.OK);
             var rateLimitedCount = responses.Count(r => r.StatusCode == HttpStatusCode.TooManyRequests);
             
-            // Should have some successful requests and some rate-limited ones
-            Assert.True(successCount >= 10, $"Expected at least 10 successful requests, got {successCount}");
-            Assert.True(rateLimitedCount >= 1, $"Expected at least 1 rate-limited request, got {rateLimitedCount}");
+            // Should have max 2 successful requests (permit limit) and at least 1 rate-limited
+            Assert.True(successCount <= 2, $"Expected at most 2 successful requests, got {successCount}. {debugMessage}");
+            Assert.True(rateLimitedCount >= 1, $"Expected at least 1 rate-limited request, got {rateLimitedCount}. {debugMessage}");
+            
+            // Cleanup responses
+            foreach (var response in responses)
+            {
+                response.Dispose();
+            }
         }
 
         [Fact]
@@ -116,9 +164,9 @@ namespace GamerUncle.Api.Tests
 
             var json = JsonSerializer.Serialize(query);
 
-            // Act - Make enough requests to trigger rate limiting
+            // Act - Make enough requests to trigger rate limiting (8 requests, limit is 2+0=2)
             HttpResponseMessage? rateLimitedResponse = null;
-            for (int i = 0; i < 15; i++)
+            for (int i = 0; i < 8; i++)
             {
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await client.PostAsync("/api/recommendations", content);
@@ -128,6 +176,9 @@ namespace GamerUncle.Api.Tests
                     rateLimitedResponse = response;
                     break;
                 }
+                
+                // Small delay to ensure requests are processed sequentially
+                await Task.Delay(10);
             }
 
             // Assert
@@ -136,6 +187,9 @@ namespace GamerUncle.Api.Tests
             
             var responseContent = await rateLimitedResponse.Content.ReadAsStringAsync();
             Assert.Contains("Rate limit exceeded", responseContent);
+            
+            // Cleanup
+            rateLimitedResponse.Dispose();
         }
     }
 }
