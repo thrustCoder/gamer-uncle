@@ -604,7 +604,7 @@ stages:
 
     - script: |
         export TEST_ENVIRONMENT=Dev
-        export API_BASE_URL=https://gamer-uncle-dev-app-svc.azurewebsites.net
+        export API_BASE_URL=https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net
         dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
       displayName: 'Run Functional Tests Against Dev Environment'
 
