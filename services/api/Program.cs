@@ -4,6 +4,8 @@ using GamerUncle.Api.Services.Cosmos;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +37,43 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 });
 
+// Add rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Check if we're in a testing environment (via environment variable or config)
+    var isTestEnvironment = builder.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase) 
+                           || builder.Configuration.GetValue<bool>("Testing:DisableRateLimit");
+    
+    if (isTestEnvironment)
+    {
+        // Very permissive limits for testing
+        options.AddFixedWindowLimiter("GameRecommendations", configure =>
+        {
+            configure.PermitLimit = 10000; // Very high limit for tests
+            configure.Window = TimeSpan.FromMinutes(1);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 1000;
+        });
+    }
+    else
+    {
+        // Production rate limiting
+        options.AddFixedWindowLimiter("GameRecommendations", configure =>
+        {
+            configure.PermitLimit = 15; // 15 requests per minute
+            configure.Window = TimeSpan.FromMinutes(1); // per minute
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 5; // Allow 5 requests to queue when limit is hit
+        });
+    }
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429; // Too Many Requests
+        await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Please try again later.", token);
+    };
+});
+
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
@@ -52,6 +91,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Enable rate limiting
+app.UseRateLimiter();
+
 // Enable Swagger in development
 if (app.Environment.IsDevelopment())
 {
@@ -66,3 +108,6 @@ app.UseCors();
 app.UseStaticFiles();
 
 app.Run();
+
+// Make Program class accessible for testing
+public partial class Program { }

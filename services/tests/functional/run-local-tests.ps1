@@ -11,6 +11,10 @@ if (-not (Test-Path $ApiProject)) {
 }
 
 try {
+    # Set environment for API to bypass rate limiting
+    $env:ASPNETCORE_ENVIRONMENT = "Testing"
+    $env:Testing__DisableRateLimit = "true"
+    
     # Start API in background
     Write-Host "🚀 Starting API server..." -ForegroundColor Green
     $ApiProcess = Start-Process -FilePath "dotnet" -ArgumentList "run", "--project", $ApiProject -PassThru -WindowStyle Hidden
@@ -54,6 +58,8 @@ try {
     # Set test environment
     $env:TEST_ENVIRONMENT = "Local"
     $env:API_BASE_URL = "http://localhost:5000"
+    $env:ASPNETCORE_ENVIRONMENT = "Testing"
+    $env:Testing__DisableRateLimit = "true"
 
     # Run functional tests
     Write-Host "🧪 Running functional tests..." -ForegroundColor Green
