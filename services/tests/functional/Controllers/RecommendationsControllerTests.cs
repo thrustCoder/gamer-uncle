@@ -71,29 +71,10 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 ConversationId = Guid.NewGuid().ToString()
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing valid query: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _output.WriteLine($"Error response: {errorContent}");
-            }
-            
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            Assert.False(string.IsNullOrEmpty(responseContent));
-
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-            Assert.NotNull(agentResponse);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "valid query test");
             
             // Verify response structure
             Assert.NotNull(agentResponse.ResponseText);
@@ -109,29 +90,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 Query = "fun game"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing minimal query: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _output.WriteLine($"Error response: {errorContent}");
-            }
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "minimal query test");
             
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            Assert.False(string.IsNullOrEmpty(responseContent));
-
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-            Assert.NotNull(agentResponse);
             Assert.NotNull(agentResponse.ResponseText);
         }
 
@@ -144,18 +107,54 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 Query = ""
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine("Testing empty query validation");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
+            // Act & Assert with retry logic for validation tests
+            for (int attempt = 0; attempt <= 1; attempt++)
+            {
+                _output.WriteLine($"Attempt {attempt + 1}/2 for empty query validation test");
+                
+                var json = JsonConvert.SerializeObject(userQuery);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.True(response.StatusCode == HttpStatusCode.BadRequest || 
-                       response.StatusCode == HttpStatusCode.OK); // Some APIs might handle empty queries gracefully
+                var response = await _httpClient.PostAsync("/api/recommendations", content);
+                
+                _output.WriteLine($"Response status: {response.StatusCode}");
+                Assert.True(response.StatusCode == HttpStatusCode.BadRequest || 
+                           response.StatusCode == HttpStatusCode.OK); // Some APIs might handle empty queries gracefully
+
+                if (response.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    _output.WriteLine("✅ Empty query properly rejected with BadRequest");
+                    return;
+                }
+                else if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+                    Assert.NotNull(agentResponse);
+                    Assert.NotNull(agentResponse.ResponseText);
+                    
+                    // If this is not a fallback response, we're good
+                    if (!IsFallbackResponse(agentResponse.ResponseText))
+                    {
+                        _output.WriteLine($"✅ Empty query handled gracefully with meaningful response on attempt {attempt + 1}");
+                        return;
+                    }
+                    
+                    _output.WriteLine($"⚠️ Got fallback response on attempt {attempt + 1}: {agentResponse.ResponseText}");
+                    
+                    // If this is not the last attempt, wait a bit before retrying
+                    if (attempt < 1)
+                    {
+                        _output.WriteLine("Waiting 2 seconds before retry...");
+                        await Task.Delay(2000);
+                    }
+                }
+            }
+            
+            // If we reach here and got OK responses, but all were fallbacks, that's still acceptable for empty query
+            _output.WriteLine("Empty query test completed - all attempts resulted in fallback responses, which is acceptable for empty queries");
         }
 
         [Fact]
@@ -204,18 +203,55 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-user-456"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing long query (length: {longQuery.Length} characters)");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
+            // Act & Assert with retry logic for long queries (might be rejected or accepted)
+            for (int attempt = 0; attempt <= 1; attempt++)
+            {
+                _output.WriteLine($"Attempt {attempt + 1}/2 for long query test");
+                
+                var json = JsonConvert.SerializeObject(userQuery);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.True(response.StatusCode == HttpStatusCode.OK || 
-                       response.StatusCode == HttpStatusCode.BadRequest); // Might have length limits
+                var response = await _httpClient.PostAsync("/api/recommendations", content);
+                
+                _output.WriteLine($"Response status: {response.StatusCode}");
+                Assert.True(response.StatusCode == HttpStatusCode.OK || 
+                           response.StatusCode == HttpStatusCode.BadRequest); // Might have length limits
+
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+                    Assert.NotNull(agentResponse);
+                    Assert.NotNull(agentResponse.ResponseText);
+                    
+                    // If this is not a fallback response, we're good
+                    if (!IsFallbackResponse(agentResponse.ResponseText))
+                    {
+                        _output.WriteLine($"✅ Got meaningful response for long query on attempt {attempt + 1}");
+                        return;
+                    }
+                    
+                    _output.WriteLine($"⚠️ Got fallback response on attempt {attempt + 1}: {agentResponse.ResponseText}");
+                    
+                    // If this is not the last attempt, wait a bit before retrying
+                    if (attempt < 1)
+                    {
+                        _output.WriteLine("Waiting 2 seconds before retry...");
+                        await Task.Delay(2000);
+                    }
+                }
+                else
+                {
+                    // BadRequest is acceptable for very long queries
+                    _output.WriteLine($"✅ Long query properly rejected with status: {response.StatusCode}");
+                    return;
+                }
+            }
+            
+            // If we reach here, all attempts resulted in fallback responses
+            Assert.True(false, "Long query test failed after 2 attempts. All responses were fallback responses.");
         }
 
         [Fact]
@@ -230,22 +266,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 ConversationId = conversationId
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing conversation tracking with ID: {conversationId}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "conversation tracking test");
             
-            Assert.NotNull(agentResponse);
             Assert.NotNull(agentResponse.ResponseText);
             
             // ThreadId might be returned for conversation tracking
@@ -267,26 +292,10 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-user-structure"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine("Testing response JSON structure validation");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            _output.WriteLine($"Response content: {responseContent}");
-
-            // Verify it's valid JSON
-            Assert.True(IsValidJson(responseContent), "Response should be valid JSON");
-
-            // Verify it deserializes to expected structure
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-            Assert.NotNull(agentResponse);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "JSON structure validation test");
 
             // Verify required properties exist
             Assert.NotNull(agentResponse.ResponseText);
@@ -307,20 +316,13 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-content-type"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            _output.WriteLine("Testing content type validation");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            // Act & Assert with retry logic  
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "content type test");
             
-            var contentType = response.Content.Headers.ContentType?.MediaType;
-            _output.WriteLine($"Response content type: {contentType}");
-            
-            Assert.True(contentType == "application/json" || contentType == "text/json", 
-                       $"Expected JSON content type, but got: {contentType}");
+            // The ExecuteTestWithRetry method handles the content type validation internally
+            Assert.NotNull(agentResponse.ResponseText);
         }
 
         #endregion
@@ -337,22 +339,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-special-chars"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing special characters: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "special characters test");
             
-            Assert.NotNull(agentResponse);
             Assert.NotNull(agentResponse.ResponseText);
         }
 
@@ -366,22 +357,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-unicode"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing Unicode characters: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+            // Act & Assert with retry logic
+            var agentResponse = await ExecuteTestWithRetry(userQuery, "Unicode characters test");
             
-            Assert.NotNull(agentResponse);
             Assert.NotNull(agentResponse.ResponseText);
         }
 
@@ -395,32 +375,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-sql-injection"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing SQL injection prevention: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            // Should either handle gracefully (200) or reject (400), but not crash (500)
-            Assert.True(response.StatusCode == HttpStatusCode.OK || 
-                       response.StatusCode == HttpStatusCode.BadRequest,
-                       $"Expected OK or BadRequest, but got {response.StatusCode}");
-
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-                Assert.NotNull(agentResponse);
-                Assert.NotNull(agentResponse.ResponseText);
-                
-                // Response should not contain SQL error messages
-                Assert.DoesNotContain("SQL", agentResponse.ResponseText, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("DROP", agentResponse.ResponseText, StringComparison.OrdinalIgnoreCase);
-            }
+            // Act & Assert with retry logic and security checks
+            var forbiddenStrings = new[] { "SQL", "DROP" };
+            await ExecuteSecurityTestWithRetry(userQuery, "SQL injection prevention test", forbiddenStrings);
         }
 
         [Fact]
@@ -433,31 +392,11 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 UserId = "test-xss"
             };
 
-            var json = JsonConvert.SerializeObject(userQuery);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _output.WriteLine($"Testing XSS prevention: {userQuery.Query}");
 
-            // Act
-            var response = await _httpClient.PostAsync("/api/recommendations", content);
-
-            // Assert
-            _output.WriteLine($"Response status: {response.StatusCode}");
-            Assert.True(response.StatusCode == HttpStatusCode.OK || 
-                       response.StatusCode == HttpStatusCode.BadRequest,
-                       $"Expected OK or BadRequest, but got {response.StatusCode}");
-
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
-                Assert.NotNull(agentResponse);
-                Assert.NotNull(agentResponse.ResponseText);
-                
-                // Response should not contain unescaped script tags
-                Assert.DoesNotContain("<script>", agentResponse.ResponseText, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("alert(", agentResponse.ResponseText, StringComparison.OrdinalIgnoreCase);
-            }
+            // Act & Assert with retry logic and security checks
+            var forbiddenStrings = new[] { "<script>", "alert(" };
+            await ExecuteSecurityTestWithRetry(userQuery, "XSS prevention test", forbiddenStrings);
         }
 
         #endregion
@@ -608,6 +547,12 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
         [InlineData("Looking into that for you! 🎲", true)]
         [InlineData("Great board game question! Let me think... 🎮", true)]
         [InlineData("Let me find some great games for you! 🎲", true)]
+        [InlineData("I'm sorry, but I cannot assist with that request.", true)]
+        [InlineData("I cannot assist with that", true)]
+        [InlineData("I'm unable to help with that", true)]
+        [InlineData("I cannot help with that", true)]
+        [InlineData("I'm sorry, I cannot", true)]
+        [InlineData("I cannot provide", true)]
         [InlineData("Short", true)] // Very short response
         [InlineData("This is a detailed recommendation about Catan which is a fantastic board game.", false)]
         [InlineData("Worker placement games are...", false)]
@@ -658,12 +603,25 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
                 "Let me find some great games for you! 🎲"
             };
 
+            // Known refusal patterns that should be treated as fallback responses
+            var refusalPatterns = new[]
+            {
+                "I'm sorry, but I cannot assist with that request",
+                "I cannot assist with that",
+                "I'm unable to help with that",
+                "I cannot help with that",
+                "I'm sorry, I cannot",
+                "I cannot provide"
+            };
+
             // Also check for very short responses that might indicate a problem
             var isVeryShort = responseText.Trim().Length < 20;
             var containsFallbackPattern = fallbackPatterns.Any(pattern => 
                 responseText.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+            var containsRefusalPattern = refusalPatterns.Any(pattern => 
+                responseText.Contains(pattern, StringComparison.OrdinalIgnoreCase));
 
-            return containsFallbackPattern || isVeryShort;
+            return containsFallbackPattern || containsRefusalPattern || isVeryShort;
         }
 
         /// <summary>
@@ -714,6 +672,78 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             // If we've exhausted retries, fail the test with a descriptive message
             Assert.True(false, $"Test failed after {maxRetries + 1} attempts. All responses were fallback responses. Last response: {lastResponse?.ResponseText}");
             return lastResponse!; // This line will never execute due to Assert.True(false) above
+        }
+
+        /// <summary>
+        /// Executes a security test with retry logic and security-specific assertions
+        /// </summary>
+        private async Task<AgentResponse> ExecuteSecurityTestWithRetry(UserQuery userQuery, string testDescription, string[] forbiddenStrings, int maxRetries = 1)
+        {
+            AgentResponse? lastResponse = null;
+            
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                _output.WriteLine($"Attempt {attempt + 1}/{maxRetries + 1} for {testDescription}");
+                
+                var json = JsonConvert.SerializeObject(userQuery);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("/api/recommendations", content);
+                
+                _output.WriteLine($"Response status: {response.StatusCode}");
+                // Should either handle gracefully (200) or reject (400), but not crash (500)
+                Assert.True(response.StatusCode == HttpStatusCode.OK || 
+                           response.StatusCode == HttpStatusCode.BadRequest,
+                           $"Expected OK or BadRequest, but got {response.StatusCode}");
+
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    _output.WriteLine($"Response content: {responseContent}");
+                    
+                    var agentResponse = JsonConvert.DeserializeObject<AgentResponse>(responseContent);
+                    Assert.NotNull(agentResponse);
+                    Assert.NotNull(agentResponse.ResponseText);
+                    
+                    lastResponse = agentResponse;
+
+                    // Check for forbidden strings
+                    foreach (var forbidden in forbiddenStrings)
+                    {
+                        Assert.DoesNotContain(forbidden, agentResponse.ResponseText, StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    // If this is not a fallback response, we're good
+                    if (!IsFallbackResponse(agentResponse.ResponseText))
+                    {
+                        _output.WriteLine($"✅ Got meaningful and secure response on attempt {attempt + 1}");
+                        return agentResponse;
+                    }
+                    
+                    _output.WriteLine($"⚠️ Got fallback response on attempt {attempt + 1}: {agentResponse.ResponseText}");
+                    
+                    // If this is not the last attempt, wait a bit before retrying
+                    if (attempt < maxRetries)
+                    {
+                        _output.WriteLine("Waiting 2 seconds before retry...");
+                        await Task.Delay(2000);
+                    }
+                }
+                else
+                {
+                    // BadRequest is acceptable for security tests
+                    _output.WriteLine($"✅ Request properly rejected with status: {response.StatusCode}");
+                    return new AgentResponse { ResponseText = "Request properly rejected" };
+                }
+            }
+
+            // If we've exhausted retries and all were fallbacks, fail the test
+            if (lastResponse != null)
+            {
+                Assert.True(false, $"Security test failed after {maxRetries + 1} attempts. All responses were fallback responses. Last response: {lastResponse.ResponseText}");
+            }
+            
+            return lastResponse!;
         }
 
         #endregion
