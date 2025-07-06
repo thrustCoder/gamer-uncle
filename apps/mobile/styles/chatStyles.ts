@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from './colors';
 
 export const chatStyles = StyleSheet.create({
   background: {
@@ -22,7 +23,7 @@ export const chatStyles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     borderWidth: 4,
-    borderColor: '#fbe8c9',
+    borderColor: Colors.themeYellow,
     marginTop: 10,
   },
   messagesWrapper: {
@@ -36,40 +37,40 @@ export const chatStyles = StyleSheet.create({
     // REMOVE flexGrow and paddingBottom here!
   },
   systemBubble: {
-    backgroundColor: '#D68F20',
+    backgroundColor: Colors.themeBrownDark,
     borderRadius: 24,
     padding: 16,
     marginVertical: 10,
     alignSelf: 'flex-start',
     maxWidth: '80%',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   userBubble: {
-    backgroundColor: '#265C2E',
+    backgroundColor: Colors.themeGreen,
     borderRadius: 24,
     padding: 16,
     marginVertical: 10,
     alignSelf: 'flex-end',
     maxWidth: '80%',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
   },
   bubbleText: {
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     fontSize: 18,
     lineHeight: 24,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#265C2E',
+    backgroundColor: Colors.themeGreen,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopLeftRadius: 24,
@@ -78,18 +79,18 @@ export const chatStyles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     fontSize: 18,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#3E7A4A',
+    backgroundColor: Colors.themeGreenMedium,
     borderRadius: 32,
     marginRight: 10,
     maxHeight: 100,
     textAlignVertical: 'top',
   },
   sendButton: {
-    backgroundColor: '#3E7A4A',
+    backgroundColor: Colors.themeGreenMedium,
     borderRadius: 24,
     padding: 12,
     alignSelf: 'flex-end',
@@ -97,6 +98,6 @@ export const chatStyles = StyleSheet.create({
   },
   sendText: {
     fontSize: 20,
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
   },
 });

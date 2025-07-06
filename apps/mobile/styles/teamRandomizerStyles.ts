@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from './colors';
 
 export const teamRandomizerStyles = StyleSheet.create({
   background: {
@@ -23,13 +24,13 @@ export const teamRandomizerStyles = StyleSheet.create({
   title: {
     fontSize: 25,
     fontWeight: 'bold',
-    color: '#f4e4bc',
+    color: Colors.teamTitleYellow,
     marginRight: 10,
   },
   inlinePicker: {
     width: 50,
     height: 40,
-    backgroundColor: '#f4e4bc',
+    backgroundColor: Colors.teamTitleYellow,
     borderRadius: 8,
   },
   nameInputs: {
@@ -39,7 +40,7 @@ export const teamRandomizerStyles = StyleSheet.create({
     marginTop: 25,
   },
   nameInput: {
-    backgroundColor: '#f4e4bc',
+    backgroundColor: Colors.teamTitleYellow,
     padding: 10,
     margin: 5,
     width: 90,
@@ -50,7 +51,7 @@ export const teamRandomizerStyles = StyleSheet.create({
     width: 150,
   },
   randomizeButton: {
-    backgroundColor: '#4caf50',
+    backgroundColor: Colors.wheelGreen,
     paddingVertical: 20,
     paddingHorizontal: 30,
     borderRadius: 15,
@@ -63,7 +64,7 @@ export const teamRandomizerStyles = StyleSheet.create({
   randomizeText: {
     fontSize: 25,
     fontWeight: 'bold',
-    color: 'white',
+    color: Colors.white,
   },
   teamsContainer: {
     marginTop: 30,
@@ -72,13 +73,13 @@ export const teamRandomizerStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   teamCard: {
-    backgroundColor: '#fbe8c9',
+    backgroundColor: Colors.teamCardBackground,
     padding: 15,
     borderRadius: 15,
     margin: 10,
     minWidth: 140,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
@@ -97,25 +98,25 @@ export const teamRandomizerStyles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     textAlign: 'center',
-    color: '#264653',
+    color: Colors.teamText,
   },
   playerName: {
     fontSize: 18,
     textAlign: 'center',
-    color: '#264653',
+    color: Colors.teamText,
   },
   pinDot: {
     width: 14,
     height: 14,
-    backgroundColor: 'red',
+    backgroundColor: Colors.red,
     borderRadius: 7,
     position: 'absolute',
     top: 8,
     alignSelf: 'center',
     zIndex: 10,
     borderWidth: 1,
-    borderColor: '#880000',
-    shadowColor: '#000',
+    borderColor: Colors.redPin,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.6,
     shadowRadius: 2,

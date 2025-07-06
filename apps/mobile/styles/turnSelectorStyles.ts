@@ -1,5 +1,6 @@
 // File: apps/mobile/styles/turnSelectorStyles.ts
 import { StyleSheet } from 'react-native';
+import { Colors } from './colors';
 
 export const turnSelectorStyles = StyleSheet.create({
   container: {
@@ -12,19 +13,19 @@ export const turnSelectorStyles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: '900',
-    color: '#FFE7C1',
+    color: Colors.titleLight,
     marginBottom: 20,
-    textShadowColor: '#000',
+    textShadowColor: Colors.black,
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
   inputBox: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: Colors.whiteTransparent,
     padding: 20,
     borderRadius: 20,
     marginBottom: 20,
     width: '100%',
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -32,7 +33,7 @@ export const turnSelectorStyles = StyleSheet.create({
   },
   label: {
     fontSize: 18,
-    color: '#333',
+    color: Colors.textDark,
     fontWeight: '600',
     marginBottom: 8,
   },
@@ -40,7 +41,7 @@ export const turnSelectorStyles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: Colors.grayLight,
     marginBottom: 12,
   },
   picker: {
@@ -55,7 +56,7 @@ export const turnSelectorStyles = StyleSheet.create({
     gap: 10,
   },
   nameInput: {
-    backgroundColor: '#fbe8c9',
+    backgroundColor: Colors.themeYellow,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,

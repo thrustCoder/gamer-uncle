@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from './colors';
 
 export const backButtonStyles = StyleSheet.create({
   backButton: {
@@ -6,13 +7,13 @@ export const backButtonStyles = StyleSheet.create({
     top: 60, // Moved down to avoid overlapping with title
     left: 20,
     zIndex: 10,
-    backgroundColor: '#D68F20', // Slightly more opaque
+    backgroundColor: Colors.themeBrown, // Slightly more opaque
     borderRadius: 25, // Increased for larger button
     width: 40, // Increased width
     height: 40, // Increased height
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3,
@@ -20,7 +21,7 @@ export const backButtonStyles = StyleSheet.create({
   },
   backArrow: {
     fontSize: 30, // Increased font size
-    color: '#fbe8c9', // Yellow color matching your theme
+    color: Colors.themeYellow, // Yellow color matching your theme
     fontWeight: '900', // Much thicker/bolder
     lineHeight: 30, // Ensure proper alignment
     marginTop: 5, // Adjusted to center vertically

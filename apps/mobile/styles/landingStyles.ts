@@ -1,4 +1,5 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { Colors } from './colors';
 
 const screenHeight = Dimensions.get('window').height;
 const screenWidth = Dimensions.get('window').width;
@@ -88,7 +89,7 @@ export const landingStyles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 10,

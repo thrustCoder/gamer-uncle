@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Vibration, AppState, AppStateStatus, Imag
 import Svg, { Circle } from 'react-native-svg';
 import BackButton from '../components/BackButton';
 import { timerStyles as styles } from '../styles/timerStyles';
+import { Colors } from '../styles/colors';
 import { Dimensions } from 'react-native';
 import { Audio } from 'expo-av';
 
@@ -207,7 +208,7 @@ export default function TimerScreen() {
                 cx={(width * 0.8) / 2}
                 cy={(width * 0.8) / 2}
                 r={circleRadius}
-                stroke="#E67E22"
+                stroke={Colors.timerOrange}
                 strokeWidth="20" // Doubled from 10 to 20
                 fill="none"
             />
@@ -216,7 +217,7 @@ export default function TimerScreen() {
                 cx={(width * 0.8) / 2}
                 cy={(width * 0.8) / 2}
                 r={circleRadius}
-                stroke="#27AE60"
+                stroke={Colors.timerGreen}
                 strokeWidth="20" // Doubled from 10 to 20
                 fill="none"
                 strokeDasharray={circumference}

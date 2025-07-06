@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
+import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
@@ -196,7 +197,7 @@ export default function ChatScreen() {
               value={input}
               onChangeText={setInput}
               placeholder="Message"
-              placeholderTextColor="#ddd"
+              placeholderTextColor={Colors.grayPlaceholder}
               style={styles.input}
               editable={!isLoading}
               maxLength={500}
