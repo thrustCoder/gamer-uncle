@@ -50,9 +50,7 @@ const TypingIndicator = () => {
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([
-    { id: '1', type: 'system', text: 'Hi! Need help finding a new board game?' },
-    { id: '2', type: 'user', text: 'Ok!' },
-    { id: '3', type: 'system', text: 'What kind of game are you looking for? Think about the number of players, mechanics, max play time, age restrictions etc.' }
+    { id: '1', type: 'system', text: 'Hi there! 👋 Got a board game question? \n\nWhether you\'re looking for the perfect game, need help with tricky rules 📋, or just some strategy advice - I\'m here to help! 🎲' }
   ]);
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);

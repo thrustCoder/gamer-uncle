@@ -15,6 +15,12 @@ export const landingStyles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
   scrollContainer: {
     flexGrow: 1,
     paddingBottom: 20, // Add bottom padding to prevent clipping
@@ -24,20 +30,19 @@ export const landingStyles = StyleSheet.create({
     height: isLandscape
       ? screenHeight * 0.7 // Larger percentage for landscape devices
       : isTablet 
-        ? screenHeight * 0.7 // Smaller percentage for tablets in portrait
+        ? screenHeight * 0.6 // Smaller percentage for tablets in portrait
         : screenHeight < 740 
-          ? screenHeight * 0.55 // Reduced for small phones
-          : screenHeight * 0.4, // Standard for regular phones
+          ? screenHeight * 0.45 // Reduced for small phones
+          : screenHeight * 0.3, // Standard for regular phones
     marginTop: isLandscape
       ? 30 // Moderate top margin for landscape devices
       : isTablet 
-        ? 100 // Larger top margin for tablets (status bar + safe area)
+        ? 80 // Larger top margin for tablets (status bar + safe area)
         : screenHeight < 740 
-          ? 95 // Increased for small phones like iPhone SE
-          : 130, // Standard for regular phones
+          ? 75 // Increased for small phones like iPhone SE
+          : 110, // Standard for regular phones
     marginBottom: 0, // Increased bottom margin
     marginHorizontal: 0,
-    marginLeft: 0,
     paddingHorizontal: 0,
   },
   grid: {
@@ -45,7 +50,7 @@ export const landingStyles = StyleSheet.create({
     flexWrap: isLandscape ? 'nowrap' : 'wrap', // Single row in landscape
     justifyContent: isLandscape ? 'space-around' : 'space-around',
     marginHorizontal: 10,
-    paddingTop: 0,
+    paddingTop: 20,
     paddingBottom: 10, // Increased bottom padding
   },
   iconButtonTurn: {
@@ -91,7 +96,7 @@ export const landingStyles = StyleSheet.create({
     fontSize: 12,
     color: Colors.white,
     textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 10,
+    paddingVertical: 10,
+    paddingBottom: 30, // Extra bottom padding for safe area
   },
 });

@@ -68,9 +68,6 @@ export const teamRandomizerStyles = StyleSheet.create({
   },
   teamsContainer: {
     marginTop: 30,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
   },
   teamCard: {
     backgroundColor: Colors.teamCardBackground,

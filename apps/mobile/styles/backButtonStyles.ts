@@ -7,7 +7,7 @@ export const backButtonStyles = StyleSheet.create({
     top: 60, // Moved down to avoid overlapping with title
     left: 20,
     zIndex: 10,
-    backgroundColor: Colors.themeBrown, // Slightly more opaque
+    backgroundColor: Colors.themeYellow, // Slightly more opaque
     borderRadius: 25, // Increased for larger button
     width: 40, // Increased width
     height: 40, // Increased height
@@ -21,7 +21,7 @@ export const backButtonStyles = StyleSheet.create({
   },
   backArrow: {
     fontSize: 30, // Increased font size
-    color: Colors.themeYellow, // Yellow color matching your theme
+    color: Colors.themeBrownDark, // Yellow color matching your theme
     fontWeight: '900', // Much thicker/bolder
     lineHeight: 30, // Ensure proper alignment
     marginTop: 5, // Adjusted to center vertically

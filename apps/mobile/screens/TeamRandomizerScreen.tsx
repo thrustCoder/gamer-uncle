@@ -167,7 +167,15 @@ export default function TeamRandomizerScreen() {
           <Text style={styles.randomizeText}>RANDOMIZE</Text>
         </TouchableOpacity>
 
-        <ScrollView style={styles.teamsContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={{ marginTop: 30 }} 
+          contentContainerStyle={{ 
+            flexDirection: 'row', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center' 
+          }}
+          showsVerticalScrollIndicator={false}
+        >
           {teams.map((team, idx) => (
             <View key={idx} style={[styles.teamCard, idx % 2 === 0 ? styles.cardLeft : styles.cardRight]}>
               <View style={styles.pinDot} />
