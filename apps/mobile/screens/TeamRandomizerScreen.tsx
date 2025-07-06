@@ -23,7 +23,7 @@ export default function TeamRandomizerScreen() {
   const [teamCount, setTeamCount] = useState(2);
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
-  const confettiRef = useRef(null);
+  const confettiRef = useRef<any>(null);
   const hasRandomizedOnce = useRef(false);
 
   const handleNameChange = (index: number, name: string) => {
@@ -89,7 +89,7 @@ export default function TeamRandomizerScreen() {
   return (
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
-      <View style={styles.container}>
+      <View style={styles.container} testID="team-randomizer">
         <View style={styles.inlineRow}>
           <Text style={styles.title}>Number of players</Text>
           <TouchableOpacity 

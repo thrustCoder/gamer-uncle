@@ -22,7 +22,7 @@ export default function TimerScreen() {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showStartButton, setShowStartButton] = useState(false);
-  const intervalRef = useRef<NodeJS.Timer | null>(null);
+  const intervalRef = useRef<NodeJS.Timer | number | null>(null);
   const appState = useRef(AppState.currentState);
   const startTime = useRef<number | null>(null);
   const pausedTime = useRef<number>(0);
@@ -38,7 +38,7 @@ export default function TimerScreen() {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            clearInterval(intervalRef.current!);
+            clearInterval(intervalRef.current as any);
             handleTimerComplete();
             return 0;
           }
@@ -46,9 +46,9 @@ export default function TimerScreen() {
         });
       }, 1000);
     } else {
-      clearInterval(intervalRef.current!);
+      clearInterval(intervalRef.current as any);
     }
-    return () => clearInterval(intervalRef.current!);
+    return () => clearInterval(intervalRef.current as any);
   }, [isRunning, isPaused]);
 
   const handleTimerComplete = async () => {
@@ -175,7 +175,7 @@ export default function TimerScreen() {
       resizeMode="repeat"
     >
       <BackButton />
-      <View style={styles.container}>
+      <View style={styles.container} testID="timer-screen">
 
         {/* Additive presets: 10s, 30s, 1m, 5m */}
         <View style={styles.presetContainer}>
@@ -185,6 +185,7 @@ export default function TimerScreen() {
               style={[styles.presetButton, isRunning && styles.disabledButton]}
               onPress={() => handlePresetSelect(preset.seconds)}
               disabled={isRunning}
+              testID={`preset-${preset.label}`}
             >
               <Text style={styles.presetText}>{preset.label}</Text>
             </TouchableOpacity>
@@ -227,7 +228,7 @@ export default function TimerScreen() {
             />
             </Svg>
             
-            <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
+            <Text style={styles.timeText} testID="timer-display">{formatTime(timeLeft)}</Text>
         </Animated.View>
         </View>
 
@@ -237,6 +238,7 @@ export default function TimerScreen() {
             <TouchableOpacity
               style={styles.mainButton}
               onPress={handleStart}
+              testID="start-timer"
             >
               <Text style={styles.mainButtonText}>START</Text>
             </TouchableOpacity>
@@ -247,6 +249,7 @@ export default function TimerScreen() {
             <TouchableOpacity 
               style={styles.resetButton} 
               onPress={handleReset}
+              testID="reset-timer"
             >
               <Text style={styles.resetText}>RESET</Text>
             </TouchableOpacity>
@@ -257,6 +260,7 @@ export default function TimerScreen() {
             <TouchableOpacity
               style={styles.mainButton}
               onPress={isPaused ? handleResume : handlePause}
+              testID={isPaused ? "resume-timer" : "pause-timer"}
             >
               <Text style={styles.mainButtonText}>
                 {isPaused ? 'RESUME' : 'PAUSE'}
@@ -266,7 +270,11 @@ export default function TimerScreen() {
 
           {/* Show RESET button when paused */}
           {isRunning && isPaused && (
-            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+            <TouchableOpacity 
+              style={styles.resetButton} 
+              onPress={handleReset}
+              testID="reset-timer-paused"
+            >
               <Text style={styles.resetText}>RESET</Text>
             </TouchableOpacity>
           )}

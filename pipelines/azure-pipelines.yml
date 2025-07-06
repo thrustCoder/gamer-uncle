@@ -580,6 +580,57 @@ stages:
       displayName: 'Publish Functional Test Results'
       condition: always()
 
+# E2E Tests for Mobile App (PR)
+- stage: E2ETestsPR
+  displayName: 'Mobile E2E Tests (PR)'
+  dependsOn: DevBuild
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+  jobs:
+  - job: RunE2ETests
+    displayName: 'Run Mobile E2E Tests'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        npm install
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npx playwright install --with-deps
+      displayName: 'Install Playwright Browsers'
+
+    - script: |
+        cd $(mobileProject)
+        chmod +x setup-e2e.sh
+        ./setup-e2e.sh
+      displayName: 'Setup E2E Environment'
+
+    - script: |
+        cd $(mobileProject)
+        npm run test:e2e -- --reporter=junit --output-dir=test-results
+      displayName: 'Run E2E Tests'
+      continueOnError: true
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(mobileProject)/test-results/*.xml'
+        failTaskOnFailedTests: true
+      displayName: 'Publish E2E Test Results'
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(mobileProject)/test-results'
+        artifactName: 'e2e-test-results-pr'
+      displayName: 'Publish E2E Test Artifacts'
+      condition: always()
+
 - stage: FunctionalTestsDev
   displayName: 'Dev Functional Tests'
   dependsOn: DevDeployApi
@@ -614,3 +665,65 @@ stages:
         testResultsFiles: '$(Agent.TempDirectory)/*.trx'
         failTaskOnFailedTests: true
       displayName: 'Publish Dev Functional Test Results'
+
+# E2E Tests for Mobile App (Dev Environment)  
+- stage: E2ETestsDev
+  displayName: 'Mobile E2E Tests (Dev)'
+  dependsOn: DevDeployMobile
+  condition: |
+    and(
+      succeeded(), 
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranchName'], 'main')
+    )
+  jobs:
+  - job: RunDevE2ETests
+    displayName: 'Run E2E Tests Against Dev Environment'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        npm install
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npx playwright install --with-deps
+      displayName: 'Install Playwright Browsers'
+
+    - script: |
+        cd $(mobileProject)
+        # Update playwright config to point to deployed app
+        sed -i 's|baseURL: .*|baseURL: "https://gamer-uncle-dev-mobile.azurewebsites.net"|' playwright.config.ts
+      displayName: 'Configure E2E for Dev Environment'
+
+    - script: |
+        cd $(mobileProject)
+        chmod +x setup-e2e.sh
+        ./setup-e2e.sh
+      displayName: 'Setup E2E Environment'
+
+    - script: |
+        cd $(mobileProject)
+        npm run test:e2e -- --reporter=junit --output-dir=test-results-dev
+      displayName: 'Run E2E Tests Against Dev'
+      continueOnError: true
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(mobileProject)/test-results-dev/*.xml'
+        failTaskOnFailedTests: true
+      displayName: 'Publish Dev E2E Test Results'
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(mobileProject)/test-results-dev'
+        artifactName: 'e2e-test-results-dev'
+      displayName: 'Publish Dev E2E Test Artifacts'
+      condition: always()

@@ -42,7 +42,7 @@ const TypingIndicator = () => {
   }, []);
 
   return (
-    <View style={styles.systemBubble}>
+    <View style={styles.systemBubble} testID="typing-indicator">
       <Text style={styles.bubbleText}>🤔{dots}</Text>
     </View>
   );
@@ -132,20 +132,23 @@ export default function ChatScreen() {
     }
   };
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = (event: any) => {
     if (event.nativeEvent.key === 'Enter') {
       event.preventDefault();
       handleSend();
     }
   };
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: any }) => {
     if (item.type === 'typing') {
       return <TypingIndicator />;
     }
     
     return (
-      <View style={item.type === 'user' ? styles.userBubble : styles.systemBubble}>
+      <View 
+        style={item.type === 'user' ? styles.userBubble : styles.systemBubble}
+        testID={item.type === 'user' ? 'user-message' : 'system-message'}
+      >
         <Text style={styles.bubbleText}>{item.text}</Text>
       </View>
     );
@@ -183,6 +186,7 @@ export default function ChatScreen() {
               showsVerticalScrollIndicator={false}
               bounces={true}
               overScrollMode="always"
+              testID="message-container"
               onContentSizeChange={() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }}
@@ -201,11 +205,13 @@ export default function ChatScreen() {
               maxLength={500}
               returnKeyType="send"
               onSubmitEditing={handleSend}
+              testID="chat-input"
             />
             <TouchableOpacity 
               onPress={handleSend} 
               style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
               disabled={isLoading}
+              testID="send-button"
             >
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>

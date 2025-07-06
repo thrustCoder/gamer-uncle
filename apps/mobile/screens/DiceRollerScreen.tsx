@@ -24,7 +24,7 @@ import BackButton from '../components/BackButton';
 
 const { width, height } = Dimensions.get('window');
 
-const diceImages = {
+const diceImages: Record<number, any> = {
   1: require('../assets/dice/dice1.png'),
   2: require('../assets/dice/dice2.png'),
   3: require('../assets/dice/dice3.png'),
@@ -113,22 +113,37 @@ export default function DiceRollerScreen() {
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.bg}>
       <BackButton onPress={() => navigation.goBack()} />
 
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity onPress={() => setDiceCount(1)} style={[styles.toggleBtn, diceCount === 1 && styles.activeToggle]}>
+      <View style={styles.toggleContainer} testID="dice-roller">
+        <TouchableOpacity 
+          onPress={() => setDiceCount(1)} 
+          style={[styles.toggleBtn, diceCount === 1 && styles.activeToggle]}
+          testID="decrease-dice"
+        >
           <Text style={styles.toggleText}>1 Die</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setDiceCount(2)} style={[styles.toggleBtn, diceCount === 2 && styles.activeToggle]}>
+        <TouchableOpacity 
+          onPress={() => setDiceCount(2)} 
+          style={[styles.toggleBtn, diceCount === 2 && styles.activeToggle]}
+          testID="increase-dice"
+        >
           <Text style={styles.toggleText}>2 Dice</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.arena} onPress={rollDice} activeOpacity={0.8}>
-        <View style={styles.diceRow}>
+      <TouchableOpacity 
+        style={styles.arena} 
+        onPress={rollDice} 
+        activeOpacity={0.8}
+        testID="roll-button"
+        disabled={rolling}
+      >
+        <View style={styles.diceRow} testID="dice-display">
           {Array.from({ length: diceCount }).map((_, i) => (
             <Animated.Image
               key={i}
               source={diceImages[diceValues[i] || 1]}
               style={[styles.dice, animatedStyle]}
+              testID={`dice-${i}`}
             />
           ))}
         </View>

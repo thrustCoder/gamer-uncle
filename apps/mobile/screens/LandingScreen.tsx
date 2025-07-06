@@ -22,6 +22,7 @@ export default function LandingScreen() {
           <TouchableOpacity 
             onPress={() => navigation.navigate('Chat')}
             style={{ width: '100%', marginHorizontal: 0, paddingHorizontal: 0 }}
+            testID="uncle-header"
           >
             <Image
               source={require('../assets/images/uncle_header.png')}
@@ -31,19 +32,35 @@ export default function LandingScreen() {
           </TouchableOpacity>
 
           <View style={styles.grid}>
-            <TouchableOpacity style={styles.iconButtonTurn} onPress={() => navigation.navigate('Turn')}>
+            <TouchableOpacity 
+              style={styles.iconButtonTurn} 
+              onPress={() => navigation.navigate('Turn')}
+              testID="turn-button"
+            >
               <Image source={require('../assets/images/turn_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconButtonTeam} onPress={() => navigation.navigate('Team')}>
+            <TouchableOpacity 
+              style={styles.iconButtonTeam} 
+              onPress={() => navigation.navigate('Team')}
+              testID="team-button"
+            >
               <Image source={require('../assets/images/team_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconButtonDice} onPress={() => navigation.navigate('Dice')}>
+            <TouchableOpacity 
+              style={styles.iconButtonDice} 
+              onPress={() => navigation.navigate('Dice')}
+              testID="dice-button"
+            >
               <Image source={require('../assets/images/dice_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconButtonTimer} onPress={() => navigation.navigate('Timer')}>
+            <TouchableOpacity 
+              style={styles.iconButtonTimer} 
+              onPress={() => navigation.navigate('Timer')}
+              testID="timer-button"
+            >
               <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
           </View>
