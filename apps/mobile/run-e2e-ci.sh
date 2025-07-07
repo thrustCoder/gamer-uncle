@@ -11,7 +11,7 @@ export CI=true
 cd "$(dirname "$0")"
 
 echo "📂 Current directory: $(pwd)"
-echo "🌐 Base URL: ${E2E_BASE_URL:-https://gamer-uncle-dev-mobile.azurewebsites.net}"
+echo "🌐 Base URL: ${E2E_BASE_URL:-https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net}"
 
 # Install Playwright browsers if not already installed
 echo "🎭 Installing Playwright browsers..."

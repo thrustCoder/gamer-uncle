@@ -18,9 +18,9 @@ describe('E2E CI Configuration Tests', () => {
       
       // Mock the playwright config logic
       const baseURL = process.env.E2E_BASE_URL || 
-        (process.env.CI ? 'https://gamer-uncle-dev-mobile.azurewebsites.net' : 'http://localhost:8081');
+        (process.env.CI ? 'https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net' : 'http://localhost:8081');
       
-      expect(baseURL).toBe('https://gamer-uncle-dev-mobile.azurewebsites.net');
+      expect(baseURL).toBe('https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net');
     });
 
     it('should use custom E2E_BASE_URL when provided', () => {
@@ -28,7 +28,7 @@ describe('E2E CI Configuration Tests', () => {
       process.env.E2E_BASE_URL = 'https://custom-url.com';
       
       const baseURL = process.env.E2E_BASE_URL || 
-        (process.env.CI ? 'https://gamer-uncle-dev-mobile.azurewebsites.net' : 'http://localhost:8081');
+        (process.env.CI ? 'https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net' : 'http://localhost:8081');
       
       expect(baseURL).toBe('https://custom-url.com');
     });
@@ -38,7 +38,7 @@ describe('E2E CI Configuration Tests', () => {
       delete process.env.E2E_BASE_URL;
       
       const baseURL = process.env.E2E_BASE_URL || 
-        (process.env.CI ? 'https://gamer-uncle-dev-mobile.azurewebsites.net' : 'http://localhost:8081');
+        (process.env.CI ? 'https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net' : 'http://localhost:8081');
       
       expect(baseURL).toBe('http://localhost:8081');
     });

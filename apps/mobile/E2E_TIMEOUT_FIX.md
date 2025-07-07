@@ -76,7 +76,7 @@ Basic connectivity test that:
 - script: |
     cd $(mobileProject)
     export CI=true
-    export E2E_BASE_URL="https://gamer-uncle-dev-mobile.azurewebsites.net"
+    export E2E_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
     npm run test:e2e:ci
   displayName: 'Run E2E Tests Against Dev'
   continueOnError: true

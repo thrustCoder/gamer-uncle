@@ -63,7 +63,7 @@ configure_environment() {
             
         "dev")
             echo -e "${YELLOW}🌐 Configuring for dev environment testing${NC}"
-            export E2E_BASE_URL="https://gamer-uncle-dev-mobile.azurewebsites.net"
+            export E2E_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
             export API_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
             
             # Check if both app and API are accessible
