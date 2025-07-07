@@ -72,9 +72,9 @@ export const SELECTORS = {
  * Wait times for various operations
  */
 export const TIMEOUTS = {
-  API_RESPONSE: 45000, // 45 seconds for API responses (AI can be slow)
-  TYPING_INDICATOR: 5000, // 5 seconds for typing indicator to appear
-  MESSAGE_APPEAR: 15000, // 15 seconds for messages to appear
-  PAGE_LOAD: 15000, // 15 seconds for page loads
+  API_RESPONSE: process.env.CI ? 20000 : 45000, // Shorter in CI: 20s vs 45s for API responses
+  TYPING_INDICATOR: process.env.CI ? 3000 : 5000, // 3s vs 5s for typing indicator to appear
+  MESSAGE_APPEAR: process.env.CI ? 8000 : 15000, // 8s vs 15s for messages to appear
+  PAGE_LOAD: process.env.CI ? 8000 : 15000, // 8s vs 15s for page loads
   RETRY_DELAY: 2000 // 2 seconds between retries
 };
