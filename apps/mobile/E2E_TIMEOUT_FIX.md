@@ -70,7 +70,20 @@ Basic connectivity test that:
 
 ### For CI/Pipeline
 
-Use the new CI script:
+**UPDATED**: Your Azure Pipeline has been updated to use the new CI script:
+
+```yaml
+- script: |
+    cd $(mobileProject)
+    export CI=true
+    export E2E_BASE_URL="https://gamer-uncle-dev-mobile.azurewebsites.net"
+    npm run test:e2e:ci
+  displayName: 'Run E2E Tests Against Dev'
+  continueOnError: true
+  timeoutInMinutes: 20
+```
+
+Manual usage:
 
 ```bash
 npm run test:e2e:ci
@@ -121,9 +134,19 @@ The changes include better logging and diagnostics:
 
 ## Expected Behavior
 
-- **CI Tests**: Should complete in 5-15 minutes instead of timing out
-- **Development**: Minimal impact, slightly faster due to reduced webServer timeout
-- **Error Cases**: Better error messages and diagnostic information
+- **Before**: Tests hung for ~1 hour before timing out
+- **After**: Tests should complete in 5-15 minutes or fail fast with clear errors
+- **Pipeline**: Now has 20-minute timeout as additional safeguard
+
+## Pipeline Changes Applied
+
+✅ **Updated Azure Pipeline** (`pipelines/azure-pipelines.yml`):
+
+- Uses `npm run test:e2e:ci` instead of old command
+- Sets `CI=true` environment variable
+- Installs only Chromium browser for speed
+- Added 20-minute timeout as additional safeguard
+- Removed manual config file modification (now automatic)
 
 ## Rollback Plan
 

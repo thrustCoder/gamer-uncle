@@ -601,7 +601,7 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npx playwright install --with-deps
+        npx playwright install --with-deps chromium
       displayName: 'Install Playwright Browsers'
 
     - script: |
@@ -612,9 +612,12 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npm run test:e2e -- --reporter=junit
+        export CI=true
+        export E2E_BASE_URL=""
+        npm run test:e2e:ci
       displayName: 'Run E2E Tests'
       continueOnError: true
+      timeoutInMinutes: 20
 
     - task: PublishTestResults@2
       inputs:
@@ -692,26 +695,17 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npx playwright install --with-deps
+        npx playwright install --with-deps chromium
       displayName: 'Install Playwright Browsers'
 
     - script: |
         cd $(mobileProject)
-        # Update playwright config to point to deployed app
-        sed -i 's|baseURL: .*|baseURL: "https://gamer-uncle-dev-mobile.azurewebsites.net"|' playwright.config.ts
-      displayName: 'Configure E2E for Dev Environment'
-
-    - script: |
-        cd $(mobileProject)
-        chmod +x setup-e2e.sh
-        ./setup-e2e.sh
-      displayName: 'Setup E2E Environment'
-
-    - script: |
-        cd $(mobileProject)
-        npm run test:e2e -- --reporter=junit
+        export CI=true
+        export E2E_BASE_URL="https://gamer-uncle-dev-mobile.azurewebsites.net"
+        npm run test:e2e:ci
       displayName: 'Run E2E Tests Against Dev'
       continueOnError: true
+      timeoutInMinutes: 20
 
     - task: PublishTestResults@2
       inputs:
