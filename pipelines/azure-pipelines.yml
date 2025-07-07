@@ -612,7 +612,7 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npm run test:e2e -- --reporter=junit --output-dir=test-results
+        npm run test:e2e -- --reporter=junit
       displayName: 'Run E2E Tests'
       continueOnError: true
 
@@ -709,21 +709,21 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npm run test:e2e -- --reporter=junit --output-dir=test-results-dev
+        npm run test:e2e -- --reporter=junit
       displayName: 'Run E2E Tests Against Dev'
       continueOnError: true
 
     - task: PublishTestResults@2
       inputs:
         testResultsFormat: 'JUnit'
-        testResultsFiles: '$(mobileProject)/test-results-dev/*.xml'
+        testResultsFiles: '$(mobileProject)/test-results/*.xml'
         failTaskOnFailedTests: true
       displayName: 'Publish Dev E2E Test Results'
       condition: always()
 
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(mobileProject)/test-results-dev'
+        pathToPublish: '$(mobileProject)/test-results'
         artifactName: 'e2e-test-results-dev'
       displayName: 'Publish Dev E2E Test Artifacts'
       condition: always()

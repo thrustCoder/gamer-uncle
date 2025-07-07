@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
-    "test:e2e:ci": "playwright test --reporter=junit --output-dir=test-results",
+    "test:e2e:ci": "playwright test --reporter=junit",
     "test:e2e:dev": "E2E_BASE_URL=https://gamer-uncle-dev-mobile.azurewebsites.net playwright test",
     "test:install": "playwright install --with-deps",
     "test:setup": "./setup-e2e.sh && npm run test:e2e",
