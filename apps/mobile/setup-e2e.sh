@@ -113,7 +113,6 @@ echo "for these key scenarios:"
 echo "  - Suggest games for 4 players."
 echo "  - How to win at Ticket to Ride?"
 echo "  - Tell me the rules for Catan."
-fi
 
 # Install npm dependencies
 echo "📦 Installing npm dependencies..."
