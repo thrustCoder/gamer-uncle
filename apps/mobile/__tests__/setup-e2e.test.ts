@@ -52,6 +52,14 @@ describe('setup-e2e.sh script', () => {
     });
   });
 
+  it('should clean up port 8081 for Playwright webServer', async () => {
+    const { stdout } = await execAsync(`cat ${scriptPath}`);
+    
+    // Should include port cleanup
+    expect(stdout).toContain('lsof -ti:8081');
+    expect(stdout).toContain('port 8081');
+  });
+
   it('should not have syntax errors with if/fi statements', async () => {
     const { stdout } = await execAsync(`grep -n "fi" ${scriptPath} || true`);
     const { stdout: ifCount } = await execAsync(`grep -c "^if\\|then\\|elif" ${scriptPath} || echo 0`);

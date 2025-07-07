@@ -1,13 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-// Import all individual test suites 
-import './landing.spec';
-import './chat.spec';
-import './dice-roller.spec';
-import './timer.spec';
-import './turn-selector.spec';
-import './team-randomizer.spec';
-
 test.describe('Gamer Uncle App - Complete E2E Test Suite', () => {
   
   test.describe('App Navigation and Basic Functionality', () => {

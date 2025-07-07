@@ -125,22 +125,16 @@ npm run test:install
 # Create a simple test to verify setup
 echo "🧪 Running a basic connectivity test..."
 
-# Check if the API is accessible (optional)
-echo "🔍 Checking if the web server can start..."
-timeout 30s npm run web > /dev/null 2>&1 &
-WEB_PID=$!
-
-sleep 10
-
-# Check if port 8081 is responding
-if curl -s http://localhost:8081 > /dev/null; then
-    echo "✅ Web server is running successfully!"
-else
-    echo "⚠️  Web server might not be ready yet, but setup is complete."
+# Ensure port 8081 is available for Playwright's webServer
+echo "🧹 Cleaning up any existing processes on port 8081..."
+if lsof -ti:8081 >/dev/null 2>&1; then
+    echo "Found process using port 8081, terminating..."
+    lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+    sleep 2
 fi
 
-# Kill the web server
-kill $WEB_PID 2>/dev/null
+# Note: Playwright will start the web server automatically when running tests
+echo "📝 Note: The web server will be started automatically by Playwright during test execution."
 
 echo ""
 echo "🎉 Setup complete! You can now run tests with:"
