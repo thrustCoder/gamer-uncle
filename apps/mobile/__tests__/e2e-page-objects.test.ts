@@ -1,5 +1,91 @@
 import { TurnSelectorPage } from '../e2e/turn-selector-page';
 import { TeamRandomizerPage } from '../e2e/team-randomizer-page';
+import { LandingPage } from '../e2e/landing-page';
+import { TimerPage } from '../e2e/timer-page';
+import { DiceRollerPage } from '../e2e/dice-roller-page';
+
+describe('E2E Page Object Fixes', () => {
+  let mockPage: any;
+
+  beforeEach(() => {
+    mockPage = {
+      waitForLoadState: jest.fn().mockResolvedValue(undefined),
+      waitForSelector: jest.fn().mockResolvedValue(undefined),
+      locator: jest.fn().mockReturnValue({
+        first: jest.fn().mockReturnValue({
+          waitFor: jest.fn().mockResolvedValue(undefined),
+        }),
+        waitFor: jest.fn().mockResolvedValue(undefined),
+      }),
+      getByText: jest.fn().mockReturnValue({
+        waitFor: jest.fn().mockResolvedValue(undefined),
+      }),
+      click: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Mock global expect for testing
+    (global as any).expect = jest.fn().mockReturnValue({
+      toBeVisible: jest.fn().mockResolvedValue(undefined),
+    });
+  });
+
+  describe('LandingPage selector fixes', () => {
+    it('should use networkidle wait state for robust page loading', async () => {
+      const landingPage = new LandingPage(mockPage);
+      
+      await landingPage.waitForPageLoad();
+      
+      expect(mockPage.waitForLoadState).toHaveBeenCalledWith('networkidle');
+    });
+
+    it('should use modern getByText selector instead of deprecated text* syntax', async () => {
+      const landingPage = new LandingPage(mockPage);
+      
+      await landingPage.verifyVersionDisplayed();
+      
+      expect(mockPage.getByText).toHaveBeenCalledWith('App Version');
+    });
+  });
+
+  describe('TimerPage selector fixes', () => {
+    it('should use simple data-testid selectors without deprecated text* syntax', async () => {
+      const timerPage = new TimerPage(mockPage);
+      
+      await timerPage.verifyInitialState();
+      
+      // Verify that simple, modern selectors are used
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="timer-display"]');
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="preset-10s"]');
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="preset-30s"]');
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="preset-1m"]');
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="preset-5m"]');
+      
+      // Verify no deprecated syntax is used
+      const calls = mockPage.locator.mock.calls.map((call: any[]) => call[0]);
+      calls.forEach((selector: string) => {
+        expect(selector).not.toContain('text*=');
+      });
+    });
+  });
+
+  describe('DiceRollerPage selector fixes', () => {
+    it('should use simple data-testid selectors without deprecated text* syntax', async () => {
+      const diceRollerPage = new DiceRollerPage(mockPage);
+      
+      await diceRollerPage.verifyInitialState();
+      
+      // Verify modern selector is used for dice count
+      expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="dice-count"]');
+      
+      // Verify no deprecated syntax is used
+      const calls = mockPage.locator.mock.calls.map((call: any[]) => call[0]);
+      const diceCountCalls = calls.filter((selector: string) => selector.includes('dice-count'));
+      diceCountCalls.forEach((selector: string) => {
+        expect(selector).not.toContain('text*=');
+      });
+    });
+  });
+});
 
 describe('Turn Selector Page Object', () => {
   let mockPage: any;

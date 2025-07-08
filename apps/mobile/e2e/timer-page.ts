@@ -12,13 +12,13 @@ export class TimerPage {
 
   async verifyInitialState() {
     // Check for timer display (should show 0:00)
-    await expect(this.page.locator('[data-testid="timer-display"], text*="0:00"').first()).toBeVisible();
+    await expect(this.page.locator('[data-testid="timer-display"]')).toBeVisible();
     
     // Check for preset buttons
-    await expect(this.page.locator('[data-testid="preset-10s"], text*="10s"').first()).toBeVisible();
-    await expect(this.page.locator('[data-testid="preset-30s"], text*="30s"').first()).toBeVisible();
-    await expect(this.page.locator('[data-testid="preset-1m"], text*="1m"').first()).toBeVisible();
-    await expect(this.page.locator('[data-testid="preset-5m"], text*="5m"').first()).toBeVisible();
+    await expect(this.page.locator('[data-testid="preset-10s"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="preset-30s"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="preset-1m"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="preset-5m"]')).toBeVisible();
   }
 
   async setCustomTime(seconds: number) {

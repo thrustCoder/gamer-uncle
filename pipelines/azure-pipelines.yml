@@ -26,6 +26,7 @@ stages:
   jobs:
   - job: BuildApiJob
     displayName: 'Build and Publish API Artifacts'
+    dependsOn: BuildMobileJob
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
@@ -38,6 +39,21 @@ stages:
         version: '8.x'
         installationPath: $(Agent.ToolsDirectory)/dotnet
 
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'dropMobile'
+        downloadPath: '$(System.ArtifactsDirectory)'
+      displayName: 'Download Mobile Artifacts'
+
+    - task: ExtractFiles@1
+      displayName: 'Extract Mobile Build'
+      inputs:
+        archiveFilePatterns: '$(System.ArtifactsDirectory)/dropMobile/mobile-web-build.zip'
+        destinationFolder: '$(System.ArtifactsDirectory)/mobile-extracted'
+        cleanDestinationFolder: true
+
     - script: dotnet restore $(apiProject)
       displayName: 'Restore API Dependencies'
 
@@ -46,6 +62,18 @@ stages:
 
     - script: dotnet publish $(apiProject) --configuration $(buildConfiguration) --output $(publishOutputApiProject) --no-build
       displayName: 'Publish API Project'
+
+    - script: |
+        echo "Copying mobile web build to API wwwroot..."
+        mkdir -p $(publishOutputApiProject)/wwwroot
+        if [ -d "$(System.ArtifactsDirectory)/mobile-extracted" ] && [ "$(ls -A $(System.ArtifactsDirectory)/mobile-extracted 2>/dev/null)" ]; then
+          cp -r $(System.ArtifactsDirectory)/mobile-extracted/* $(publishOutputApiProject)/wwwroot/
+          echo "Mobile files copied to wwwroot:"
+          ls -la $(publishOutputApiProject)/wwwroot/
+        else
+          echo "Warning: No mobile build found to copy"
+        fi
+      displayName: 'Copy Mobile Build to API wwwroot'
 
     - task: PublishBuildArtifacts@1
       inputs:

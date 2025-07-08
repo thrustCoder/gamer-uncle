@@ -6,9 +6,9 @@ export class LandingPage {
 
   async waitForPageLoad() {
     // Wait for the main landing screen elements to load
-    await this.page.waitForSelector('[data-testid="uncle-header"]', { timeout: TIMEOUTS.PAGE_LOAD });
-    // Ensure we have a unique element by waiting for visibility
-    await this.page.locator('[data-testid="uncle-header"]').first().waitFor({ state: 'visible' });
+    await this.page.waitForLoadState('networkidle');
+    // Ensure we have the header element visible
+    await this.page.locator('[data-testid="uncle-header"]').first().waitFor({ state: 'visible', timeout: TIMEOUTS.PAGE_LOAD });
   }
 
   async verifyMainElementsVisible() {
@@ -58,8 +58,8 @@ export class LandingPage {
   }
 
   async verifyVersionDisplayed() {
-    // Look for version text
-    const versionText = this.page.locator('text*="App Version"');
+    // Look for version text using modern Playwright selector
+    const versionText = this.page.getByText('App Version');
     await expect(versionText).toBeVisible();
   }
 

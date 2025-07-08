@@ -18,7 +18,7 @@ export class DiceRollerPage {
     await expect(this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first()).toBeVisible();
     
     // Check for dice count controls
-    await expect(this.page.locator('[data-testid="dice-count"], text*="1"').first()).toBeVisible();
+    await expect(this.page.locator('[data-testid="dice-count"]')).toBeVisible();
   }
 
   async rollDice() {
