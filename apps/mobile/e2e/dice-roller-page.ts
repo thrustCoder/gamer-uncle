@@ -1,29 +1,96 @@
 import { Page, expect } from '@playwright/test';
-import { TIMEOUTS } from './test-data';
+import { TIMEOUTS, SELECTORS } from './test-data';
+import { AppInitialization } from './app-initialization';
 
 export class DiceRollerPage {
-  constructor(public page: Page) {}
+  private appInit: AppInitialization;
+
+  constructor(public page: Page) {
+    this.appInit = new AppInitialization(page);
+  }
 
   async waitForPageLoad() {
-    await this.page.waitForSelector('[data-testid="dice-roller"], [class*="dice"], img[src*="dice"]', { 
-      timeout: TIMEOUTS.PAGE_LOAD 
-    });
+    console.log('⏳ Waiting for dice roller page to load...');
+    await this.appInit.waitForPageWithElement('dice-roller', 'Dice Roller');
+    await this.waitForDiceControlsWithRetries();
+    console.log('✅ Dice roller page fully loaded');
+  }
+
+  private async waitForDiceControlsWithRetries(): Promise<void> {
+    const maxRetries = TIMEOUTS.MAX_RETRIES;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🎲 Checking for dice controls (attempt ${attempt}/${maxRetries})`);
+        
+        // Check for dice display and roll button
+        const diceDisplay = this.page.locator('[data-testid="dice-roller"], [class*="dice"], img[src*="dice"]').first();
+        const rollButton = this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first();
+        
+        await diceDisplay.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
+        await rollButton.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
+        
+        await expect(diceDisplay).toBeVisible();
+        await expect(rollButton).toBeVisible();
+        
+        console.log('✅ Dice controls found and ready');
+        return;
+      } catch (error) {
+        console.log(`❌ Dice controls attempt ${attempt} failed: ${error}`);
+        
+        if (attempt === maxRetries) {
+          throw new Error(`Dice controls not found after ${maxRetries} attempts`);
+        }
+        
+        await this.page.waitForTimeout(TIMEOUTS.RETRY_DELAY);
+      }
+    }
   }
 
   async verifyInitialState() {
-    // Check for dice display
-    await expect(this.page.locator('[data-testid="dice-display"], [class*="dice"], img[src*="dice"]').first()).toBeVisible();
+    const maxRetries = 3;
     
-    // Check for roll button
-    await expect(this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first()).toBeVisible();
-    
-    // Check for dice count controls
-    await expect(this.page.locator('[data-testid="dice-count"]')).toBeVisible();
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Check for dice display
+        await expect(this.page.locator('[data-testid="dice-display"], [class*="dice"], img[src*="dice"]').first()).toBeVisible();
+        
+        // Check for roll button
+        await expect(this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first()).toBeVisible();
+        
+        // Check for dice count controls
+        await expect(this.page.locator('[data-testid="dice-count"]')).toBeVisible();
+        
+        return;
+      } catch (error) {
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        await this.page.waitForTimeout(TIMEOUTS.RETRY_DELAY);
+      }
+    }
   }
 
   async rollDice() {
-    const rollButton = this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first();
-    await rollButton.click();
+    const maxRetries = TIMEOUTS.MAX_RETRIES;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const rollButton = this.page.locator('[data-testid="roll-button"], [class*="roll"], button:has-text("Roll")').first();
+        await rollButton.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
+        await rollButton.click();
+        console.log('✅ Dice rolled successfully');
+        return;
+      } catch (error) {
+        console.log(`❌ Roll dice attempt ${attempt} failed: ${error}`);
+        
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to roll dice after ${maxRetries} attempts`);
+        }
+        
+        await this.page.waitForTimeout(TIMEOUTS.RETRY_DELAY);
+      }
+    }
   }
 
   async waitForRollComplete() {
@@ -132,6 +199,24 @@ export class DiceRollerPage {
   }
 
   async navigateBack() {
-    await this.page.click('[data-testid="back-button"]');
+    const maxRetries = TIMEOUTS.MAX_RETRIES;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const backButton = this.page.locator('[data-testid="back-button"]');
+        await backButton.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
+        await backButton.click();
+        console.log('✅ Navigated back successfully');
+        return;
+      } catch (error) {
+        console.log(`❌ Navigate back attempt ${attempt} failed: ${error}`);
+        
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to navigate back after ${maxRetries} attempts`);
+        }
+        
+        await this.page.waitForTimeout(TIMEOUTS.RETRY_DELAY);
+      }
+    }
   }
 }

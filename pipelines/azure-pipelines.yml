@@ -610,7 +610,7 @@ stages:
 
 # E2E Tests for Mobile App (PR)
 - stage: E2ETestsPR
-  displayName: 'Mobile E2E Tests (PR)'
+  displayName: 'Dev Mobile E2E Tests (PR)'
   dependsOn: DevBuild
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
@@ -699,7 +699,7 @@ stages:
 
 # E2E Tests for Mobile App (Dev Environment)  
 - stage: E2ETestsDev
-  displayName: 'Mobile E2E Tests (Dev)'
+  displayName: 'Dev Mobile E2E Tests'
   dependsOn: DevDeployMobile
   condition: |
     and(

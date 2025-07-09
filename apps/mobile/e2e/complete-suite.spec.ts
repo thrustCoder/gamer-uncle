@@ -1,49 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { NavigationHelper } from './navigation-helper';
+import { TIMEOUTS } from './test-data';
 
 test.describe('Gamer Uncle App - Complete E2E Test Suite', () => {
+  let navHelper: NavigationHelper;
+
+  test.beforeEach(async ({ page }) => {
+    navHelper = new NavigationHelper(page);
+    await navHelper.initializeApp();
+  });
   
   test.describe('App Navigation and Basic Functionality', () => {
     test('should navigate through all main screens', async ({ page }) => {
-      // Start at landing page
-      await page.goto('/');
-      await expect(page.locator('[data-testid="uncle-header"]')).toBeVisible();
-
-      // Test navigation to each screen and back
-      const screens = [
-        { button: '[data-testid="timer-button"], img[src*="timer_icon"]', testId: '[data-testid="timer-screen"]' },
-        { button: '[data-testid="dice-button"], img[src*="dice_icon"]', testId: '[data-testid="dice-roller"]' },
-        { button: '[data-testid="turn-button"], img[src*="turn_icon"]', testId: '[data-testid="turn-selector"]' },
-        { button: '[data-testid="team-button"], img[src*="team_icon"]', testId: '[data-testid="team-randomizer"]' },
-        { button: '[data-testid="uncle-header"]', testId: '[data-testid="chat-input"]' },
-      ];
-
-      for (const screen of screens) {
-        // Navigate to screen
-        await page.click(screen.button);
-        await page.waitForTimeout(2000); // Wait for navigation
-
-        // Verify we're on the correct screen
-        await expect(page.locator(screen.testId)).toBeVisible({ timeout: 10000 });
-
-        // Navigate back to landing (except for last one)
-        if (screen !== screens[screens.length - 1]) {
-          await page.click('[data-testid="back-button"]');
-          await expect(page.locator('[data-testid="uncle-header"]')).toBeVisible();
-        }
-      }
+      await navHelper.testAllScreenNavigation();
     });
 
     test('should maintain consistent UI elements across screens', async ({ page }) => {
-      await page.goto('/');
-
       // Navigate to a tool screen
-      await page.click('[data-testid="timer-button"], img[src*="timer_icon"]');
+      await navHelper.navigateToScreen('Timer', '[data-testid="timer-button"], img[src*="timer_icon"]', '[data-testid="timer-screen"]');
       
-      // Check for back button
-      await expect(page.locator('[data-testid="back-button"]')).toBeVisible();
-      
-      // Check for background
-      await expect(page.locator('img[src*="tool_background"]')).toBeVisible();
+      // Verify UI consistency
+      await navHelper.verifyUIConsistency('Timer');
     });
   });
 

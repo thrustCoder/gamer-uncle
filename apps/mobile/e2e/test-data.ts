@@ -70,11 +70,16 @@ export const SELECTORS = {
 
 /**
  * Wait times for various operations
+ * Increased timeouts for CI to handle slower loading and resource constraints
  */
 export const TIMEOUTS = {
-  API_RESPONSE: process.env.CI ? 20000 : 45000, // Shorter in CI: 20s vs 45s for API responses
-  TYPING_INDICATOR: process.env.CI ? 3000 : 5000, // 3s vs 5s for typing indicator to appear
-  MESSAGE_APPEAR: process.env.CI ? 8000 : 15000, // 8s vs 15s for messages to appear
-  PAGE_LOAD: process.env.CI ? 8000 : 15000, // 8s vs 15s for page loads
-  RETRY_DELAY: 2000 // 2 seconds between retries
+  API_RESPONSE: process.env.CI ? 45000 : 45000, // Generous timeout for API responses
+  TYPING_INDICATOR: process.env.CI ? 8000 : 5000, // Longer in CI for typing indicator to appear
+  MESSAGE_APPEAR: process.env.CI ? 20000 : 15000, // Longer in CI for messages to appear
+  PAGE_LOAD: process.env.CI ? 25000 : 15000, // Much longer in CI for page loads
+  APP_INIT: process.env.CI ? 30000 : 20000, // App initialization timeout
+  ELEMENT_VISIBLE: process.env.CI ? 15000 : 10000, // Element visibility timeout
+  NAVIGATION: process.env.CI ? 10000 : 5000, // Navigation timeout
+  RETRY_DELAY: 3000, // 3 seconds between retries (longer for CI)
+  MAX_RETRIES: process.env.CI ? 5 : 3 // More retries in CI
 };
