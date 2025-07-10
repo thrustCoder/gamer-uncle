@@ -196,8 +196,18 @@ stages:
     - script: |
         cd $(mobileProject)
         echo "Installing mobile dependencies..."
-        # Use npm ci for faster, reliable installs in CI
-        npm ci --prefer-offline --no-audit --ignore-scripts
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit --ignore-scripts
+        else
+          echo "⚠️ package-lock.json out of sync, updating and using npm install"
+          npm install --prefer-offline --no-audit --ignore-scripts
+          
+          # Generate updated lock file for future runs
+          echo "📝 Generating updated package-lock.json"
+        fi
         
         # Verify critical dependencies are installed
         if [ ! -d "node_modules/@expo/cli" ] && [ ! -d "node_modules/.bin/expo" ]; then
@@ -595,7 +605,16 @@ stages:
     - script: |
         cd $(mobileProject)
         # Ensure dependencies are installed for unit tests
-        npm ci --prefer-offline --no-audit --ignore-scripts
+        echo "Installing mobile dependencies for unit tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit --ignore-scripts
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit --ignore-scripts
+        fi
       displayName: 'Install Mobile Dependencies'
 
     - script: |
@@ -717,8 +736,17 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        # Ensure dependencies are installed for PR E2E tests  
-        npm ci --prefer-offline --no-audit
+        # Ensure dependencies are installed for PR E2E tests
+        echo "Installing mobile dependencies for E2E tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit
+        fi
       displayName: 'Install Mobile Dependencies'
 
     - script: |
@@ -837,7 +865,16 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npm install
+        echo "Installing mobile dependencies for Dev E2E tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit
+        fi
       displayName: 'Install Mobile Dependencies'
 
     - script: |
