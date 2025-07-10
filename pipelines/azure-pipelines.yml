@@ -614,8 +614,6 @@ stages:
         fi
       displayName: 'Run Mobile Tests'
       continueOnError: true
-      displayName: 'Run Mobile Tests'
-      continueOnError: true
 
 - stage: FunctionalTestsPR
   displayName: 'Dev Functional Tests (PR)'
