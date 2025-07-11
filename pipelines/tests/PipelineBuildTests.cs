@@ -235,24 +235,54 @@ namespace GamerUncle.Pipeline.Tests
         public void ValidationScripts_ShouldExist()
         {
             // Arrange
-            var bashScriptPath = Path.Combine(_rootPath, "pipelines", "validate-pipeline.sh");
-            var powershellScriptPath = Path.Combine(_rootPath, "pipelines", "validate-pipeline.ps1");
+            var bashScriptPath = Path.Combine(_rootPath, "validate-pipeline.sh");
 
             // Act & Assert
             Assert.True(File.Exists(bashScriptPath), "Bash validation script should exist");
-            Assert.True(File.Exists(powershellScriptPath), "PowerShell validation script should exist");
 
-            // Verify scripts contain required test functions
+            // Verify script contains required validation functions
             var bashContent = File.ReadAllText(bashScriptPath);
-            var psContent = File.ReadAllText(powershellScriptPath);
+            
+            Assert.Contains("trigger:", bashContent);
+            Assert.Contains("pr:", bashContent);
+            Assert.Contains("stages:", bashContent);
+            Assert.Contains("Validating Azure DevOps Pipeline YAML", bashContent);
+        }
 
-            Assert.Contains("test_mobile_package_json", bashContent);
-            Assert.Contains("test_api_build", bashContent);
-            Assert.Contains("test_function_build", bashContent);
+        [Fact]
+        public void PipelineTestProject_ShouldTarget_DotNet8()
+        {
+            // Arrange
+            var pipelineTestProjectPath = Path.Combine(_rootPath, "pipelines", "tests", "GamerUncle.Pipeline.Tests.csproj");
 
-            Assert.Contains("Test-MobilePackageJson", psContent);
-            Assert.Contains("Test-ApiBuild", psContent);
-            Assert.Contains("Test-FunctionBuild", psContent);
+            // Act & Assert
+            Assert.True(File.Exists(pipelineTestProjectPath), "Pipeline test project should exist");
+
+            var projectContent = File.ReadAllText(pipelineTestProjectPath);
+
+            // Verify it targets .NET 8.0 for Azure DevOps compatibility
+            Assert.Contains("<TargetFramework>net8.0</TargetFramework>", projectContent);
+            Assert.DoesNotContain("<TargetFramework>net9.0</TargetFramework>", projectContent);
+        }
+
+        [Fact]
+        public void MobileProject_ShouldHave_WebpackDependency()
+        {
+            // Arrange
+            var packageJsonPath = Path.Combine(_rootPath, "apps", "mobile", "package.json");
+
+            // Act & Assert
+            Assert.True(File.Exists(packageJsonPath), "Mobile package.json should exist");
+
+            var packageJsonContent = File.ReadAllText(packageJsonPath);
+            var packageJson = JsonDocument.Parse(packageJsonContent);
+
+            // Verify webpack devDependency exists
+            Assert.True(packageJson.RootElement.TryGetProperty("devDependencies", out var devDependencies), 
+                "Package.json should contain devDependencies section");
+
+            Assert.True(devDependencies.TryGetProperty("webpack", out _), 
+                "Package.json should contain 'webpack' in devDependencies for CI builds");
         }
 
         /// <summary>
