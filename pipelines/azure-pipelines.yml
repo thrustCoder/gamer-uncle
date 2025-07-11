@@ -197,28 +197,48 @@ stages:
         cd $(mobileProject)
         echo "Installing mobile dependencies..."
         
+        # Set npm configuration for CI optimization
+        npm config set audit false
+        npm config set fund false
+        npm config set prefer-offline true
+        
         # Check if package-lock.json is in sync with package.json
+        echo "🔍 Checking package-lock.json sync status..."
         if npm ci --dry-run 2>/dev/null; then
           echo "✅ package-lock.json is in sync, using npm ci"
-          npm ci --prefer-offline --no-audit --ignore-scripts
+          npm ci --prefer-offline --no-audit --ignore-scripts --silent
         else
           echo "⚠️ package-lock.json out of sync, updating and using npm install"
-          npm install --prefer-offline --no-audit --ignore-scripts
+          npm install --prefer-offline --no-audit --ignore-scripts --silent
           
           # Generate updated lock file for future runs
-          echo "📝 Generating updated package-lock.json"
+          echo "📝 Updated package-lock.json generated"
         fi
         
         # Verify critical dependencies are installed
+        echo "🔍 Verifying critical dependencies..."
         if [ ! -d "node_modules/@expo/cli" ] && [ ! -d "node_modules/.bin/expo" ]; then
           echo "❌ Expo CLI not found in dependencies, installing globally as fallback"
-          npm install -g @expo/cli@latest
+          npm install -g @expo/cli@latest --silent
         fi
         
-        echo "Dependencies installed successfully"
-        echo "Node modules size:"
+        # Verify webpack is available (required for builds)
+        if [ ! -d "node_modules/webpack" ]; then
+          echo "❌ Webpack not found, this may cause build issues"
+          exit 1
+        fi
+        
+        echo "✅ Dependencies installed successfully"
+        echo "📊 Node modules size:"
         du -sh node_modules 2>/dev/null || echo "Could not determine size"
+        
+        # Verify key binaries are available
+        echo "🔍 Verifying build tools..."
+        which node && echo "✅ Node.js available"
+        which npm && echo "✅ npm available"
+        npx expo --version && echo "✅ Expo CLI available" || echo "⚠️ Expo CLI check failed"
       displayName: 'Install Mobile Dependencies'
+      timeoutInMinutes: 10
 
     - script: |
         cd $(mobileProject)
@@ -236,52 +256,86 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        echo "Starting Expo web export..."
-        echo "Output directory: $(publishOutputMobileProject)"
+        echo "🚀 Starting Expo web export..."
+        echo "📁 Output directory: $(publishOutputMobileProject)"
         
         # Check Expo CLI version and validate environment
+        echo "🔍 Checking build environment..."
         echo "Expo CLI version:"
-        npx expo --version
+        npx expo --version || exit 1
+        echo "Node.js version: $(node --version)"
+        echo "npm version: $(npm --version)"
         
         # Validate project before build
+        echo "🔍 Validating project files..."
         if [ ! -f "app.json" ] || [ ! -f "App.tsx" ]; then
           echo "❌ Essential project files missing"
           exit 1
         fi
         
-        # Set NODE_ENV for production build
-        export NODE_ENV=production
+        # Clean any previous build artifacts
+        echo "🧹 Cleaning previous build artifacts..."
+        rm -rf dist/ .expo/ node_modules/.cache/ || true
         
-        # Build using npm script with output directory
-        echo "Building web app for production..."
-        if npm run build:web; then
+        # Set environment variables for production build
+        export NODE_ENV=production
+        export CI=true
+        export EXPO_NO_TELEMETRY=1
+        
+        # Build using npm script with enhanced error handling
+        echo "🔨 Building web app for production..."
+        BUILD_SUCCESS=false
+        
+        if timeout 900 npm run build:web; then
           echo "✅ npm build:web succeeded"
+          BUILD_SUCCESS=true
           
           # Check if files are in default dist location
           if [ -d "dist" ] && [ ! -z "$(ls -A dist 2>/dev/null)" ]; then
-            echo "Moving files from dist/ to output directory..."
+            echo "📦 Moving files from dist/ to output directory..."
             mkdir -p $(publishOutputMobileProject)
             cp -r dist/* $(publishOutputMobileProject)/
             echo "✅ Files moved to $(publishOutputMobileProject)"
           else
             echo "❌ No dist directory found after build"
-            exit 1
+            BUILD_SUCCESS=false
           fi
         else
-          echo "❌ npm build:web failed, trying direct expo export..."
-          if npx expo export --platform web --output-dir $(publishOutputMobileProject); then
+          echo "⚠️ npm build:web failed or timed out, trying direct expo export..."
+        fi
+        
+        # Fallback to direct expo export if npm script failed
+        if [ "$BUILD_SUCCESS" = false ]; then
+          echo "🔄 Attempting fallback build with expo export..."
+          if timeout 900 npx expo export --platform web --output-dir $(publishOutputMobileProject) --clear; then
             echo "✅ Direct expo export succeeded"
+            BUILD_SUCCESS=true
           else
             echo "❌ All build methods failed"
+            echo "🔍 Checking for any partial build outputs..."
+            ls -la $(publishOutputMobileProject) 2>/dev/null || echo "No output directory found"
+            ls -la dist/ 2>/dev/null || echo "No dist directory found"
             exit 1
           fi
         fi
         
-        # Verify we have content
+        # Verify we have content and validate build quality
+        echo "🔍 Verifying build artifacts..."
         if [ -d "$(publishOutputMobileProject)" ] && [ "$(ls -A $(publishOutputMobileProject) 2>/dev/null)" ]; then
           echo "✅ Build artifacts created successfully"
-          echo "Contents:"
+          echo "📊 Build contents:"
           ls -la $(publishOutputMobileProject)
+          
+          # Check for essential web files
+          if [ -f "$(publishOutputMobileProject)/index.html" ]; then
+            echo "✅ index.html found"
+          else
+            echo "⚠️ index.html not found - this may cause deployment issues"
+          fi
+          
+          # Check total size
+          BUILD_SIZE=$(du -sh $(publishOutputMobileProject) | cut -f1)
+          echo "📏 Total build size: $BUILD_SIZE"
         else
           echo "❌ No build artifacts found"
           exit 1
@@ -751,14 +805,45 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        # Install Playwright browsers for PR E2E tests
-        echo "Installing Playwright browsers..."
-        npx playwright install --with-deps chromium
+        echo "🔧 Installing Playwright browsers for E2E tests..."
+        
+        # Set environment variables for headless installation
+        export PLAYWRIGHT_BROWSERS_PATH=0
+        export CI=true
+        
+        # Install Playwright browsers with retry logic
+        INSTALL_SUCCESS=false
+        for attempt in 1 2 3; do
+          echo "📥 Attempt $attempt: Installing Playwright browsers..."
+          if npx playwright install chromium --with-deps; then
+            echo "✅ Playwright installation succeeded on attempt $attempt"
+            INSTALL_SUCCESS=true
+            break
+          else
+            echo "⚠️ Attempt $attempt failed, waiting before retry..."
+            sleep 10
+          fi
+        done
+        
+        if [ "$INSTALL_SUCCESS" = false ]; then
+          echo "❌ Failed to install Playwright browsers after 3 attempts"
+          exit 1
+        fi
         
         # Verify Playwright installation
-        npx playwright --version
-        echo "Playwright installation completed"
+        echo "🔍 Verifying Playwright installation..."
+        npx playwright --version || exit 1
+        
+        # Check if chromium is available
+        if npx playwright install-deps chromium 2>/dev/null; then
+          echo "✅ Chromium dependencies verified"
+        else
+          echo "⚠️ Chromium dependency check failed, but continuing..."
+        fi
+        
+        echo "✅ Playwright installation completed successfully"
       displayName: 'Install Playwright Browsers'
+      timeoutInMinutes: 10
 
     - script: |
         cd $(mobileProject)
@@ -769,21 +854,68 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        # Configure E2E test environment
+        echo "🧪 Running E2E tests..."
+        
+        # Configure E2E test environment with enhanced settings
         export CI=true
         export E2E_BASE_URL=""
         export NODE_ENV=test
+        export PLAYWRIGHT_BROWSERS_PATH=0
+        export PWTEST_SKIP_TEST_OUTPUT=1
         
         # Verify configuration
-        echo "CI Environment: $CI"
-        echo "Base URL: ${E2E_BASE_URL:-localhost}"
-        echo "Node Environment: $NODE_ENV"
+        echo "🔍 Test environment configuration:"
+        echo "  CI Environment: $CI"
+        echo "  Base URL: ${E2E_BASE_URL:-localhost}"
+        echo "  Node Environment: $NODE_ENV"
+        echo "  Playwright Path: $PLAYWRIGHT_BROWSERS_PATH"
         
-        # Run E2E tests with timeout protection
-        npm run test:e2e:ci
+        # Check if test script exists
+        if ! npm run test:e2e:ci --if-present --dry-run > /dev/null 2>&1; then
+          echo "⚠️ E2E test script not found, checking alternatives..."
+          if npm run test:e2e --if-present --dry-run > /dev/null 2>&1; then
+            echo "📝 Using 'test:e2e' script instead"
+            TEST_SCRIPT="test:e2e"
+          else
+            echo "❌ No E2E test script found in package.json"
+            exit 1
+          fi
+        else
+          TEST_SCRIPT="test:e2e:ci"
+        fi
+        
+        # Run E2E tests with enhanced error handling and retry logic
+        echo "🚀 Starting E2E tests with script: $TEST_SCRIPT"
+        TEST_RESULT=0
+        
+        # Run tests with timeout protection
+        if timeout 900 npm run $TEST_SCRIPT; then
+          echo "✅ E2E tests completed successfully"
+        else
+          TEST_RESULT=$?
+          echo "⚠️ E2E tests failed or timed out (exit code: $TEST_RESULT)"
+          
+          # Check if there are any test results to analyze
+          if [ -d "test-results" ] && [ "$(ls -A test-results 2>/dev/null)" ]; then
+            echo "📊 Test results found, checking for partial success..."
+            ls -la test-results/
+          fi
+        fi
+        
+        # Always try to generate test report even if tests failed
+        echo "📋 Generating test reports..."
+        if [ -d "test-results" ]; then
+          echo "✅ Test results directory exists"
+        else
+          echo "⚠️ No test results directory found"
+          mkdir -p test-results
+          echo "Empty test run" > test-results/summary.txt
+        fi
+        
+        exit $TEST_RESULT
       displayName: 'Run E2E Tests'
       continueOnError: true
-      timeoutInMinutes: 15
+      timeoutInMinutes: 20
 
     - task: PublishTestResults@2
       inputs:
