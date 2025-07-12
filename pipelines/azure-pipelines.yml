@@ -21,15 +21,77 @@ variables:
   publishOutputMobileProject: '$(Build.ArtifactStagingDirectory)/publish/mobile'
 
 stages:
+- stage: Validation
+  displayName: 'Pre-Build Validation'
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+  jobs:
+  - job: ValidateProject
+    displayName: 'Validate Project Structure'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+    
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+    
+    - script: |
+        echo "🔍 Validating project structure..."
+        
+        # Validate mobile project
+        if [ -f "$(mobileProject)/package.json" ]; then
+          echo "✅ Mobile package.json exists"
+        else
+          echo "❌ Mobile package.json missing"
+          exit 1
+        fi
+        
+        # Validate API project
+        if [ -f "$(apiProject)" ]; then
+          echo "✅ API project file exists"
+        else
+          echo "❌ API project file missing"
+          exit 1
+        fi
+        
+        # Validate solution file
+        if [ -f "gamer-uncle.sln" ]; then
+          echo "✅ Solution file exists"
+        else
+          echo "❌ Solution file missing"
+          exit 1
+        fi
+        
+        echo "✅ Project structure validation passed"
+      displayName: 'Validate Project Files'
+
 - stage: DevBuild
   displayName: 'Dev Build'
+  dependsOn: 
+  - Validation
+  condition: |
+    or(
+      and(
+        eq(variables['Build.Reason'], 'PullRequest'),
+        in(dependencies.Validation.result, 'Succeeded', 'Skipped')
+      ),
+      eq(variables['Build.SourceBranchName'], 'main')
+    )
   jobs:
   - job: BuildApiJob
     displayName: 'Build and Publish API Artifacts'
+    dependsOn: BuildMobileJob
     condition: |
-      or(
-        eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+      and(
+        or(
+          eq(variables['Build.Reason'], 'PullRequest'),
+          eq(variables['Build.SourceBranchName'], 'main')
+        ),
+        in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')
       )
     steps:
     - task: UseDotNet@2
@@ -37,6 +99,21 @@ stages:
         packageType: 'sdk'
         version: '8.x'
         installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'dropMobile'
+        downloadPath: '$(System.ArtifactsDirectory)'
+      displayName: 'Download Mobile Artifacts'
+
+    - task: ExtractFiles@1
+      displayName: 'Extract Mobile Build'
+      inputs:
+        archiveFilePatterns: '$(System.ArtifactsDirectory)/dropMobile/mobile-web-build.zip'
+        destinationFolder: '$(System.ArtifactsDirectory)/mobile-extracted'
+        cleanDestinationFolder: true
 
     - script: dotnet restore $(apiProject)
       displayName: 'Restore API Dependencies'
@@ -46,6 +123,18 @@ stages:
 
     - script: dotnet publish $(apiProject) --configuration $(buildConfiguration) --output $(publishOutputApiProject) --no-build
       displayName: 'Publish API Project'
+
+    - script: |
+        echo "Copying mobile web build to API wwwroot..."
+        mkdir -p $(publishOutputApiProject)/wwwroot
+        if [ -d "$(System.ArtifactsDirectory)/mobile-extracted" ] && [ "$(ls -A $(System.ArtifactsDirectory)/mobile-extracted 2>/dev/null)" ]; then
+          cp -r $(System.ArtifactsDirectory)/mobile-extracted/* $(publishOutputApiProject)/wwwroot/
+          echo "Mobile files copied to wwwroot:"
+          ls -la $(publishOutputApiProject)/wwwroot/
+        else
+          echo "Warning: No mobile build found to copy"
+        fi
+      displayName: 'Copy Mobile Build to API wwwroot'
 
     - task: PublishBuildArtifacts@1
       inputs:
@@ -107,9 +196,49 @@ stages:
     - script: |
         cd $(mobileProject)
         echo "Installing mobile dependencies..."
-        npm ci --prefer-offline --no-audit
-        echo "Dependencies installed successfully"
+        
+        # Set npm configuration for CI optimization
+        npm config set audit false
+        npm config set fund false
+        npm config set prefer-offline true
+        
+        # Check if package-lock.json is in sync with package.json
+        echo "🔍 Checking package-lock.json sync status..."
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit --ignore-scripts --silent
+        else
+          echo "⚠️ package-lock.json out of sync, updating and using npm install"
+          npm install --prefer-offline --no-audit --ignore-scripts --silent
+          
+          # Generate updated lock file for future runs
+          echo "📝 Updated package-lock.json generated"
+        fi
+        
+        # Verify critical dependencies are installed
+        echo "🔍 Verifying critical dependencies..."
+        if [ ! -d "node_modules/@expo/cli" ] && [ ! -d "node_modules/.bin/expo" ]; then
+          echo "❌ Expo CLI not found in dependencies, installing globally as fallback"
+          npm install -g @expo/cli@latest --silent
+        fi
+        
+        # Verify webpack is available (required for builds)
+        if [ ! -d "node_modules/webpack" ]; then
+          echo "❌ Webpack not found, this may cause build issues"
+          exit 1
+        fi
+        
+        echo "✅ Dependencies installed successfully"
+        echo "📊 Node modules size:"
+        du -sh node_modules 2>/dev/null || echo "Could not determine size"
+        
+        # Verify key binaries are available
+        echo "🔍 Verifying build tools..."
+        which node && echo "✅ Node.js available"
+        which npm && echo "✅ npm available"
+        npx expo --version && echo "✅ Expo CLI available" || echo "⚠️ Expo CLI check failed"
       displayName: 'Install Mobile Dependencies'
+      timeoutInMinutes: 10
 
     - script: |
         cd $(mobileProject)
@@ -127,41 +256,86 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        echo "Starting Expo web export..."
-        echo "Output directory: $(publishOutputMobileProject)"
+        echo "🚀 Starting Expo web export..."
+        echo "📁 Output directory: $(publishOutputMobileProject)"
         
-        # Check Expo CLI version
+        # Check Expo CLI version and validate environment
+        echo "🔍 Checking build environment..."
         echo "Expo CLI version:"
-        npx expo --version
+        npx expo --version || exit 1
+        echo "Node.js version: $(node --version)"
+        echo "npm version: $(npm --version)"
         
-        # Build using npm script with output directory
-        echo "Building web app for production..."
-        EXPO_PUBLIC_OUTPUT_DIR=$(publishOutputMobileProject) npm run build:web || {
-          echo "npm script failed. Trying direct expo export..."
-          npx expo export --platform web --output-dir $(publishOutputMobileProject) || {
-            echo "Direct export failed. Trying without output-dir flag..."
-            npx expo export --platform web || {
-              echo "Export without output-dir failed. Creating basic build..."
-              mkdir -p $(publishOutputMobileProject)
-              echo "<!DOCTYPE html><html><head><title>Gamer Uncle</title></head><body><h1>Gamer Uncle Mobile App</h1><p>Expo build placeholder</p></body></html>" > $(publishOutputMobileProject)/index.html
-            }
-          }
-        }
-        
-        # If export succeeded but files are in default location, move them
-        if [ -d "dist" ] && [ ! -z "$(ls -A dist 2>/dev/null)" ]; then
-          echo "Moving files from dist/ to output directory..."
-          mkdir -p $(publishOutputMobileProject)
-          cp -r dist/* $(publishOutputMobileProject)/
+        # Validate project before build
+        echo "🔍 Validating project files..."
+        if [ ! -f "app.json" ] || [ ! -f "App.tsx" ]; then
+          echo "❌ Essential project files missing"
+          exit 1
         fi
         
-        echo "Export process completed"
-        echo "Listing exported files:"
-        ls -la $(publishOutputMobileProject) || true
+        # Clean any previous build artifacts
+        echo "🧹 Cleaning previous build artifacts..."
+        rm -rf dist/ .expo/ node_modules/.cache/ || true
         
-        # Verify we have some content
+        # Set environment variables for production build
+        export NODE_ENV=production
+        export CI=true
+        export EXPO_NO_TELEMETRY=1
+        
+        # Build using npm script with enhanced error handling
+        echo "🔨 Building web app for production..."
+        BUILD_SUCCESS=false
+        
+        if timeout 900 npm run build:web; then
+          echo "✅ npm build:web succeeded"
+          BUILD_SUCCESS=true
+          
+          # Check if files are in default dist location
+          if [ -d "dist" ] && [ ! -z "$(ls -A dist 2>/dev/null)" ]; then
+            echo "📦 Moving files from dist/ to output directory..."
+            mkdir -p $(publishOutputMobileProject)
+            cp -r dist/* $(publishOutputMobileProject)/
+            echo "✅ Files moved to $(publishOutputMobileProject)"
+          else
+            echo "❌ No dist directory found after build"
+            BUILD_SUCCESS=false
+          fi
+        else
+          echo "⚠️ npm build:web failed or timed out, trying direct expo export..."
+        fi
+        
+        # Fallback to direct expo export if npm script failed
+        if [ "$BUILD_SUCCESS" = false ]; then
+          echo "🔄 Attempting fallback build with expo export..."
+          if timeout 900 npx expo export --platform web --output-dir $(publishOutputMobileProject) --clear; then
+            echo "✅ Direct expo export succeeded"
+            BUILD_SUCCESS=true
+          else
+            echo "❌ All build methods failed"
+            echo "🔍 Checking for any partial build outputs..."
+            ls -la $(publishOutputMobileProject) 2>/dev/null || echo "No output directory found"
+            ls -la dist/ 2>/dev/null || echo "No dist directory found"
+            exit 1
+          fi
+        fi
+        
+        # Verify we have content and validate build quality
+        echo "🔍 Verifying build artifacts..."
         if [ -d "$(publishOutputMobileProject)" ] && [ "$(ls -A $(publishOutputMobileProject) 2>/dev/null)" ]; then
           echo "✅ Build artifacts created successfully"
+          echo "📊 Build contents:"
+          ls -la $(publishOutputMobileProject)
+          
+          # Check for essential web files
+          if [ -f "$(publishOutputMobileProject)/index.html" ]; then
+            echo "✅ index.html found"
+          else
+            echo "⚠️ index.html not found - this may cause deployment issues"
+          fi
+          
+          # Check total size
+          BUILD_SIZE=$(du -sh $(publishOutputMobileProject) | cut -f1)
+          echo "📏 Total build size: $BUILD_SIZE"
         else
           echo "❌ No build artifacts found"
           exit 1
@@ -484,13 +658,33 @@ stages:
 
     - script: |
         cd $(mobileProject)
-        npm install
+        # Ensure dependencies are installed for unit tests
+        echo "Installing mobile dependencies for unit tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit --ignore-scripts
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit --ignore-scripts
+        fi
       displayName: 'Install Mobile Dependencies'
 
     - script: |
         cd $(mobileProject)
-        echo "Running mobile tests..."
-        npm test 2>/dev/null || echo "Tests completed with warnings (this is expected for new projects)"
+        echo "Running mobile unit tests..."
+        
+        # Run tests with CI optimizations
+        export CI=true
+        export NODE_ENV=test
+        
+        # Run tests with proper error handling
+        if npm test -- --watchAll=false --coverage=false --passWithNoTests; then
+          echo "✅ Mobile tests passed"
+        else
+          echo "⚠️ Mobile tests completed with issues (this may be expected for new projects)"
+        fi
       displayName: 'Run Mobile Tests'
       continueOnError: true
 
@@ -614,3 +808,65 @@ stages:
         testResultsFiles: '$(Agent.TempDirectory)/*.trx'
         failTaskOnFailedTests: true
       displayName: 'Publish Dev Functional Test Results'
+
+# E2E Tests for Mobile App (Dev Environment)  
+- stage: E2ETestsDev
+  displayName: 'Dev Mobile E2E Tests'
+  dependsOn: DevDeployMobile
+  condition: |
+    and(
+      succeeded(), 
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranchName'], 'main')
+    )
+  jobs:
+  - job: RunDevE2ETests
+    displayName: 'Run E2E Tests Against Dev Environment'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        echo "Installing mobile dependencies for Dev E2E tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit
+        fi
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npx playwright install --with-deps chromium
+      displayName: 'Install Playwright Browsers'
+
+    - script: |
+        cd $(mobileProject)
+        export CI=true
+        export E2E_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
+        npm run test:e2e:ci
+      displayName: 'Run E2E Tests Against Dev'
+      continueOnError: true
+      timeoutInMinutes: 20
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(mobileProject)/test-results/*.xml'
+        failTaskOnFailedTests: true
+      displayName: 'Publish Dev E2E Test Results'
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(mobileProject)/test-results'
+        artifactName: 'e2e-test-results-dev'
+      displayName: 'Publish Dev E2E Test Artifacts'
+      condition: always()

@@ -7,10 +7,12 @@ import {
   ImageBackground,
   FlatList,
   Alert,
+  ScrollView,
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
+import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 
 const MAX_PLAYERS = 20;
@@ -21,7 +23,7 @@ export default function TeamRandomizerScreen() {
   const [teamCount, setTeamCount] = useState(2);
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
-  const confettiRef = useRef(null);
+  const confettiRef = useRef<any>(null);
   const hasRandomizedOnce = useRef(false);
 
   const handleNameChange = (index: number, name: string) => {
@@ -87,15 +89,15 @@ export default function TeamRandomizerScreen() {
   return (
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
-      <View style={styles.container}>
+      <View style={styles.container} testID="team-randomizer">
         <View style={styles.inlineRow}>
           <Text style={styles.title}>Number of players</Text>
           <TouchableOpacity 
             onPress={showPlayerCountPicker}
             style={{ 
-              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              backgroundColor: Colors.themeBrownDark, 
               borderRadius: 12,
-              shadowColor: '#000',
+              shadowColor: Colors.black,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -105,11 +107,11 @@ export default function TeamRandomizerScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 2,
-              borderColor: '#fbe8c9',
+              borderColor: Colors.themeYellow,
             }}
           >
             <Text style={{
-              color: '#fbe8c9',
+              color: Colors.themeYellow,
               fontSize: 18,
               fontWeight: 'bold',
             }}>
@@ -136,9 +138,9 @@ export default function TeamRandomizerScreen() {
           <TouchableOpacity 
             onPress={showTeamCountPicker}
             style={{ 
-              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              backgroundColor: Colors.themeBrownDark, 
               borderRadius: 12,
-              shadowColor: '#000',
+              shadowColor: Colors.black,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -148,11 +150,11 @@ export default function TeamRandomizerScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 2,
-              borderColor: '#fbe8c9',
+              borderColor: Colors.themeYellow,
             }}
           >
             <Text style={{
-              color: '#fbe8c9',
+              color: Colors.themeYellow,
               fontSize: 18,
               fontWeight: 'bold',
             }}>
@@ -165,7 +167,15 @@ export default function TeamRandomizerScreen() {
           <Text style={styles.randomizeText}>RANDOMIZE</Text>
         </TouchableOpacity>
 
-        <View style={styles.teamsContainer}>
+        <ScrollView 
+          style={{ marginTop: 30 }} 
+          contentContainerStyle={{ 
+            flexDirection: 'row', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center' 
+          }}
+          showsVerticalScrollIndicator={false}
+        >
           {teams.map((team, idx) => (
             <View key={idx} style={[styles.teamCard, idx % 2 === 0 ? styles.cardLeft : styles.cardRight]}>
               <View style={styles.pinDot} />
@@ -175,7 +185,7 @@ export default function TeamRandomizerScreen() {
               ))}
             </View>
           ))}
-        </View>
+        </ScrollView>
 
         {celebrate && (
           <ConfettiCannon

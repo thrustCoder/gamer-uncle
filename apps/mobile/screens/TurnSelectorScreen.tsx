@@ -13,6 +13,7 @@ import {
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
+import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
 import BackButton from '../components/BackButton';
 
@@ -67,7 +68,7 @@ export default function TurnSelectorScreen() {
     >
       <BackButton />
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40 }]}>
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40 }]} testID="turn-selector">
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
@@ -76,10 +77,10 @@ export default function TurnSelectorScreen() {
         }}>
           <Text style={[styles.label, { 
             fontSize: 25, 
-            color: '#fbe8c9', 
+            color: Colors.themeYellow, 
             flex: 1, 
             fontWeight: 'bold',
-            textShadowColor: '#000',
+            textShadowColor: Colors.black,
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
             marginRight: 0,
@@ -89,9 +90,9 @@ export default function TurnSelectorScreen() {
           <TouchableOpacity 
             onPress={showPlayerCountPicker}
             style={{ 
-              backgroundColor: 'rgba(139, 69, 19, 0.9)', 
+              backgroundColor: Colors.themeBrownDark, 
               borderRadius: 12,
-              shadowColor: '#000',
+              shadowColor: Colors.black,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -101,11 +102,11 @@ export default function TurnSelectorScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 2,
-              borderColor: '#fbe8c9',
+              borderColor: Colors.themeYellow,
             }}
           >
             <Text style={{
-              color: '#fbe8c9',
+              color: Colors.themeYellow,
               fontSize: 18,
               fontWeight: 'bold',
             }}>
@@ -127,13 +128,13 @@ export default function TurnSelectorScreen() {
               <TextInput
                 key={i}
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  backgroundColor: Colors.whiteTransparent,
                   borderRadius: 8,
                   paddingHorizontal: 12,
                   paddingVertical: 10,
                   marginBottom: 10,
                   fontSize: 16,
-                  shadowColor: '#000',
+                  shadowColor: Colors.black,
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.2,
                   shadowRadius: 4,
@@ -143,7 +144,7 @@ export default function TurnSelectorScreen() {
                         '31%', // For 5-6 players, smaller width
                 }}
                 placeholder={`Player ${i + 1}`}
-                placeholderTextColor="#666"
+                placeholderTextColor={Colors.grayDark}
                 onChangeText={(text) => handleNameChange(i, text)}
               />
             ))}

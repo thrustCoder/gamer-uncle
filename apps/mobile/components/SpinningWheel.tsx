@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { View, TouchableOpacity, Text, Animated, Easing, Image } from 'react-native';
 import Svg, { G, Path, Text as SvgText, Circle } from 'react-native-svg';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
+import { Colors } from '../styles/colors';
 import { Audio } from 'expo-av';
 
 interface Props {
@@ -49,7 +50,7 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
     outputRange: ['0deg', '360deg'],
   });
 
-  const colors = ['#ff4f4f', '#5e5a5a', '#4caf50', '#969a9d', '#4e3b78', '#ff9800'];
+  const colors = [Colors.wheelRed, Colors.wheelGray, Colors.wheelGreen, Colors.wheelLightGray, Colors.themePurple, Colors.wheelOrange];
 
   return (
     <View style={{ alignItems: 'center', marginVertical: 20 }}>
@@ -69,7 +70,7 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
                 cy="190"
                 r="180"
                 fill="transparent"
-                stroke="#000"
+                stroke={Colors.black}
                 strokeWidth={10}
               />
               
@@ -91,9 +92,9 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
 
                 return (
                   <G key={index}>
-                    <Path d={d} fill={colors[index % colors.length]} stroke="#fff" strokeWidth={2} />
+                    <Path d={d} fill={colors[index % colors.length]} stroke={Colors.white} strokeWidth={2} />
                     <SvgText
-                      fill="#fff"
+                      fill={Colors.white}
                       fontSize="18"
                       fontWeight="bold"
                       x={textX}
@@ -111,8 +112,8 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
                 cx="190"
                 cy="190"
                 r="10"
-                fill="#333"
-                stroke="#fff"
+                fill={Colors.textDark}
+                stroke={Colors.white}
                 strokeWidth={2}
               />
             </G>
@@ -122,10 +123,10 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
 
       <View style={{ marginTop: 15 }}>
         <Text style={{ 
-          color: '#fff', 
+          color: Colors.white, 
           fontWeight: 'bold', 
           fontSize: 28, 
-          textShadowColor: '#000', 
+          textShadowColor: Colors.black, 
           textShadowOffset: { width: 2, height: 2 }, 
           textShadowRadius: 4 
         }}>

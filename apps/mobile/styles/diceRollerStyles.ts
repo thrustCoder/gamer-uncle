@@ -1,4 +1,5 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { Colors } from './colors';
 const screen = Dimensions.get('window');
 
 export const diceRollerStyles = StyleSheet.create({
@@ -12,7 +13,7 @@ export const diceRollerStyles = StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#4e3b78',
+    backgroundColor: Colors.themePurple,
     borderRadius: 20,
     padding: 10,
     marginTop: 150,
@@ -22,14 +23,14 @@ export const diceRollerStyles = StyleSheet.create({
     paddingVertical: 10,
     marginHorizontal: 5,
     borderRadius: 15,
-    backgroundColor: '#3d2b5f',
+    backgroundColor: Colors.themePurpleDark,
   },
   activeToggle: {
-    backgroundColor: '#D68F20',
+    backgroundColor: Colors.themeBrown,
   },
   toggleText: {
     fontSize: 20,
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
   },
   arena: {
     flex: 1,

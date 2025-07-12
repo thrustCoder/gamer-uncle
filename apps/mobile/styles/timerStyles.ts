@@ -1,4 +1,5 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { Colors } from './colors';
 
 const { width } = Dimensions.get('window');
 
@@ -19,11 +20,11 @@ export const timerStyles = StyleSheet.create({
   title: {
     fontSize: 70,
     fontWeight: '700', // Reduced from 900 for friendlier look
-    color: '#f4e4bc',
+    color: Colors.teamTitleYellow,
     textAlign: 'center',
     marginTop: 10,
     letterSpacing: 1, // Reduced from 12 for closer characters
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: Colors.timerTextShadow,
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
     fontFamily: 'sans-serif', // Use system font for consistency
@@ -37,11 +38,11 @@ export const timerStyles = StyleSheet.create({
     width: width * 0.8, // Increased from 0.7 to make center ring larger
     height: width * 0.8, // Increased from 0.7 to make center ring larger
     borderRadius: (width * 0.8) / 2, // Updated radius to match new size
-    backgroundColor: '#2C3E50', // Dark blue-gray center
+    backgroundColor: Colors.timerBackground, // Dark blue-gray center
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -50,7 +51,7 @@ export const timerStyles = StyleSheet.create({
   timeText: {
     fontSize: 85,
     fontWeight: 'bold',
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     textAlign: 'center',
     zIndex: 10,
   },
@@ -62,20 +63,20 @@ export const timerStyles = StyleSheet.create({
     width: '100%',
   },
   presetButton: {
-    backgroundColor: 'rgba(230, 126, 34, 0.8)', // Orange matching mockup
+    backgroundColor: Colors.timerOrangeTransparent, // Orange matching mockup
     borderRadius: 25,
     paddingVertical: 10,
     paddingHorizontal: 10,
     flex: 1,
     marginHorizontal: 5,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
   },
   presetText: {
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     fontSize: 25,
     fontWeight: '600',
     textAlign: 'center',
@@ -88,43 +89,43 @@ export const timerStyles = StyleSheet.create({
     marginVertical: 10, // Reduced from 20 to bring closer to presets
   },
   mainButton: {
-    backgroundColor: '#C0392B', // Red-orange matching mockup
+    backgroundColor: Colors.timerRed, // Red-orange matching mockup
     borderRadius: 30,
     paddingVertical: 18,
     paddingHorizontal: 40,
     minWidth: 140,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
   },
   mainButtonText: {
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   resetButton: {
-    backgroundColor: '#C0392B',
+    backgroundColor: Colors.timerRed,
     borderRadius: 30,
     paddingVertical: 18,
     paddingHorizontal: 40,
     minWidth: 140,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
   },
   resetText: {
-    color: '#fbe8c9',
+    color: Colors.themeYellow,
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   disabledButton: {
-    backgroundColor: '#6B7280',
+    backgroundColor: Colors.grayDisabled,
     opacity: 0.6,
   },
 });

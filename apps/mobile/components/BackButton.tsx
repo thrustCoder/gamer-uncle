@@ -8,7 +8,7 @@ interface BackButtonProps {
 }
 
 export default function BackButton({ onPress }: BackButtonProps) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
 
   const handlePress = () => {
     if (onPress) {
@@ -19,7 +19,7 @@ export default function BackButton({ onPress }: BackButtonProps) {
   };
 
   return (
-    <TouchableOpacity style={styles.backButton} onPress={handlePress}>
+    <TouchableOpacity style={styles.backButton} onPress={handlePress} testID="back-button">
       <Text style={styles.backArrow}>←</Text>
     </TouchableOpacity>
   );

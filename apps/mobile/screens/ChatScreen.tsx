@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
+import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
@@ -41,7 +42,7 @@ const TypingIndicator = () => {
   }, []);
 
   return (
-    <View style={styles.systemBubble}>
+    <View style={styles.systemBubble} testID="typing-indicator">
       <Text style={styles.bubbleText}>🤔{dots}</Text>
     </View>
   );
@@ -49,9 +50,7 @@ const TypingIndicator = () => {
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([
-    { id: '1', type: 'system', text: 'Hi! Need help finding a new board game?' },
-    { id: '2', type: 'user', text: 'Ok!' },
-    { id: '3', type: 'system', text: 'What kind of game are you looking for? Think about the number of players, mechanics, max play time, age restrictions etc.' }
+    { id: '1', type: 'system', text: 'Hi there! 👋 Got a board game question? \n\nWhether you\'re looking for the perfect game, need help with tricky rules 📋, or just some strategy advice - I\'m here to help! 🎲' }
   ]);
   const [input, setInput] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -133,20 +132,23 @@ export default function ChatScreen() {
     }
   };
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = (event: any) => {
     if (event.nativeEvent.key === 'Enter') {
       event.preventDefault();
       handleSend();
     }
   };
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: any }) => {
     if (item.type === 'typing') {
       return <TypingIndicator />;
     }
     
     return (
-      <View style={item.type === 'user' ? styles.userBubble : styles.systemBubble}>
+      <View 
+        style={item.type === 'user' ? styles.userBubble : styles.systemBubble}
+        testID={item.type === 'user' ? 'user-message' : 'system-message'}
+      >
         <Text style={styles.bubbleText}>{item.text}</Text>
       </View>
     );
@@ -184,6 +186,7 @@ export default function ChatScreen() {
               showsVerticalScrollIndicator={false}
               bounces={true}
               overScrollMode="always"
+              testID="message-container"
               onContentSizeChange={() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }}
@@ -196,17 +199,19 @@ export default function ChatScreen() {
               value={input}
               onChangeText={setInput}
               placeholder="Message"
-              placeholderTextColor="#ddd"
+              placeholderTextColor={Colors.grayPlaceholder}
               style={styles.input}
               editable={!isLoading}
               maxLength={500}
               returnKeyType="send"
               onSubmitEditing={handleSend}
+              testID="chat-input"
             />
             <TouchableOpacity 
               onPress={handleSend} 
               style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
               disabled={isLoading}
+              testID="send-button"
             >
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>
