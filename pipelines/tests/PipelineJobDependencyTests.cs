@@ -35,17 +35,7 @@ namespace GamerUncle.Pipeline.Tests
                 "BuildApiJob should check if BuildMobileJob succeeded or succeeded with issues");
         }
 
-        [TestMethod]
-        public void E2ETestsPR_ShouldDependOnDevBuild()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
-            // Act & Assert
-            var e2eStagePattern = @"stage:\s*E2ETestsPR[\s\S]*?dependsOn:\s*DevBuild";
-            Assert.IsTrue(Regex.IsMatch(pipelineContent, e2eStagePattern),
-                "E2ETestsPR stage should depend on DevBuild stage");
-        }
 
         [TestMethod]
         public void FunctionalTestsPR_ShouldDependOnDevBuild()

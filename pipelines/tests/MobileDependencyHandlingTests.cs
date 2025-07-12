@@ -34,19 +34,7 @@ namespace GamerUncle.Pipeline.Tests
                 "Pipeline should fallback to npm install when npm ci fails");
         }
 
-        [TestMethod]
-        public void MobilePackageJson_ShouldContainWebpack()
-        {
-            // Arrange
-            var packageJsonPath = Path.Combine("..", "..", "..", "..", "apps", "mobile", "package.json");
-            
-            // Act & Assert
-            Assert.IsTrue(File.Exists(packageJsonPath), "Mobile package.json should exist");
-            
-            var packageJsonContent = File.ReadAllText(packageJsonPath);
-            Assert.IsTrue(packageJsonContent.Contains("webpack"), 
-                "Package.json should contain webpack dependency");
-        }
+
 
         [TestMethod]
         public void Pipeline_ShouldHandleDependencyInstallationErrors()

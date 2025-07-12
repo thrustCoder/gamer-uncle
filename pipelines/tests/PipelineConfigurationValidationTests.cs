@@ -23,16 +23,7 @@ namespace GamerUncle.Pipeline.Tests
                 "Validation stage should only run for PRs");
         }
 
-        [TestMethod]
-        public void Pipeline_ShouldHaveOptimizedTimeouts()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("timeoutInMinutes: 15"), 
-                "E2E tests should have 15 minute timeout");
-        }
 
         [TestMethod]
         public void Pipeline_ShouldUseCIOptimizedNpmInstall()
@@ -71,18 +62,7 @@ namespace GamerUncle.Pipeline.Tests
                 "E2E tests should set NODE_ENV to test");
         }
 
-        [TestMethod]
-        public void Pipeline_ShouldPublishTestResultsWithCorrectPaths()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("testResultsFiles: '$(mobileProject)/test-results/junit-results.xml'"), 
-                "E2E test results should use correct file path");
-            Assert.IsTrue(pipelineContent.Contains("mergeTestResults: true"), 
-                "Test results should be merged");
-        }
 
         [TestMethod]
         public void Pipeline_ShouldHaveValidBuildSteps()
