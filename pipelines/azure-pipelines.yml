@@ -79,7 +79,7 @@ stages:
         eq(variables['Build.Reason'], 'PullRequest'),
         in(dependencies.Validation.result, 'Succeeded', 'Skipped')
       ),
-      eq(variables['Build.SourceBranchName'], 'main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
   jobs:
   - job: BuildApiJob
@@ -89,7 +89,7 @@ stages:
       and(
         or(
           eq(variables['Build.Reason'], 'PullRequest'),
-          eq(variables['Build.SourceBranchName'], 'main')
+          eq(variables['Build.SourceBranch'], 'refs/heads/main')
         ),
         in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')
       )
@@ -146,7 +146,7 @@ stages:
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
     - task: UseDotNet@2
@@ -174,7 +174,7 @@ stages:
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
     - task: NodeTool@0
@@ -398,10 +398,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        eq(variables['Build.SourceBranchName'], 'main'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -448,10 +445,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        eq(variables['Build.SourceBranchName'], 'main'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -586,10 +580,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        eq(variables['Build.SourceBranchName'], 'main'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -636,7 +627,7 @@ stages:
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
     - task: UseDotNet@2
@@ -663,7 +654,7 @@ stages:
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
     - task: UseDotNet@2
@@ -690,7 +681,7 @@ stages:
     condition: |
       or(
         eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranchName'], 'main')
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
     - task: NodeTool@0
@@ -824,10 +815,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        eq(variables['Build.SourceBranchName'], 'main'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
   jobs:
   - job: RunDevFunctionalTests
@@ -864,10 +852,7 @@ stages:
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      or(
-        eq(variables['Build.SourceBranchName'], 'main'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
   jobs:
   - job: RunDevE2ETests
