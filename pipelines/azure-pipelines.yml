@@ -358,16 +358,50 @@ stages:
         ArtifactName: 'dropMobile'
       displayName: 'Publish Mobile Artifacts'
 
+- stage: DebugStage
+  displayName: 'Debug Pipeline Variables'
+  dependsOn: 
+    - DevBuild
+    - DevTest
+  condition: |
+    or(
+      and(succeeded(), ne(variables['Build.Reason'], 'PullRequest')),
+      failed()
+    )
+  jobs:
+  - job: DebugVariables
+    displayName: 'Print Debug Information'
+    steps:
+    - script: |
+        echo "=== PIPELINE DEBUG INFORMATION ==="
+        echo "Build.Reason: $(Build.Reason)"
+        echo "Build.SourceBranchName: $(Build.SourceBranchName)"
+        echo "Build.SourceBranch: $(Build.SourceBranch)"
+        echo "Build.DefinitionName: $(Build.DefinitionName)"
+        echo "System.PullRequest.IsFork: $(System.PullRequest.IsFork)"
+        echo "System.PullRequest.PullRequestId: $(System.PullRequest.PullRequestId)"
+        echo "Agent.JobStatus: $(Agent.JobStatus)"
+        echo "=== CONDITIONS CHECK ==="
+        echo "succeeded(): should be true for deployment"
+        echo "ne(variables['Build.Reason'], 'PullRequest'): $(ne(variables['Build.Reason'], 'PullRequest'))"
+        echo "eq(variables['Build.SourceBranchName'], 'main'): $(eq(variables['Build.SourceBranchName'], 'main'))"
+        echo "==================================="
+      displayName: 'Debug Pipeline Variables'
+
 - stage: DevDeployApi
   displayName: 'Dev Deploy Api'
   dependsOn: 
     - DevBuild
     - DevTest
+  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranchName'], 'main')
+      or(
+        eq(variables['Build.SourceBranchName'], 'main'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
     )
 
   jobs:
@@ -409,11 +443,15 @@ stages:
   dependsOn: 
     - DevBuild
     - DevTest
+  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranchName'], 'main')
+      or(
+        eq(variables['Build.SourceBranchName'], 'main'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
     )
 
   jobs:
@@ -543,11 +581,15 @@ stages:
   dependsOn: 
     - DevBuild
     - DevTest
+  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranchName'], 'main')
+      or(
+        eq(variables['Build.SourceBranchName'], 'main'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
     )
 
   jobs:
@@ -777,11 +819,15 @@ stages:
 - stage: FunctionalTestsDev
   displayName: 'Dev Functional Tests'
   dependsOn: DevDeployApi
+  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranchName'], 'main')
+      or(
+        eq(variables['Build.SourceBranchName'], 'main'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
     )
   jobs:
   - job: RunDevFunctionalTests
@@ -813,11 +859,15 @@ stages:
 - stage: E2ETestsDev
   displayName: 'Dev Mobile E2E Tests'
   dependsOn: DevDeployMobile
+  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
       succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranchName'], 'main')
+      or(
+        eq(variables['Build.SourceBranchName'], 'main'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      )
     )
   jobs:
   - job: RunDevE2ETests
