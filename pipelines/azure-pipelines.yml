@@ -22,7 +22,7 @@ variables:
 
 stages:
 - stage: Validation
-  displayName: 'Pre-Build Validation'
+  displayName: 'PR Validation'
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
   - job: ValidateProject
@@ -687,7 +687,7 @@ stages:
       continueOnError: true
 
 - stage: FunctionalTestsPR
-  displayName: 'Dev Functional Tests (PR)'
+  displayName: 'PR Functional Tests'
   dependsOn: DevBuild
   condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, ImageBackground, ScrollView, Text } from 'react-native';
+import { View, Image, TouchableOpacity, ImageBackground, ScrollView, Text, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
 import Constants from 'expo-constants';
@@ -23,6 +23,7 @@ export default function LandingScreen() {
             onPress={() => navigation.navigate('Chat')}
             style={{ width: '100%', marginHorizontal: 0, paddingHorizontal: 0 }}
             testID="uncle-header"
+            {...(Platform.OS === 'web' && { 'data-testid': 'uncle-header' })}
           >
             <Image
               source={require('../assets/images/uncle_header.png')}
@@ -36,6 +37,7 @@ export default function LandingScreen() {
               style={styles.iconButtonTurn} 
               onPress={() => navigation.navigate('Turn')}
               testID="turn-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'turn-button' })}
             >
               <Image source={require('../assets/images/turn_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
@@ -44,6 +46,7 @@ export default function LandingScreen() {
               style={styles.iconButtonTeam} 
               onPress={() => navigation.navigate('Team')}
               testID="team-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'team-button' })}
             >
               <Image source={require('../assets/images/team_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
@@ -52,6 +55,7 @@ export default function LandingScreen() {
               style={styles.iconButtonDice} 
               onPress={() => navigation.navigate('Dice')}
               testID="dice-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'dice-button' })}
             >
               <Image source={require('../assets/images/dice_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
@@ -60,6 +64,7 @@ export default function LandingScreen() {
               style={styles.iconButtonTimer} 
               onPress={() => navigation.navigate('Timer')}
               testID="timer-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'timer-button' })}
             >
               <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>

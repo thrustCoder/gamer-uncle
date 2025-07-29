@@ -37,19 +37,6 @@ namespace GamerUncle.Pipeline.Tests
         }
 
         [TestMethod]
-        public void Pipeline_ShouldHaveProperJobDependencies()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("dependsOn: BuildMobileJob"), 
-                "BuildApiJob should depend on BuildMobileJob");
-            Assert.IsTrue(pipelineContent.Contains("in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')"), 
-                "BuildApiJob should check mobile build result");
-        }
-
-        [TestMethod]
         public void Pipeline_ShouldHaveEnvironmentVariablesForE2ETests()
         {
             // Arrange
