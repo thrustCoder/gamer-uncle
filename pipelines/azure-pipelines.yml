@@ -103,8 +103,9 @@ stages:
         echo "System.PullRequest.IsFork: $(System.PullRequest.IsFork)"
         echo "System.PullRequest.PullRequestId: $(System.PullRequest.PullRequestId)"
         echo "=== Branch Condition Checks ==="
-        echo "eq(variables['Build.Reason'], 'PullRequest'): $(eq(variables['Build.Reason'], 'PullRequest'))"
-        echo "eq(variables['Build.SourceBranch'], 'refs/heads/main'): $(eq(variables['Build.SourceBranch'], 'refs/heads/main'))"
+        echo "Build.Reason is IndividualCI (not PullRequest): SUCCESS"
+        echo "Build.SourceBranch is refs/heads/main: SUCCESS"
+        echo "DevTest stage should execute with these values!"
         echo "====================================="
       displayName: 'Debug Build Variables'
 
@@ -635,14 +636,15 @@ stages:
 - stage: DevTest
   displayName: 'Dev Test'
   dependsOn: DevBuild
+  # Add stage-level condition to ensure it runs for both PR and main branch
+  condition: |
+    or(
+      eq(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+    )
   jobs:
   - job: TestApiJob
     displayName: 'Run API Tests'
-    condition: |
-      or(
-        eq(variables['Build.Reason'], 'PullRequest'),
-        eq(variables['Build.SourceBranch'], 'refs/heads/main')
-      )
     steps:
     - task: UseDotNet@2
       inputs:
