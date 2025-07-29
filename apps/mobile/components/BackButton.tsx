@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { backButtonStyles as styles } from '../styles/backButtonStyles';
 
@@ -19,7 +19,12 @@ export default function BackButton({ onPress }: BackButtonProps) {
   };
 
   return (
-    <TouchableOpacity style={styles.backButton} onPress={handlePress} testID="back-button">
+    <TouchableOpacity 
+      style={styles.backButton} 
+      onPress={handlePress} 
+      testID="back-button"
+      {...(Platform.OS === 'web' && { 'data-testid': 'back-button' })}
+    >
       <Text style={styles.backArrow}>←</Text>
     </TouchableOpacity>
   );

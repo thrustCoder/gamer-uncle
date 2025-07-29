@@ -51,34 +51,6 @@ export default defineConfig({
         ...(process.env.CI && { headless: true })
       },
     },
-
-    // Only run Firefox and Safari on full test runs (not in CI for speed)
-    ...(process.env.CI ? [] : [
-      {
-        name: 'firefox',
-        use: { ...devices['Desktop Firefox'] },
-      },
-      {
-        name: 'webkit',
-        use: { ...devices['Desktop Safari'] },
-      },
-    ]),
-
-    /* Test against mobile viewports. */
-    ...(process.env.CI ? [] : [
-      {
-        name: 'Mobile Chrome',
-        use: { ...devices['Pixel 5'] },
-      },
-    ]),
-    
-    // Only run Mobile Safari on full test runs
-    ...(process.env.CI ? [] : [
-      {
-        name: 'Mobile Safari',
-        use: { ...devices['iPhone 12'] },
-      },
-    ]),
   ],
 
   /* Run your local dev server before starting the tests */

@@ -42,7 +42,11 @@ const TypingIndicator = () => {
   }, []);
 
   return (
-    <View style={styles.systemBubble} testID="typing-indicator">
+    <View 
+      style={styles.systemBubble} 
+      testID="typing-indicator"
+      {...(Platform.OS === 'web' && { 'data-testid': 'typing-indicator' })}
+    >
       <Text style={styles.bubbleText}>🤔{dots}</Text>
     </View>
   );
@@ -148,6 +152,9 @@ export default function ChatScreen() {
       <View 
         style={item.type === 'user' ? styles.userBubble : styles.systemBubble}
         testID={item.type === 'user' ? 'user-message' : 'system-message'}
+        {...(Platform.OS === 'web' && { 
+          'data-testid': item.type === 'user' ? 'user-message' : 'system-message' 
+        })}
       >
         <Text style={styles.bubbleText}>{item.text}</Text>
       </View>
@@ -206,12 +213,14 @@ export default function ChatScreen() {
               returnKeyType="send"
               onSubmitEditing={handleSend}
               testID="chat-input"
+              {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
             />
             <TouchableOpacity 
               onPress={handleSend} 
               style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
               disabled={isLoading}
               testID="send-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'send-button' })}
             >
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>

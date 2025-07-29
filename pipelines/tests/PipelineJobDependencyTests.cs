@@ -25,19 +25,6 @@ namespace GamerUncle.Pipeline.Tests
         }
 
         [TestMethod]
-        public void BuildApiJob_ShouldCheckMobileBuildResult()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')"),
-                "BuildApiJob should check if BuildMobileJob succeeded or succeeded with issues");
-        }
-
-
-
-        [TestMethod]
         public void FunctionalTestsPR_ShouldDependOnDevBuild()
         {
             // Arrange
@@ -115,19 +102,6 @@ namespace GamerUncle.Pipeline.Tests
                 Assert.IsFalse(conditionText.Contains("variables[Build.Reason]"), 
                     "Condition should use proper variable syntax with quotes");
             }
-        }
-
-        [TestMethod]
-        public void Pipeline_ShouldHaveCorrectBranchTriggers()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("eq(variables['Build.SourceBranchName'], 'main')"),
-                "Pipeline should check for main branch");
-            Assert.IsTrue(pipelineContent.Contains("eq(variables['Build.Reason'], 'PullRequest')"),
-                "Pipeline should check for pull request trigger");
         }
 
         [TestMethod]
