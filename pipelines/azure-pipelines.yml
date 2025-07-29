@@ -128,6 +128,15 @@ stages:
           cp -r $(System.ArtifactsDirectory)/mobile-extracted/* $(publishOutputApiProject)/wwwroot/
           echo "Mobile files copied to wwwroot:"
           ls -la $(publishOutputApiProject)/wwwroot/
+          
+          # Ensure web.config exists for SPA routing
+          if [ -f "services/api/wwwroot/web.config" ]; then
+            echo "Copying web.config for SPA routing..."
+            cp services/api/wwwroot/web.config $(publishOutputApiProject)/wwwroot/
+            echo "✅ web.config copied successfully"
+          else
+            echo "⚠️ No web.config found in services/api/wwwroot/"
+          fi
         else
           echo "Warning: No mobile build found to copy"
         fi
