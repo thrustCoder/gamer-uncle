@@ -94,6 +94,20 @@ stages:
         in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')
       )
     steps:
+    - script: |
+        echo "=== DEBUG: DevBuild Stage Variables ==="
+        echo "Build.Reason: $(Build.Reason)"
+        echo "Build.SourceBranchName: $(Build.SourceBranchName)"
+        echo "Build.SourceBranch: $(Build.SourceBranch)"
+        echo "Build.DefinitionName: $(Build.DefinitionName)"
+        echo "System.PullRequest.IsFork: $(System.PullRequest.IsFork)"
+        echo "System.PullRequest.PullRequestId: $(System.PullRequest.PullRequestId)"
+        echo "=== Branch Condition Checks ==="
+        echo "eq(variables['Build.Reason'], 'PullRequest'): $(eq(variables['Build.Reason'], 'PullRequest'))"
+        echo "eq(variables['Build.SourceBranch'], 'refs/heads/main'): $(eq(variables['Build.SourceBranch'], 'refs/heads/main'))"
+        echo "====================================="
+      displayName: 'Debug Build Variables'
+
     - task: UseDotNet@2
       inputs:
         packageType: 'sdk'
