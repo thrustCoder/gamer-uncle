@@ -86,29 +86,11 @@ stages:
     displayName: 'Build and Publish API Artifacts'
     dependsOn: BuildMobileJob
     condition: |
-      and(
-        or(
-          eq(variables['Build.Reason'], 'PullRequest'),
-          eq(variables['Build.SourceBranch'], 'refs/heads/main')
-        ),
-        in(dependencies.BuildMobileJob.result, 'Succeeded', 'SucceededWithIssues')
+      or(
+        eq(variables['Build.Reason'], 'PullRequest'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
-    - script: |
-        echo "=== DEBUG: DevBuild Stage Variables ==="
-        echo "Build.Reason: $(Build.Reason)"
-        echo "Build.SourceBranchName: $(Build.SourceBranchName)"
-        echo "Build.SourceBranch: $(Build.SourceBranch)"
-        echo "Build.DefinitionName: $(Build.DefinitionName)"
-        echo "System.PullRequest.IsFork: $(System.PullRequest.IsFork)"
-        echo "System.PullRequest.PullRequestId: $(System.PullRequest.PullRequestId)"
-        echo "=== Branch Condition Checks ==="
-        echo "Build.Reason is IndividualCI (not PullRequest): SUCCESS"
-        echo "Build.SourceBranch is refs/heads/main: SUCCESS"
-        echo "DevTest stage should execute with these values!"
-        echo "====================================="
-      displayName: 'Debug Build Variables'
-
     - task: UseDotNet@2
       inputs:
         packageType: 'sdk'
@@ -373,36 +355,6 @@ stages:
         ArtifactName: 'dropMobile'
       displayName: 'Publish Mobile Artifacts'
 
-- stage: DebugStage
-  displayName: 'Debug Pipeline Variables'
-  dependsOn: 
-    - DevBuild
-    - DevTest
-  condition: |
-    or(
-      and(succeeded(), ne(variables['Build.Reason'], 'PullRequest')),
-      failed()
-    )
-  jobs:
-  - job: DebugVariables
-    displayName: 'Print Debug Information'
-    steps:
-    - script: |
-        echo "=== PIPELINE DEBUG INFORMATION ==="
-        echo "Build.Reason: $(Build.Reason)"
-        echo "Build.SourceBranchName: $(Build.SourceBranchName)"
-        echo "Build.SourceBranch: $(Build.SourceBranch)"
-        echo "Build.DefinitionName: $(Build.DefinitionName)"
-        echo "System.PullRequest.IsFork: $(System.PullRequest.IsFork)"
-        echo "System.PullRequest.PullRequestId: $(System.PullRequest.PullRequestId)"
-        echo "Agent.JobStatus: $(Agent.JobStatus)"
-        echo "=== CONDITIONS CHECK ==="
-        echo "succeeded(): should be true for deployment"
-        echo "ne(variables['Build.Reason'], 'PullRequest'): $(ne(variables['Build.Reason'], 'PullRequest'))"
-        echo "eq(variables['Build.SourceBranchName'], 'main'): $(eq(variables['Build.SourceBranchName'], 'main'))"
-        echo "==================================="
-      displayName: 'Debug Pipeline Variables'
-
 - stage: DevDeployApi
   displayName: 'Dev Deploy Api'
   dependsOn: 
@@ -411,7 +363,6 @@ stages:
   # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
-      succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
@@ -458,7 +409,6 @@ stages:
   # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
-      succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
@@ -593,7 +543,6 @@ stages:
   # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
-      succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
@@ -829,7 +778,6 @@ stages:
   # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
-      succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
@@ -866,7 +814,6 @@ stages:
   # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
-      succeeded(), 
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
