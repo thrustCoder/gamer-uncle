@@ -17,6 +17,7 @@
     "test:e2e:ci": "./run-e2e-ci.sh",
     "test:e2e:ci-legacy": "playwright test --reporter=junit",
     "test:e2e:dev": "E2E_BASE_URL=https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net playwright test",
+    "test:e2e:prod": "E2E_BASE_URL=https://gamer-uncle-prod-app-svc.azurewebsites.net playwright test",
     "test:install": "playwright install --with-deps",
     "test:setup": "./setup-e2e.sh && npm run test:e2e",
     "test:all": "npm test && npm run test:e2e"
