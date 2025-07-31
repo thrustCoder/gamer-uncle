@@ -877,3 +877,331 @@ stages:
         artifactName: 'e2e-test-results-dev'
       displayName: 'Publish Dev E2E Test Artifacts'
       condition: always()
+
+# Production Deployment Stages - Gated by successful Dev tests
+- stage: ProdDeployApi
+  displayName: 'Prod Deploy Api'
+  dependsOn: 
+    - FunctionalTestsDev
+  # Only deploy to prod on main branch after successful dev testing
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+    )
+
+  jobs:
+  - deployment: DeployProdWebApp
+    displayName: 'Deploy Prod Web App'
+    environment: 'Prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: dropApi
+
+          - task: AzureCLI@2
+            displayName: 'Configure Prod API App Settings'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az webapp config appsettings set \
+                  --name gamer-uncle-prod-app-svc \
+                  --resource-group gamer-uncle-prod-rg \
+                  --settings \
+                    'CosmosDb__Endpoint=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+                    'CosmosDb__TenantId=c88223a3-60b3-4697-9374-209fc154bdf1' \
+                    'ASPNETCORE_ENVIRONMENT=Production'
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy Prod Web App'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              appType: 'webApp'
+              appName: 'gamer-uncle-prod-app-svc'
+              package: '$(Pipeline.Workspace)/dropApi'
+
+- stage: ProdDeployFunctions
+  displayName: 'Prod Deploy Functions'
+  dependsOn: 
+    - FunctionalTestsDev
+  # Only deploy to prod on main branch after successful dev testing
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+    )
+
+  jobs:
+  - deployment: DeployProdFunctionApp
+    displayName: 'Deploy Prod Function App'
+    environment: 'Prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: dropFunction
+
+          - task: AzureCLI@2
+            displayName: 'Configure Prod Function App Settings'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Setting Prod Function App application settings..."
+                az functionapp config appsettings set \
+                  --name gamer-uncle-prod-function \
+                  --resource-group gamer-uncle-prod-rg \
+                  --settings \
+                    'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
+                    'SyncGameCount=1000' \
+                    'AZURE_FUNCTIONS_ENVIRONMENT=Production'
+                
+                echo "Verifying prod settings were applied..."
+                az functionapp config appsettings list \
+                  --name gamer-uncle-prod-function \
+                  --resource-group gamer-uncle-prod-rg \
+                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+                  -o table
+
+          - task: AzureFunctionApp@1
+            displayName: 'Deploy Prod Function App (Consumption Linux)'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              appType: 'functionAppLinux'
+              appName: 'gamer-uncle-prod-function'
+              package: '$(Pipeline.Workspace)/dropFunction'
+              runtimeStack: 'DOTNET-ISOLATED|8.0'
+
+          - task: AzureCLI@2
+            displayName: 'Verify and Trigger Prod Function'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Waiting for Prod Function App to be ready after deployment..."
+                sleep 60
+                
+                echo "Checking Prod Function App status..."
+                az functionapp show \
+                  --name gamer-uncle-prod-function \
+                  --resource-group gamer-uncle-prod-rg \
+                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
+                
+                echo "Listing deployed functions..."
+                FUNCTIONS=$(az functionapp function list \
+                  --name gamer-uncle-prod-function \
+                  --resource-group gamer-uncle-prod-rg \
+                  --query "[].name" -o tsv 2>/dev/null || echo "")
+                
+                if [[ -z "$FUNCTIONS" ]]; then
+                  echo "❌ No functions found. Waiting and retrying..."
+                  sleep 30
+                  FUNCTIONS=$(az functionapp function list \
+                    --name gamer-uncle-prod-function \
+                    --resource-group gamer-uncle-prod-rg \
+                    --query "[].name" -o tsv 2>/dev/null || echo "")
+                fi
+                
+                if [[ -z "$FUNCTIONS" ]]; then
+                  echo "❌ No functions deployed! Check deployment logs"
+                  exit 1
+                else
+                  echo "✅ Found functions: $FUNCTIONS"
+                fi
+                
+                # Get function key
+                echo "Getting Prod Function App host key..."
+                HOST_KEY=$(az functionapp keys list \
+                  --name gamer-uncle-prod-function \
+                  --resource-group gamer-uncle-prod-rg \
+                  --query "masterKey" -o tsv)
+                
+                if [[ -z "$HOST_KEY" ]]; then
+                  echo "❌ Could not get function key"
+                  exit 1
+                fi
+                
+                # Trigger function if it exists
+                if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
+                  echo "✅ GameSyncHttpStart function found, triggering initial sync..."
+                  
+                  RESPONSE=$(curl -s -X POST \
+                    "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                    -H "Content-Type: application/json" \
+                    -d '{}' \
+                    -w "\nHTTP_CODE:%{http_code}" \
+                    --include)
+                  
+                  echo "Response:"
+                  echo "$RESPONSE"
+                  
+                  HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+                  
+                  if [[ "$HTTP_CODE" == "2"* ]]; then
+                    echo "✅ Prod function triggered successfully!"
+                  else
+                    echo "❌ Prod function trigger failed with status: $HTTP_CODE"
+                    exit 1
+                  fi
+                else
+                  echo "❌ GameSyncHttpStart function not found"
+                  echo "Available functions: $FUNCTIONS"
+                  exit 1
+                fi
+
+- stage: ProdDeployMobile
+  displayName: 'Prod Deploy Mobile'
+  dependsOn: 
+    - FunctionalTestsDev
+  # Only deploy to prod on main branch after successful dev testing
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+    )
+
+  jobs:
+  - deployment: DeployProdMobileApp
+    displayName: 'Deploy Prod Mobile Web App'
+    environment: 'Prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: dropMobile
+
+          - task: ExtractFiles@1
+            displayName: 'Extract Mobile Build'
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/dropMobile/mobile-web-build.zip'
+              destinationFolder: '$(Pipeline.Workspace)/mobile-extracted'
+              cleanDestinationFolder: true
+
+          - script: |
+              echo "Prod mobile web build extracted to: $(Pipeline.Workspace)/mobile-extracted"
+              echo "Contents:"
+              ls -la $(Pipeline.Workspace)/mobile-extracted/
+              echo "Prod mobile web app is ready for deployment to hosting service"
+            displayName: 'Verify Prod Mobile Build Extraction'
+
+          # Add actual deployment steps here when you have a hosting target for prod
+          # Example for Azure Static Web Apps:
+          # - task: AzureStaticWebApp@0
+          #   inputs:
+          #     app_location: '$(Pipeline.Workspace)/mobile-extracted'
+          #     api_location: ''
+          #     output_location: ''
+          #     azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APPS_API_TOKEN_PROD)
+
+# Production Testing Stages
+- stage: FunctionalTestsProd
+  displayName: 'Prod Functional Tests'
+  dependsOn: ProdDeployApi
+  # Only run functional tests after successful prod API deployment
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.ProdDeployApi.result, 'Succeeded')
+    )
+  jobs:
+  - job: RunProdFunctionalTests
+    displayName: 'Run Functional Tests Against Prod Environment'
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet restore services/tests/functional/GamerUncle.Api.FunctionalTests.csproj
+      displayName: 'Restore Functional Test Dependencies'
+
+    - script: |
+        export TEST_ENVIRONMENT=Prod
+        export API_BASE_URL=https://gamer-uncle-prod-app-svc.azurewebsites.net
+        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
+      displayName: 'Run Functional Tests Against Prod Environment'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/*.trx'
+        failTaskOnFailedTests: true
+      displayName: 'Publish Prod Functional Test Results'
+
+# E2E Tests for Mobile App (Prod Environment)  
+- stage: E2ETestsProd
+  displayName: 'Prod Mobile E2E Tests'
+  dependsOn: ProdDeployMobile
+  # Only run E2E tests after successful prod mobile deployment
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.ProdDeployMobile.result, 'Succeeded')
+    )
+  jobs:
+  - job: RunProdE2ETests
+    displayName: 'Run E2E Tests Against Prod Environment'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: |
+        cd $(mobileProject)
+        echo "Installing mobile dependencies for Prod E2E tests..."
+        
+        # Check if package-lock.json is in sync with package.json
+        if npm ci --dry-run 2>/dev/null; then
+          echo "✅ package-lock.json is in sync, using npm ci"
+          npm ci --prefer-offline --no-audit
+        else
+          echo "⚠️ package-lock.json out of sync, using npm install"
+          npm install --prefer-offline --no-audit
+        fi
+      displayName: 'Install Mobile Dependencies'
+
+    - script: |
+        cd $(mobileProject)
+        npx playwright install --with-deps chromium
+      displayName: 'Install Playwright Browsers'
+
+    - script: |
+        cd $(mobileProject)
+        export CI=true
+        export E2E_BASE_URL="https://gamer-uncle-prod-app-svc.azurewebsites.net"
+        npm run test:e2e:ci
+      displayName: 'Run E2E Tests Against Prod'
+      continueOnError: false
+      timeoutInMinutes: 25
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(mobileProject)/test-results/*.xml'
+        failTaskOnFailedTests: true
+      displayName: 'Publish Prod E2E Test Results'
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(mobileProject)/test-results'
+        artifactName: 'e2e-test-results-prod'
+      displayName: 'Publish Prod E2E Test Artifacts'
+      condition: always()
