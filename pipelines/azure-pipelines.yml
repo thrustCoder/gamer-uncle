@@ -894,7 +894,6 @@ stages:
   jobs:
   - deployment: DeployProdWebApp
     displayName: 'Deploy Prod Web App'
-    environment: 'Prod'
     strategy:
       runOnce:
         deploy:
@@ -940,7 +939,6 @@ stages:
   jobs:
   - deployment: DeployProdFunctionApp
     displayName: 'Deploy Prod Function App'
-    environment: 'Prod'
     strategy:
       runOnce:
         deploy:
@@ -1075,7 +1073,6 @@ stages:
   jobs:
   - deployment: DeployProdMobileApp
     displayName: 'Deploy Prod Mobile Web App'
-    environment: 'Prod'
     strategy:
       runOnce:
         deploy:
