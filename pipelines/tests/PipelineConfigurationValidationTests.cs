@@ -71,12 +71,14 @@ namespace GamerUncle.Pipeline.Tests
             var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
             // Act & Assert
-            // Check that production stages depend on dev tests
+            // Check that production stages depend on functional tests only (E2E tests are flaky and shouldn't gate production)
             Assert.IsTrue(pipelineContent.Contains("- FunctionalTestsDev") && 
-                         pipelineContent.Contains("- E2ETestsDev") &&
-                         pipelineContent.Contains("dependencies.FunctionalTestsDev.result, 'Succeeded'") &&
-                         pipelineContent.Contains("dependencies.E2ETestsDev.result, 'Succeeded'"), 
-                "Production deployment stages should be gated by successful dev tests");
+                         pipelineContent.Contains("dependencies.FunctionalTestsDev.result, 'Succeeded'"), 
+                "Production deployment stages should be gated by successful functional tests");
+                
+            // Ensure E2E tests don't gate production deployments (they can be flaky)
+            Assert.IsFalse(pipelineContent.Contains("dependencies.E2ETestsDev.result, 'Succeeded'"), 
+                "Production deployment stages should not be gated by E2E tests as they can be flaky");
         }
 
         [TestMethod]

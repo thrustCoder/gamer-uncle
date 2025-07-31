@@ -888,7 +888,7 @@ stages:
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
@@ -934,7 +934,7 @@ stages:
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
@@ -1069,7 +1069,7 @@ stages:
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
