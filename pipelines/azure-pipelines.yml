@@ -892,37 +892,34 @@ stages:
     )
 
   jobs:
-  - deployment: DeployProdWebApp
+  - job: DeployProdWebApp
     displayName: 'Deploy Prod Web App'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: dropApi
+    steps:
+    - download: current
+      artifact: dropApi
 
-          - task: AzureCLI@2
-            displayName: 'Configure Prod API App Settings'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                az webapp config appsettings set \
-                  --name gamer-uncle-prod-app-svc \
-                  --resource-group gamer-uncle-prod-rg \
-                  --settings \
-                    'CosmosDb__Endpoint=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
-                    'CosmosDb__TenantId=c88223a3-60b3-4697-9374-209fc154bdf1' \
-                    'ASPNETCORE_ENVIRONMENT=Production'
+    - task: AzureCLI@2
+      displayName: 'Configure Prod API App Settings'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az webapp config appsettings set \
+            --name gamer-uncle-prod-app-svc \
+            --resource-group gamer-uncle-prod-rg \
+            --settings \
+              'CosmosDb__Endpoint=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+              'CosmosDb__TenantId=c88223a3-60b3-4697-9374-209fc154bdf1' \
+              'ASPNETCORE_ENVIRONMENT=Production'
 
-          - task: AzureWebApp@1
-            displayName: 'Deploy Prod Web App'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              appType: 'webApp'
-              appName: 'gamer-uncle-prod-app-svc'
-              package: '$(Pipeline.Workspace)/dropApi'
+    - task: AzureWebApp@1
+      displayName: 'Deploy Prod Web App'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        appType: 'webApp'
+        appName: 'gamer-uncle-prod-app-svc'
+        package: '$(Pipeline.Workspace)/dropApi'
 
 - stage: ProdDeployFunctions
   displayName: 'Prod Deploy Functions'
@@ -937,126 +934,123 @@ stages:
     )
 
   jobs:
-  - deployment: DeployProdFunctionApp
+  - job: DeployProdFunctionApp
     displayName: 'Deploy Prod Function App'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: dropFunction
+    steps:
+    - download: current
+      artifact: dropFunction
 
-          - task: AzureCLI@2
-            displayName: 'Configure Prod Function App Settings'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Setting Prod Function App application settings..."
-                az functionapp config appsettings set \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --settings \
-                    'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
-                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
-                    'SyncGameCount=1000' \
-                    'AZURE_FUNCTIONS_ENVIRONMENT=Production'
-                
-                echo "Verifying prod settings were applied..."
-                az functionapp config appsettings list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
-                  -o table
+    - task: AzureCLI@2
+      displayName: 'Configure Prod Function App Settings'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Setting Prod Function App application settings..."
+          az functionapp config appsettings set \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --settings \
+              'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+              'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+              'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
+              'SyncGameCount=1000' \
+              'AZURE_FUNCTIONS_ENVIRONMENT=Production'
+          
+          echo "Verifying prod settings were applied..."
+          az functionapp config appsettings list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+            -o table
 
-          - task: AzureFunctionApp@1
-            displayName: 'Deploy Prod Function App (Consumption Linux)'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              appType: 'functionAppLinux'
-              appName: 'gamer-uncle-prod-function'
-              package: '$(Pipeline.Workspace)/dropFunction'
-              runtimeStack: 'DOTNET-ISOLATED|8.0'
+    - task: AzureFunctionApp@1
+      displayName: 'Deploy Prod Function App (Consumption Linux)'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        appType: 'functionAppLinux'
+        appName: 'gamer-uncle-prod-function'
+        package: '$(Pipeline.Workspace)/dropFunction'
+        runtimeStack: 'DOTNET-ISOLATED|8.0'
 
-          - task: AzureCLI@2
-            displayName: 'Verify and Trigger Prod Function'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Waiting for Prod Function App to be ready after deployment..."
-                sleep 60
-                
-                echo "Checking Prod Function App status..."
-                az functionapp show \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
-                
-                echo "Listing deployed functions..."
-                FUNCTIONS=$(az functionapp function list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "[].name" -o tsv 2>/dev/null || echo "")
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions found. Waiting and retrying..."
-                  sleep 30
-                  FUNCTIONS=$(az functionapp function list \
-                    --name gamer-uncle-prod-function \
-                    --resource-group gamer-uncle-prod-rg \
-                    --query "[].name" -o tsv 2>/dev/null || echo "")
-                fi
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions deployed! Check deployment logs"
-                  exit 1
-                else
-                  echo "✅ Found functions: $FUNCTIONS"
-                fi
-                
-                # Get function key
-                echo "Getting Prod Function App host key..."
-                HOST_KEY=$(az functionapp keys list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "masterKey" -o tsv)
-                
-                if [[ -z "$HOST_KEY" ]]; then
-                  echo "❌ Could not get function key"
-                  exit 1
-                fi
-                
-                # Trigger function if it exists
-                if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
-                  echo "✅ GameSyncHttpStart function found, triggering initial sync..."
-                  
-                  RESPONSE=$(curl -s -X POST \
-                    "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
-                    -H "Content-Type: application/json" \
-                    -d '{}' \
-                    -w "\nHTTP_CODE:%{http_code}" \
-                    --include)
-                  
-                  echo "Response:"
-                  echo "$RESPONSE"
-                  
-                  HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
-                  
-                  if [[ "$HTTP_CODE" == "2"* ]]; then
-                    echo "✅ Prod function triggered successfully!"
-                  else
-                    echo "❌ Prod function trigger failed with status: $HTTP_CODE"
-                    exit 1
-                  fi
-                else
-                  echo "❌ GameSyncHttpStart function not found"
-                  echo "Available functions: $FUNCTIONS"
-                  exit 1
-                fi
+    - task: AzureCLI@2
+      displayName: 'Verify and Trigger Prod Function'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Waiting for Prod Function App to be ready after deployment..."
+          sleep 60
+          
+          echo "Checking Prod Function App status..."
+          az functionapp show \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
+          
+          echo "Listing deployed functions..."
+          FUNCTIONS=$(az functionapp function list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "[].name" -o tsv 2>/dev/null || echo "")
+          
+          if [[ -z "$FUNCTIONS" ]]; then
+            echo "❌ No functions found. Waiting and retrying..."
+            sleep 30
+            FUNCTIONS=$(az functionapp function list \
+              --name gamer-uncle-prod-function \
+              --resource-group gamer-uncle-prod-rg \
+              --query "[].name" -o tsv 2>/dev/null || echo "")
+          fi
+          
+          if [[ -z "$FUNCTIONS" ]]; then
+            echo "❌ No functions deployed! Check deployment logs"
+            exit 1
+          else
+            echo "✅ Found functions: $FUNCTIONS"
+          fi
+          
+          # Get function key
+          echo "Getting Prod Function App host key..."
+          HOST_KEY=$(az functionapp keys list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "masterKey" -o tsv)
+          
+          if [[ -z "$HOST_KEY" ]]; then
+            echo "❌ Could not get function key"
+            exit 1
+          fi
+          
+          # Trigger function if it exists
+          if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
+            echo "✅ GameSyncHttpStart function found, triggering initial sync..."
+            
+            RESPONSE=$(curl -s -X POST \
+              "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              -w "\nHTTP_CODE:%{http_code}" \
+              --include)
+            
+            echo "Response:"
+            echo "$RESPONSE"
+            
+            HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+            
+            if [[ "$HTTP_CODE" == "2"* ]]; then
+              echo "✅ Prod function triggered successfully!"
+            else
+              echo "❌ Prod function trigger failed with status: $HTTP_CODE"
+              exit 1
+            fi
+          else
+            echo "❌ GameSyncHttpStart function not found"
+            echo "Available functions: $FUNCTIONS"
+            exit 1
+          fi
 
 - stage: ProdDeployMobile
   displayName: 'Prod Deploy Mobile'
@@ -1071,28 +1065,25 @@ stages:
     )
 
   jobs:
-  - deployment: DeployProdMobileApp
+  - job: DeployProdMobileApp
     displayName: 'Deploy Prod Mobile Web App'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: dropMobile
+    steps:
+    - download: current
+      artifact: dropMobile
 
-          - task: ExtractFiles@1
-            displayName: 'Extract Mobile Build'
-            inputs:
-              archiveFilePatterns: '$(Pipeline.Workspace)/dropMobile/mobile-web-build.zip'
-              destinationFolder: '$(Pipeline.Workspace)/mobile-extracted'
-              cleanDestinationFolder: true
+    - task: ExtractFiles@1
+      displayName: 'Extract Mobile Build'
+      inputs:
+        archiveFilePatterns: '$(Pipeline.Workspace)/dropMobile/mobile-web-build.zip'
+        destinationFolder: '$(Pipeline.Workspace)/mobile-extracted'
+        cleanDestinationFolder: true
 
-          - script: |
-              echo "Prod mobile web build extracted to: $(Pipeline.Workspace)/mobile-extracted"
-              echo "Contents:"
-              ls -la $(Pipeline.Workspace)/mobile-extracted/
-              echo "Prod mobile web app is ready for deployment to hosting service"
-            displayName: 'Verify Prod Mobile Build Extraction'
+    - script: |
+        echo "Prod mobile web build extracted to: $(Pipeline.Workspace)/mobile-extracted"
+        echo "Contents:"
+        ls -la $(Pipeline.Workspace)/mobile-extracted/
+        echo "Prod mobile web app is ready for deployment to hosting service"
+      displayName: 'Verify Prod Mobile Build Extraction'
 
           # Add actual deployment steps here when you have a hosting target for prod
           # Example for Azure Static Web Apps:
