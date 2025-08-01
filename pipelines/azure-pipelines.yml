@@ -806,6 +806,7 @@ stages:
     - script: |
         export TEST_ENVIRONMENT=Dev
         export API_BASE_URL=https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net
+        echo "Running functional tests against Dev environment with enhanced retry logic for Azure AI content filtering..."
         dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
       displayName: 'Run Functional Tests Against Dev Environment'
 
@@ -1121,6 +1122,7 @@ stages:
     - script: |
         export TEST_ENVIRONMENT=Prod
         export API_BASE_URL=https://gamer-uncle-prod-app-svc.azurewebsites.net
+        echo "Running functional tests against Prod environment with enhanced retry logic for Azure AI content filtering..."
         dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
       displayName: 'Run Functional Tests Against Prod Environment'
 
