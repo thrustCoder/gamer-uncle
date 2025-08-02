@@ -23,6 +23,22 @@ namespace GamerUncle.Pipeline.Tests
                 "Validation stage should only run for PRs");
         }
 
+        [TestMethod]
+        public void Pipeline_ShouldUseAzureCLIForFunctionDeployment()
+        {
+            // Arrange
+            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
+
+            // Act & Assert
+            Assert.IsTrue(pipelineContent.Contains("az functionapp deployment source config-zip"), 
+                "Pipeline should use Azure CLI for function deployment to avoid storage account issues");
+            Assert.IsTrue(pipelineContent.Contains("ArchiveFiles@2"), 
+                "Pipeline should archive function app before deployment");
+            Assert.IsFalse(pipelineContent.Contains("AzureFunctionApp@1") && 
+                          pipelineContent.Contains("Deploy Function App (Consumption Linux)"), 
+                "Pipeline should not use AzureFunctionApp@1 task for Linux consumption plans due to storage account issues");
+        }
+
 
 
         [TestMethod]

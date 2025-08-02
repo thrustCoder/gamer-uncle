@@ -457,14 +457,28 @@ stages:
                   --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
                   -o table
 
-          - task: AzureFunctionApp@1
+          - task: ArchiveFiles@2
+            displayName: 'Archive Function App'
+            inputs:
+              rootFolderOrFile: '$(Pipeline.Workspace)/dropFunction'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Pipeline.Workspace)/function-app.zip'
+
+          - task: AzureCLI@2
             displayName: 'Deploy Function App (Consumption Linux)'
             inputs:
               azureSubscription: 'gamer-uncle-dev-sc'
-              appType: 'functionAppLinux'
-              appName: 'gamer-uncle-dev-function'
-              package: '$(Pipeline.Workspace)/dropFunction'
-              runtimeStack: 'DOTNET-ISOLATED|8.0'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Deploying Function App using Azure CLI..."
+                az functionapp deployment source config-zip \
+                  --resource-group gamer-uncle-dev-rg \
+                  --name gamer-uncle-dev-function \
+                  --src $(Pipeline.Workspace)/function-app.zip
+                
+                echo "Function App deployment completed successfully"
 
           - task: AzureCLI@2
             displayName: 'Verify and Trigger Function'
@@ -966,14 +980,28 @@ stages:
             --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
             -o table
 
-    - task: AzureFunctionApp@1
+    - task: ArchiveFiles@2
+      displayName: 'Archive Prod Function App'
+      inputs:
+        rootFolderOrFile: '$(Pipeline.Workspace)/dropFunction'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Pipeline.Workspace)/prod-function-app.zip'
+
+    - task: AzureCLI@2
       displayName: 'Deploy Prod Function App (Consumption Linux)'
       inputs:
         azureSubscription: 'gamer-uncle-prod-sc'
-        appType: 'functionAppLinux'
-        appName: 'gamer-uncle-prod-function'
-        package: '$(Pipeline.Workspace)/dropFunction'
-        runtimeStack: 'DOTNET-ISOLATED|8.0'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Deploying Prod Function App using Azure CLI..."
+          az functionapp deployment source config-zip \
+            --resource-group gamer-uncle-prod-rg \
+            --name gamer-uncle-prod-function \
+            --src $(Pipeline.Workspace)/prod-function-app.zip
+          
+          echo "Prod Function App deployment completed successfully"
 
     - task: AzureCLI@2
       displayName: 'Verify and Trigger Prod Function'
