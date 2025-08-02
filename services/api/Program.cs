@@ -1,13 +1,20 @@
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
+using GamerUncle.Api.Services.Authentication;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Validate Azure authentication configuration early
+var authValidator = new AzureAuthenticationValidator(
+    LoggerFactory.Create(config => config.AddConsole()).CreateLogger<AzureAuthenticationValidator>());
+authValidator.ValidateConfiguration(builder.Configuration);
 
 // Configure Application Insights with RBAC (Managed Identity)
 var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
@@ -94,6 +101,12 @@ builder.Services.AddRateLimiter(options =>
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
+builder.Services.AddTransient<AzureAuthenticationValidator>();
+
+// Add health checks including authentication
+builder.Services.AddHealthChecks()
+    .AddCheck<AuthenticationHealthCheck>("azure_auth", HealthStatus.Degraded)
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"));
 
 // CORS policy configuration
 builder.Services.AddCors(options =>
@@ -118,6 +131,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// Add authentication error handling middleware
+app.UseAuthenticationErrorHandling();
+
 // Enable rate limiting after routing
 app.UseRateLimiter();
 
@@ -125,6 +141,28 @@ app.UseAuthorization();
 app.MapControllers();
 app.UseCors();
 app.UseStaticFiles();
+
+// Add health check endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                exception = e.Value.Exception?.Message,
+                duration = e.Value.Duration,
+                data = e.Value.Data
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
 
 app.Run();
 
