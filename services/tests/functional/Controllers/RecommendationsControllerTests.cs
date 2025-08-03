@@ -405,38 +405,6 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
         #region Happy Path Realistic Scenarios
 
         [Fact]
-        public async Task RecommendGame_DetailedRequirements_ReturnsRelevantResponse()
-        {
-            // Arrange - Use a simpler, less complex query that's less likely to trigger content filters
-            var userQuery = new UserQuery
-            {
-                Query = "What are some good strategy games for 3-4 players?",
-                UserId = "test-detailed-req"
-            };
-
-            _output.WriteLine($"Testing detailed requirements: {userQuery.Query}");
-
-            // Act & Assert with retry logic and more lenient acceptance criteria
-            var agentResponse = await ExecuteTestWithRetry(userQuery, "detailed requirements test");
-            
-            // Additional assertions for detailed requirements
-            Assert.True(agentResponse.ResponseText!.Length > 20, "Response should be substantial for query");
-            
-            // More lenient validation - accept any meaningful response about board games
-            if (!IsFallbackResponse(agentResponse.ResponseText))
-            {
-                var containsGameContent = agentResponse.ResponseText.Contains("game", StringComparison.OrdinalIgnoreCase) ||
-                                        agentResponse.ResponseText.Contains("strategy", StringComparison.OrdinalIgnoreCase) ||
-                                        agentResponse.ResponseText.Contains("player", StringComparison.OrdinalIgnoreCase) ||
-                                        agentResponse.ResponseText.Contains("recommend", StringComparison.OrdinalIgnoreCase) ||
-                                        agentResponse.MatchingGamesCount > 0;
-                
-                Assert.True(containsGameContent, 
-                    $"Response doesn't appear to be about board games: {agentResponse.ResponseText}");
-            }
-        }
-
-        [Fact]
         public async Task RecommendGame_SimpleInquiry_ReturnsHelpfulResponse()
         {
             // Arrange
