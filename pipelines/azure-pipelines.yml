@@ -1017,7 +1017,7 @@ stages:
           
           # Check if function app base URL is accessible before proceeding
           echo "Verifying Function App base URL accessibility..."
-          FUNCTION_APP_URL="https://gamer-uncle-prod-function.azurewebsites.net"
+          FUNCTION_APP_URL="https://gamer-uncle-prod-function-evdrg8cbe7eag9ht.westus-01.azurewebsites.net"
           MAX_URL_RETRIES=5
           URL_RETRY_COUNT=0
           URL_ACCESSIBLE=false
@@ -1096,7 +1096,7 @@ stages:
               fi
               
               RESPONSE=$(curl -s -X POST \
-                "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                "https://gamer-uncle-prod-function-evdrg8cbe7eag9ht.westus-01.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
                 -H "Content-Type: application/json" \
                 -d '{}' \
                 -w "\nHTTP_CODE:%{http_code}" \
