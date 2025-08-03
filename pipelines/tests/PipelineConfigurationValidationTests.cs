@@ -197,8 +197,11 @@ namespace GamerUncle.Pipeline.Tests
             // Act & Assert
             Assert.IsTrue(pipelineContent.Contains("stage: FunctionalTestsProd"), 
                 "Pipeline should have FunctionalTestsProd stage");
-            Assert.IsTrue(pipelineContent.Contains("stage: E2ETestsProd"), 
-                "Pipeline should have E2ETestsProd stage");
+            
+            // Note: E2E tests have been removed due to reliability issues
+            // Verify the comment exists indicating this decision
+            Assert.IsTrue(pipelineContent.Contains("E2E Tests removed due to reliability issues"), 
+                "Pipeline should document that E2E tests were removed due to reliability issues");
         }
 
         [TestMethod]

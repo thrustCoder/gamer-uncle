@@ -111,15 +111,15 @@ namespace GamerUncle.Pipeline.Tests
             var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
             // Act & Assert
-            // E2E tests should continue on error to gather results
-            var e2eTestPattern = @"Run E2E Tests[\s\S]*?continueOnError:\s*true";
-            Assert.IsTrue(Regex.IsMatch(pipelineContent, e2eTestPattern),
-                "E2E tests should have continueOnError: true");
-            
             // Mobile unit tests should continue on error
             var mobileTestPattern = @"Running mobile unit tests[\s\S]*?continueOnError:\s*true";
             Assert.IsTrue(Regex.IsMatch(pipelineContent, mobileTestPattern),
                 "Mobile unit tests should have continueOnError: true");
+                
+            // Note: E2E tests have been removed due to reliability issues
+            // Verify the removal is documented
+            Assert.IsTrue(pipelineContent.Contains("E2E Tests removed due to reliability issues"),
+                "Pipeline should document that E2E tests were removed");
         }
     }
 }
