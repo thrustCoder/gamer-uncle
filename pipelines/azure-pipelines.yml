@@ -833,6 +833,8 @@ stages:
             echo "❌ Functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
             
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "🧹 Cleaning failed test results before retry..."
+              rm -f $(Agent.TempDirectory)/*.trx 2>/dev/null || true
               echo "⏳ Waiting 30 seconds before retry..."
               sleep 30
             else
@@ -932,6 +934,8 @@ stages:
             echo "❌ Dev functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
             
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "🧹 Cleaning failed test results before retry..."
+              rm -f $(Agent.TempDirectory)/*.trx 2>/dev/null || true
               echo "⏳ Waiting 30 seconds before retry..."
               sleep 30
             else
@@ -1300,6 +1304,8 @@ stages:
             echo "❌ Prod functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
             
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "🧹 Cleaning failed test results before retry..."
+              rm -f $(Agent.TempDirectory)/*.trx 2>/dev/null || true
               echo "⏳ Waiting 30 seconds before retry..."
               sleep 30
             else
