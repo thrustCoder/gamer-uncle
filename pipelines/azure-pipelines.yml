@@ -811,13 +811,35 @@ stages:
           exit 1
         fi
         
-        echo "🧪 Running functional tests..."
+        echo "🧪 Running functional tests with retry logic..."
         export TEST_ENVIRONMENT=Local
         export API_BASE_URL=http://localhost:5000
         
-        # Run the tests
+        # Run the tests with retry logic (1 retry)
         TEST_RESULT=0
-        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory) || TEST_RESULT=$?
+        MAX_RETRIES=2
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "🧪 Functional test attempt $RETRY_COUNT of $MAX_RETRIES..."
+          
+          if dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory); then
+            echo "✅ Functional tests passed on attempt $RETRY_COUNT"
+            TEST_RESULT=0
+            break
+          else
+            TEST_RESULT=$?
+            echo "❌ Functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
+            
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            else
+              echo "❌ All functional test attempts failed after $MAX_RETRIES tries"
+            fi
+          fi
+        done
         
         echo "🧹 Stopping API service..."
         kill $API_PID 2>/dev/null || true
@@ -891,8 +913,35 @@ stages:
         export TEST_ENVIRONMENT=Dev
         export API_BASE_URL=https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net
         echo "Running functional tests against Dev environment with enhanced retry logic for Azure AI content filtering..."
-        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
-      displayName: 'Run Functional Tests Against Dev Environment'
+        
+        # Run functional tests with retry logic (1 retry)
+        TEST_RESULT=0
+        MAX_RETRIES=2
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "🧪 Dev functional test attempt $RETRY_COUNT of $MAX_RETRIES..."
+          
+          if dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory); then
+            echo "✅ Dev functional tests passed on attempt $RETRY_COUNT"
+            TEST_RESULT=0
+            break
+          else
+            TEST_RESULT=$?
+            echo "❌ Dev functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
+            
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            else
+              echo "❌ All Dev functional test attempts failed after $MAX_RETRIES tries"
+            fi
+          fi
+        done
+        
+        exit $TEST_RESULT
+      displayName: 'Run Functional Tests Against Dev Environment with Retries'
 
     - task: PublishTestResults@2
       inputs:
@@ -1017,7 +1066,7 @@ stages:
           
           # Check if function app base URL is accessible before proceeding
           echo "Verifying Function App base URL accessibility..."
-          FUNCTION_APP_URL="https://gamer-uncle-prod-function.azurewebsites.net"
+          FUNCTION_APP_URL="https://gamer-uncle-prod-function-evdrg8cbe7eag9ht.westus-01.azurewebsites.net"
           MAX_URL_RETRIES=5
           URL_RETRY_COUNT=0
           URL_ACCESSIBLE=false
@@ -1096,7 +1145,7 @@ stages:
               fi
               
               RESPONSE=$(curl -s -X POST \
-                "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                "https://gamer-uncle-prod-function-evdrg8cbe7eag9ht.westus-01.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
                 -H "Content-Type: application/json" \
                 -d '{}' \
                 -w "\nHTTP_CODE:%{http_code}" \
@@ -1232,8 +1281,35 @@ stages:
         export TEST_ENVIRONMENT=Prod
         export API_BASE_URL=https://gamer-uncle-prod-app-svc.azurewebsites.net
         echo "Running functional tests against Prod environment with enhanced retry logic for Azure AI content filtering..."
-        dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory)
-      displayName: 'Run Functional Tests Against Prod Environment'
+        
+        # Run functional tests with retry logic (1 retry)
+        TEST_RESULT=0
+        MAX_RETRIES=2
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          echo "🧪 Prod functional test attempt $RETRY_COUNT of $MAX_RETRIES..."
+          
+          if dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory); then
+            echo "✅ Prod functional tests passed on attempt $RETRY_COUNT"
+            TEST_RESULT=0
+            break
+          else
+            TEST_RESULT=$?
+            echo "❌ Prod functional tests failed on attempt $RETRY_COUNT (exit code: $TEST_RESULT)"
+            
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            else
+              echo "❌ All Prod functional test attempts failed after $MAX_RETRIES tries"
+            fi
+          fi
+        done
+        
+        exit $TEST_RESULT
+      displayName: 'Run Functional Tests Against Prod Environment with Retries'
 
     - task: PublishTestResults@2
       inputs:

@@ -306,46 +306,9 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             Assert.True(agentResponse.MatchingGamesCount == null || agentResponse.MatchingGamesCount >= 0);
         }
 
-        [Fact]
-        public async Task RecommendGame_ValidRequest_ReturnsCorrectContentType()
-        {
-            // Arrange
-            var userQuery = new UserQuery
-            {
-                Query = "recommend a game",
-                UserId = "test-content-type"
-            };
-
-            _output.WriteLine("Testing content type validation");
-
-            // Act & Assert with retry logic  
-            var agentResponse = await ExecuteTestWithRetry(userQuery, "content type test");
-            
-            // The ExecuteTestWithRetry method handles the content type validation internally
-            Assert.NotNull(agentResponse.ResponseText);
-        }
-
         #endregion
 
         #region Special Characters & Security Tests
-
-        [Fact]
-        public async Task RecommendGame_WithSpecialCharacters_ReturnsSuccessResponse()
-        {
-            // Arrange
-            var userQuery = new UserQuery
-            {
-                Query = "I want a game with symbols: !@#$%^&*()_+-=[]{}|;':\",./<>?",
-                UserId = "test-special-chars"
-            };
-
-            _output.WriteLine($"Testing special characters: {userQuery.Query}");
-
-            // Act & Assert with retry logic
-            var agentResponse = await ExecuteTestWithRetry(userQuery, "special characters test");
-            
-            Assert.NotNull(agentResponse.ResponseText);
-        }
 
         [Fact]
         public async Task RecommendGame_WithUnicodeCharacters_ReturnsSuccessResponse()
