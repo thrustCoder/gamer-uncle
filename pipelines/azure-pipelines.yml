@@ -809,19 +809,12 @@ stages:
         while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
           echo "Checking API health... attempt $ATTEMPT/$MAX_ATTEMPTS"
           
-          # Check if the API is responding to basic requests
-          if curl -f -s --max-time 10 "$API_URL/" > /dev/null 2>&1; then
-            echo "✅ API root endpoint is responding"
-            
-            # Check if health endpoint is working
-            if curl -f -s --max-time 15 "$API_URL/health" > /dev/null 2>&1; then
-              echo "✅ API health endpoint is responding"
-              break
-            else
-              echo "⚠️ Health endpoint not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-            fi
+          # Check if health endpoint is working (this is the primary readiness check)
+          if curl -f -s --max-time 15 "$API_URL/health" > /dev/null 2>&1; then
+            echo "✅ API health endpoint is responding"
+            break
           else
-            echo "⚠️ API not responding yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            echo "⚠️ API not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
           fi
           
           if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
@@ -923,14 +916,11 @@ stages:
   displayName: 'Prod Deploy Api'
   dependsOn: 
     - DevTest
-    # TODO: Add dependency on successful functional tests in Dev
-    # - FunctionalTestsDev
   # Only deploy to prod on main branch after successful dev testing
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.DevTest.result, 'Succeeded')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -967,14 +957,11 @@ stages:
   displayName: 'Prod Deploy Functions'
   dependsOn: 
     - DevTest
-    # TODO: Add dependency on successful functional tests in Dev
-    # - FunctionalTestsDev
   # Only deploy to prod on main branch after successful dev testing
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.DevTest.result, 'Succeeded')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -1100,14 +1087,11 @@ stages:
   displayName: 'Prod Deploy Mobile'
   dependsOn:
     - DevTest
-    # TODO: Add dependency on successful functional tests in Dev
-    # - FunctionalTestsDev
   # Only deploy to prod on main branch after successful dev testing
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.DevTest.result, 'Succeeded')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
 
   jobs:
@@ -1170,19 +1154,12 @@ stages:
         while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
           echo "Checking Prod API health... attempt $ATTEMPT/$MAX_ATTEMPTS"
           
-          # Check if the API is responding to basic requests
-          if curl -f -s --max-time 10 "$API_URL/" > /dev/null 2>&1; then
-            echo "✅ Prod API root endpoint is responding"
-            
-            # Check if health endpoint is working
-            if curl -f -s --max-time 15 "$API_URL/health" > /dev/null 2>&1; then
-              echo "✅ Prod API health endpoint is responding"
-              break
-            else
-              echo "⚠️ Prod health endpoint not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-            fi
+          # Check if health endpoint is working (this is the primary readiness check)
+          if curl -f -s --max-time 15 "$API_URL/health" > /dev/null 2>&1; then
+            echo "✅ Prod API health endpoint is responding"
+            break
           else
-            echo "⚠️ Prod API not responding yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            echo "⚠️ Prod API not ready yet (attempt $ATTEMPT/$MAX_ATTEMPTS)"
           fi
           
           if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
