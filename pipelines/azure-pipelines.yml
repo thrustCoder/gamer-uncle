@@ -959,180 +959,176 @@ stages:
     )
 
   jobs:
-  - deployment: DeployProdFunctionApp
+  - job: DeployProdFunctionApp
     displayName: 'Deploy Prod Function App'
-    environment: 'Prod'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: dropFunction
+    steps:
+    - download: current
+      artifact: dropFunction
 
-          - task: AzureCLI@2
-            displayName: 'Configure Prod Function App Settings'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Setting Prod Function App application settings..."
-                az functionapp config appsettings set \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --settings \
-                    'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
-                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
-                    'SyncGameCount=1000' \
-                    'AZURE_FUNCTIONS_ENVIRONMENT=Production'
-                
-                echo "Verifying prod settings were applied..."
-                az functionapp config appsettings list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
-                  -o table
+    - task: AzureCLI@2
+      displayName: 'Configure Prod Function App Settings'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Setting Prod Function App application settings..."
+          az functionapp config appsettings set \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --settings \
+              'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+              'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
+              'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
+              'SyncGameCount=1000' \
+              'AZURE_FUNCTIONS_ENVIRONMENT=Production'
+          
+          echo "Verifying prod settings were applied..."
+          az functionapp config appsettings list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+            -o table
 
-          - task: AzureFunctionApp@1
-            displayName: 'Deploy Prod Function App (Consumption Linux)'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              appType: 'functionAppLinux'
-              appName: 'gamer-uncle-prod-function'
-              package: '$(Pipeline.Workspace)/dropFunction'
-              runtimeStack: 'DOTNET-ISOLATED|8.0'
+    - task: AzureFunctionApp@1
+      displayName: 'Deploy Prod Function App (Consumption Linux)'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        appType: 'functionAppLinux'
+        appName: 'gamer-uncle-prod-function'
+        package: '$(Pipeline.Workspace)/dropFunction'
+        runtimeStack: 'DOTNET-ISOLATED|8.0'
 
-          - task: AzureCLI@2
-            displayName: 'Verify and Trigger Prod Function'
-            inputs:
-              azureSubscription: 'gamer-uncle-prod-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Waiting for Prod Function App to be ready after deployment..."
-                sleep 60
-                
-                echo "Checking Prod Function App status..."
-                az functionapp show \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
-                
-                # Check if function app base URL is accessible before proceeding
-                echo "Verifying Function App base URL accessibility..."
-                FUNCTION_APP_URL="https://gamer-uncle-prod-function.azurewebsites.net"
-                MAX_URL_RETRIES=5
-                URL_RETRY_COUNT=0
-                URL_ACCESSIBLE=false
-                
-                while [[ $URL_RETRY_COUNT -lt $MAX_URL_RETRIES && "$URL_ACCESSIBLE" == "false" ]]; do
-                  URL_RETRY_COUNT=$((URL_RETRY_COUNT + 1))
-                  echo "Checking Function App URL accessibility (attempt $URL_RETRY_COUNT of $MAX_URL_RETRIES)..."
-                  
-                  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL" || echo "000")
-                  
-                  if [[ "$HTTP_STATUS" != "404" && "$HTTP_STATUS" != "000" ]]; then
-                    echo "✅ Function App is accessible (HTTP $HTTP_STATUS)"
-                    URL_ACCESSIBLE=true
-                  else
-                    echo "⚠️ Function App not yet accessible (HTTP $HTTP_STATUS). Waiting 30 seconds..."
-                    sleep 30
-                  fi
-                done
-                
-                if [[ "$URL_ACCESSIBLE" == "false" ]]; then
-                  echo "❌ Function App base URL is not accessible after $MAX_URL_RETRIES attempts"
+    - task: AzureCLI@2
+      displayName: 'Verify and Trigger Prod Function'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Waiting for Prod Function App to be ready after deployment..."
+          sleep 60
+          
+          echo "Checking Prod Function App status..."
+          az functionapp show \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
+          
+          # Check if function app base URL is accessible before proceeding
+          echo "Verifying Function App base URL accessibility..."
+          FUNCTION_APP_URL="https://gamer-uncle-prod-function.azurewebsites.net"
+          MAX_URL_RETRIES=5
+          URL_RETRY_COUNT=0
+          URL_ACCESSIBLE=false
+          
+          while [[ $URL_RETRY_COUNT -lt $MAX_URL_RETRIES && "$URL_ACCESSIBLE" == "false" ]]; do
+            URL_RETRY_COUNT=$((URL_RETRY_COUNT + 1))
+            echo "Checking Function App URL accessibility (attempt $URL_RETRY_COUNT of $MAX_URL_RETRIES)..."
+            
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL" || echo "000")
+            
+            if [[ "$HTTP_STATUS" != "404" && "$HTTP_STATUS" != "000" ]]; then
+              echo "✅ Function App is accessible (HTTP $HTTP_STATUS)"
+              URL_ACCESSIBLE=true
+            else
+              echo "⚠️ Function App not yet accessible (HTTP $HTTP_STATUS). Waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+          
+          if [[ "$URL_ACCESSIBLE" == "false" ]]; then
+            echo "❌ Function App base URL is not accessible after $MAX_URL_RETRIES attempts"
+            exit 1
+          fi
+          
+          echo "Listing deployed functions..."
+          FUNCTIONS=$(az functionapp function list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "[].name" -o tsv 2>/dev/null || echo "")
+          
+          if [[ -z "$FUNCTIONS" ]]; then
+            echo "❌ No functions found. Waiting and retrying..."
+            sleep 30
+            FUNCTIONS=$(az functionapp function list \
+              --name gamer-uncle-prod-function \
+              --resource-group gamer-uncle-prod-rg \
+              --query "[].name" -o tsv 2>/dev/null || echo "")
+          fi
+          
+          if [[ -z "$FUNCTIONS" ]]; then
+            echo "❌ No functions deployed! Check deployment logs"
+            exit 1
+          else
+            echo "✅ Found functions: $FUNCTIONS"
+          fi
+          
+          # Get function key
+          echo "Getting Prod Function App host key..."
+          HOST_KEY=$(az functionapp keys list \
+            --name gamer-uncle-prod-function \
+            --resource-group gamer-uncle-prod-rg \
+            --query "masterKey" -o tsv)
+          
+          if [[ -z "$HOST_KEY" ]]; then
+            echo "❌ Could not get function key"
+            exit 1
+          fi
+          
+          # Trigger function if it exists
+          if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
+            echo "✅ GameSyncHttpStart function found, triggering initial sync..."
+            
+            # Add enhanced retry logic for production function HTTP endpoint readiness
+            # Production deployments may take longer to be ready than dev
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            SUCCESS=false
+            
+            while [[ $RETRY_COUNT -lt $MAX_RETRIES && "$SUCCESS" == "false" ]]; do
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "Attempt $RETRY_COUNT of $MAX_RETRIES..."
+              
+              if [[ $RETRY_COUNT -gt 1 ]]; then
+                echo "Waiting 45 seconds for production function HTTP endpoint to be ready..."
+                sleep 45
+              fi
+              
+              RESPONSE=$(curl -s -X POST \
+                "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
+                -H "Content-Type: application/json" \
+                -d '{}' \
+                -w "\nHTTP_CODE:%{http_code}" \
+                --include)
+              
+              echo "Response:"
+              echo "$RESPONSE"
+              
+              HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+              
+              if [[ "$HTTP_CODE" == "2"* ]]; then
+                echo "✅ Prod function triggered successfully!"
+                SUCCESS=true
+              elif [[ "$HTTP_CODE" == "404" ]]; then
+                echo "⚠️ Function endpoint not ready yet (404). Retrying..."
+              else
+                echo "❌ Function trigger failed with status: $HTTP_CODE"
+                if [[ $RETRY_COUNT -eq $MAX_RETRIES ]]; then
                   exit 1
                 fi
-                
-                echo "Listing deployed functions..."
-                FUNCTIONS=$(az functionapp function list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "[].name" -o tsv 2>/dev/null || echo "")
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions found. Waiting and retrying..."
-                  sleep 30
-                  FUNCTIONS=$(az functionapp function list \
-                    --name gamer-uncle-prod-function \
-                    --resource-group gamer-uncle-prod-rg \
-                    --query "[].name" -o tsv 2>/dev/null || echo "")
-                fi
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions deployed! Check deployment logs"
-                  exit 1
-                else
-                  echo "✅ Found functions: $FUNCTIONS"
-                fi
-                
-                # Get function key
-                echo "Getting Prod Function App host key..."
-                HOST_KEY=$(az functionapp keys list \
-                  --name gamer-uncle-prod-function \
-                  --resource-group gamer-uncle-prod-rg \
-                  --query "masterKey" -o tsv)
-                
-                if [[ -z "$HOST_KEY" ]]; then
-                  echo "❌ Could not get function key"
-                  exit 1
-                fi
-                
-                # Trigger function if it exists
-                if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
-                  echo "✅ GameSyncHttpStart function found, triggering initial sync..."
-                  
-                  # Add enhanced retry logic for production function HTTP endpoint readiness
-                  # Production deployments may take longer to be ready than dev
-                  MAX_RETRIES=5
-                  RETRY_COUNT=0
-                  SUCCESS=false
-                  
-                  while [[ $RETRY_COUNT -lt $MAX_RETRIES && "$SUCCESS" == "false" ]]; do
-                    RETRY_COUNT=$((RETRY_COUNT + 1))
-                    echo "Attempt $RETRY_COUNT of $MAX_RETRIES..."
-                    
-                    if [[ $RETRY_COUNT -gt 1 ]]; then
-                      echo "Waiting 45 seconds for production function HTTP endpoint to be ready..."
-                      sleep 45
-                    fi
-                    
-                    RESPONSE=$(curl -s -X POST \
-                      "https://gamer-uncle-prod-function.azurewebsites.net/api/GameSyncHttpStart?code=$HOST_KEY" \
-                      -H "Content-Type: application/json" \
-                      -d '{}' \
-                      -w "\nHTTP_CODE:%{http_code}" \
-                      --include)
-                    
-                    echo "Response:"
-                    echo "$RESPONSE"
-                    
-                    HTTP_CODE=$(echo "$RESPONSE" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
-                    
-                    if [[ "$HTTP_CODE" == "2"* ]]; then
-                      echo "✅ Prod function triggered successfully!"
-                      SUCCESS=true
-                    elif [[ "$HTTP_CODE" == "404" ]]; then
-                      echo "⚠️ Function endpoint not ready yet (404). Retrying..."
-                    else
-                      echo "❌ Function trigger failed with status: $HTTP_CODE"
-                      if [[ $RETRY_COUNT -eq $MAX_RETRIES ]]; then
-                        exit 1
-                      fi
-                    fi
-                  done
-                  
-                  if [[ "$SUCCESS" == "false" ]]; then
-                    echo "❌ Prod function trigger failed after $MAX_RETRIES attempts (with 45s intervals)"
-                    exit 1
-                  fi
-                else
-                  echo "❌ GameSyncHttpStart function not found"
-                  echo "Available functions: $FUNCTIONS"
-                  exit 1
-                fi
+              fi
+            done
+            
+            if [[ "$SUCCESS" == "false" ]]; then
+              echo "❌ Prod function trigger failed after $MAX_RETRIES attempts (with 45s intervals)"
+              exit 1
+            fi
+          else
+            echo "❌ GameSyncHttpStart function not found"
+            echo "Available functions: $FUNCTIONS"
+            exit 1
+          fi
 
 - stage: ProdDeployMobile
   displayName: 'Prod Deploy Mobile'
