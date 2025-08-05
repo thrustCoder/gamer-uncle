@@ -163,19 +163,86 @@ namespace GamerUncle.Functions
             return response;
         }
         
-        [Function("GameSyncTimerTrigger")]
-        public async Task GameSyncTimerTrigger(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 1 * * 1,3,5")] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+        [Function("GameSyncTimerTriggerDev")]
+        public async Task GameSyncTimerTriggerDev(
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 * * 1,4", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
-            var log = context.GetLogger("GameSyncTimerTrigger");
-            log.LogInformation($"Game sync timer trigger executed at: {DateTime.Now}");
+            var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
+            
+            // Only run in development environments
+            if (!environment.Contains("Development") && !environment.Contains("dev"))
+            {
+                return;
+            }
+            
+            var log = context.GetLogger("GameSyncTimerTriggerDev");
+            
+            // Check if this is a past due execution (e.g., after restart/deployment)
+            if (timerInfo.IsPastDue)
+            {
+                log.LogInformation("Timer trigger was past due - checking if we should skip execution");
+                
+                // Skip if the missed execution was more than 1 hour ago to avoid deployment-triggered runs
+                if (timerInfo.ScheduleStatus?.Last != null)
+                {
+                    var timeSinceLastScheduled = DateTime.UtcNow - timerInfo.ScheduleStatus.Last;
+                    if (timeSinceLastScheduled > TimeSpan.FromHours(1))
+                    {
+                        log.LogInformation($"Skipping past due execution - was {timeSinceLastScheduled.TotalMinutes:F0} minutes late");
+                        return;
+                    }
+                }
+            }
+            
+            log.LogInformation($"Dev game sync timer trigger executed at: {DateTime.Now}");
             
             string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
             string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
             
-            log.LogInformation($"Started orchestration with ID = '{instanceId}'");
+            log.LogInformation($"Started dev orchestration with ID = '{instanceId}'");
+        }
+
+        [Function("GameSyncTimerTriggerProd")]
+        public async Task GameSyncTimerTriggerProd(
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 * * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [DurableClient] DurableTaskClient client,
+            FunctionContext context)
+        {
+            var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
+            
+            // Only run in production environments
+            if (environment.Contains("Development") || environment.Contains("dev"))
+            {
+                return;
+            }
+            
+            var log = context.GetLogger("GameSyncTimerTriggerProd");
+            
+            // Check if this is a past due execution (e.g., after restart/deployment)
+            if (timerInfo.IsPastDue)
+            {
+                log.LogInformation("Timer trigger was past due - checking if we should skip execution");
+                
+                // Skip if the missed execution was more than 1 hour ago to avoid deployment-triggered runs
+                if (timerInfo.ScheduleStatus?.Last != null)
+                {
+                    var timeSinceLastScheduled = DateTime.UtcNow - timerInfo.ScheduleStatus.Last;
+                    if (timeSinceLastScheduled > TimeSpan.FromHours(1))
+                    {
+                        log.LogInformation($"Skipping past due execution - was {timeSinceLastScheduled.TotalMinutes:F0} minutes late");
+                        return;
+                    }
+                }
+            }
+            
+            log.LogInformation($"Prod game sync timer trigger executed at: {DateTime.Now}");
+            
+            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
+            
+            log.LogInformation($"Started prod orchestration with ID = '{instanceId}'");
         }
     }
 }
