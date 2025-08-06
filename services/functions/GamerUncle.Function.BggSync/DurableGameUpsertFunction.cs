@@ -25,10 +25,14 @@ namespace GamerUncle.Functions
             var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
             var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
             var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT");
+            var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
+            var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
 
             Console.WriteLine($"🔍 Tenant ID: {tenantId}");
             Console.WriteLine($"🔍 Client ID: {clientId}");
             Console.WriteLine($"🔍 Cosmos Endpoint: {cosmosEndpoint}");
+            Console.WriteLine($"🔍 Database Name: {databaseName}");
+            Console.WriteLine($"🔍 Container Name: {containerName}");
 
             if (!string.IsNullOrEmpty(clientId))
             {
@@ -59,7 +63,7 @@ namespace GamerUncle.Functions
                 });
                 _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
             }
-            _container = _cosmosClient.GetContainer("gamer-uncle-dev-cosmos-container", "Games");
+            _container = _cosmosClient.GetContainer(databaseName, containerName);
         }
 
         [Function(nameof(DurableGameUpsertOrchestrator))]

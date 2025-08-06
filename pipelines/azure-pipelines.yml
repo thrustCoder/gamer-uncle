@@ -446,6 +446,8 @@ stages:
                   --resource-group gamer-uncle-dev-rg \
                   --settings \
                     'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
+                    'COSMOS_DATABASE_NAME=gamer-uncle-dev-cosmos-container' \
+                    'COSMOS_CONTAINER_NAME=Games' \
                     'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
                     'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
                     'SyncGameCount=10'
@@ -990,6 +992,8 @@ stages:
             --resource-group gamer-uncle-prod-rg \
             --settings \
               'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
+              'COSMOS_DATABASE_NAME=gamer-uncle-prod-cosmos-container' \
+              'COSMOS_CONTAINER_NAME=Games' \
               'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
               'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
               'SyncGameCount=10' \
