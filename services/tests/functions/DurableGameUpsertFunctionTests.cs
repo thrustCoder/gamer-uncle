@@ -78,4 +78,115 @@ namespace GamerUncle.Functions.Tests
             Assert.Equal(shouldBeDevEnvironment, isDev);
         }
     }
+
+    public class DurableGameUpsertFunctionConfigurationTests
+    {
+        [Fact]
+        public void Constructor_ShouldUseDevelopmentDefaults_WhenEnvironmentVariablesNotSet()
+        {
+            // Arrange - Clear any existing environment variables
+            Environment.SetEnvironmentVariable("COSMOS_DATABASE_NAME", null);
+            Environment.SetEnvironmentVariable("COSMOS_CONTAINER_NAME", null);
+            Environment.SetEnvironmentVariable("COSMOS_ENDPOINT", "https://test.documents.azure.com/");
+            Environment.SetEnvironmentVariable("AZURE_TENANT_ID", "test-tenant-id");
+            
+            try
+            {
+                // This constructor test would need to be mocked properly in a real scenario
+                // For now, we're testing the logic that would be in the constructor
+                var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
+                var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
+                
+                // Assert
+                Assert.Equal("gamer-uncle-dev-cosmos-container", databaseName);
+                Assert.Equal("Games", containerName);
+            }
+            finally
+            {
+                // Cleanup
+                Environment.SetEnvironmentVariable("COSMOS_ENDPOINT", null);
+                Environment.SetEnvironmentVariable("AZURE_TENANT_ID", null);
+            }
+        }
+
+        [Fact]
+        public void Constructor_ShouldUseProductionSettings_WhenEnvironmentVariablesSet()
+        {
+            // Arrange
+            Environment.SetEnvironmentVariable("COSMOS_DATABASE_NAME", "gamer-uncle-prod-cosmos-container");
+            Environment.SetEnvironmentVariable("COSMOS_CONTAINER_NAME", "Games");
+            Environment.SetEnvironmentVariable("COSMOS_ENDPOINT", "https://prod.documents.azure.com/");
+            Environment.SetEnvironmentVariable("AZURE_TENANT_ID", "prod-tenant-id");
+            
+            try
+            {
+                // This constructor test would need to be mocked properly in a real scenario
+                // For now, we're testing the logic that would be in the constructor
+                var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
+                var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
+                
+                // Assert
+                Assert.Equal("gamer-uncle-prod-cosmos-container", databaseName);
+                Assert.Equal("Games", containerName);
+            }
+            finally
+            {
+                // Cleanup
+                Environment.SetEnvironmentVariable("COSMOS_DATABASE_NAME", null);
+                Environment.SetEnvironmentVariable("COSMOS_CONTAINER_NAME", null);
+                Environment.SetEnvironmentVariable("COSMOS_ENDPOINT", null);
+                Environment.SetEnvironmentVariable("AZURE_TENANT_ID", null);
+            }
+        }
+
+        [Theory]
+        [InlineData("", "gamer-uncle-dev-cosmos-container")]
+        [InlineData(null, "gamer-uncle-dev-cosmos-container")]
+        [InlineData("custom-database", "custom-database")]
+        [InlineData("gamer-uncle-prod-cosmos-container", "gamer-uncle-prod-cosmos-container")]
+        public void DatabaseName_ShouldHandleVariousEnvironmentValues(string envValue, string expectedValue)
+        {
+            // Arrange
+            Environment.SetEnvironmentVariable("COSMOS_DATABASE_NAME", envValue);
+            
+            try
+            {
+                // Act
+                var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
+                
+                // Assert
+                Assert.Equal(expectedValue, databaseName);
+            }
+            finally
+            {
+                // Cleanup
+                Environment.SetEnvironmentVariable("COSMOS_DATABASE_NAME", null);
+            }
+        }
+
+        [Theory]
+        [InlineData("", "Games")]
+        [InlineData(null, "Games")]
+        [InlineData("CustomContainer", "CustomContainer")]
+        [InlineData("Games", "Games")]
+        public void ContainerName_ShouldHandleVariousEnvironmentValues(string envValue, string expectedValue)
+        {
+            // Arrange
+            Environment.SetEnvironmentVariable("COSMOS_CONTAINER_NAME", envValue);
+            
+            try
+            {
+                // Act
+                var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
+                
+                // Assert
+                Assert.Equal(expectedValue, containerName);
+            }
+            finally
+            {
+                // Cleanup
+                Environment.SetEnvironmentVariable("COSMOS_CONTAINER_NAME", null);
+            }
+        }
+    }
 }

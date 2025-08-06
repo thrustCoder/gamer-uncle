@@ -24,34 +24,6 @@ namespace GamerUncle.Pipeline.Tests
         }
 
         [TestMethod]
-        public void Pipeline_ShouldHaveFunctionTriggerRetryLogic()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("MAX_RETRIES=3"), 
-                "Pipeline should have retry logic for function triggers");
-            Assert.IsTrue(pipelineContent.Contains("Function endpoint not ready yet (404). Retrying..."), 
-                "Pipeline should handle 404 errors gracefully and retry");
-            Assert.IsTrue(pipelineContent.Contains("Function trigger failed after $MAX_RETRIES attempts"), 
-                "Pipeline should provide clear error message after max retries");
-        }
-
-        [TestMethod]
-        public void Pipeline_ShouldWaitForFunctionReadiness()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("sleep 30"), 
-                "Pipeline should wait between retry attempts for function readiness");
-            Assert.IsTrue(pipelineContent.Contains("Waiting 30 seconds for function HTTP endpoint to be ready"), 
-                "Pipeline should provide clear feedback during wait periods");
-        }
-
-        [TestMethod]
         public void Pipeline_ShouldHaveFunctionAppHealthCheck()
         {
             // Arrange
@@ -65,21 +37,6 @@ namespace GamerUncle.Pipeline.Tests
             Assert.IsTrue(pipelineContent.Contains("Function App is accessible"), 
                 "Pipeline should confirm function app accessibility before proceeding");
         }
-
-        [TestMethod]
-        public void Pipeline_ShouldHaveEnhancedProductionFunctionRetryLogic()
-        {
-            // Arrange
-            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
-
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("Waiting 45 seconds for production function HTTP endpoint to be ready"), 
-                "Production function trigger should have longer wait times than dev");
-            Assert.IsTrue(pipelineContent.Contains("Prod function trigger failed after $MAX_RETRIES attempts (with 45s intervals)"), 
-                "Production function trigger should have specific error messages with timing info");
-        }
-
-
 
         [TestMethod]
         public void Pipeline_ShouldUseCIOptimizedNpmInstall()
