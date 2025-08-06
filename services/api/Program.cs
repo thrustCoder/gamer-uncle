@@ -121,8 +121,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Enable Swagger in development
-if (app.Environment.IsDevelopment())
+// Enable Swagger based on configuration
+var swaggerEnabled = app.Configuration.GetValue<bool>("Swagger:Enabled", app.Environment.IsDevelopment());
+if (swaggerEnabled)
 {
     app.UseSwagger();
     app.UseSwaggerUI();

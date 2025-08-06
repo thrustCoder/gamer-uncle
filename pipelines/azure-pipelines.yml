@@ -950,7 +950,8 @@ stages:
             --settings \
               'CosmosDb__Endpoint=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
               'CosmosDb__TenantId=c88223a3-60b3-4697-9374-209fc154bdf1' \
-              'ASPNETCORE_ENVIRONMENT=Production'
+              'ASPNETCORE_ENVIRONMENT=Production' \
+              'Swagger__Enabled=true'
 
     - task: AzureWebApp@1
       displayName: 'Deploy Prod Web App'
