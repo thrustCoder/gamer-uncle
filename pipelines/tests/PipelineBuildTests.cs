@@ -235,7 +235,7 @@ namespace GamerUncle.Pipeline.Tests
         public void ValidationScripts_ShouldExist()
         {
             // Arrange
-            var bashScriptPath = Path.Combine(_rootPath, "validate-pipeline.sh");
+            var bashScriptPath = Path.Combine(_rootPath, "scripts", "validate-pipeline.sh");
 
             // Act & Assert
             Assert.True(File.Exists(bashScriptPath), "Bash validation script should exist");
