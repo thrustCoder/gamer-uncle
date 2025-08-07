@@ -110,6 +110,7 @@ $env:E2E_BASE_URL="https://gamer-uncle-dev-app-svc.azurewebsites.net"
 - **Fallback responses**: Tests fail if AI returns generic "Let me help..." responses
 - **Short responses**: Validates substantial content (>20 characters for complex queries)
 - **Non-deterministic tests**: Uses retry logic with 2-second delays for AI stability
+- When dealing with C# or TypeScript code, always generate or modify unit tests for all the methods you implement. Do not add tests for YAML code.
 
 ## VS Code Task Integration
 
@@ -118,3 +119,7 @@ Use these predefined tasks via `Ctrl+Shift+P` → "Tasks: Run Task":
 - `setup-https-cert`: Configure local HTTPS certificates
 - `run-functional-tests-local`: Run API tests against localhost
 - `test-functional-project`: Run functional tests with current env settings
+
+## General Guidelines
+
+Please don't add any summary documents or markdown files unless asked.
