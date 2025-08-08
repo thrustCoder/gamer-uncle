@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
@@ -19,50 +20,17 @@ namespace GamerUncle.Functions
     {
         private readonly CosmosClient _cosmosClient;
         private readonly Container _container;
+        private readonly ILogger<DurableGameUpsertFunction> _logger;
 
-        public DurableGameUpsertFunction()
+        public DurableGameUpsertFunction(CosmosClient cosmosClient, ILogger<DurableGameUpsertFunction> logger)
         {
-            var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
-            var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
-            var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT");
+            _cosmosClient = cosmosClient ?? throw new ArgumentNullException(nameof(cosmosClient));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            
             var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
             var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
 
-            Console.WriteLine($"🔍 Tenant ID: {tenantId}");
-            Console.WriteLine($"🔍 Client ID: {clientId}");
-            Console.WriteLine($"🔍 Cosmos Endpoint: {cosmosEndpoint}");
-            Console.WriteLine($"🔍 Database Name: {databaseName}");
-            Console.WriteLine($"🔍 Container Name: {containerName}");
-
-            if (!string.IsNullOrEmpty(clientId))
-            {
-                Console.WriteLine("🔐 Using Managed Identity for Azure environment");
-                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-                {
-                    TenantId = tenantId,
-                    ManagedIdentityClientId = clientId,
-                    ExcludeEnvironmentCredential = true,
-                    ExcludeAzureCliCredential = true,
-                    ExcludeAzurePowerShellCredential = true,
-                    ExcludeVisualStudioCredential = true,
-                    ExcludeVisualStudioCodeCredential = true,
-                    ExcludeInteractiveBrowserCredential = true
-                });
-                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
-            }
-            else
-            {
-                Console.WriteLine("🔓 Using DefaultAzureCredential for local development (Azure CLI/VS)");
-                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-                {
-                    TenantId = tenantId,
-                    // Don't exclude Azure CLI and VS for local development
-                    ExcludeEnvironmentCredential = true,
-                    ExcludeAzurePowerShellCredential = true,
-                    ExcludeInteractiveBrowserCredential = true
-                });
-                _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
-            }
+            _logger.LogInformation("Initializing Cosmos DB container: {DatabaseName}/{ContainerName}", databaseName, containerName);
             _container = _cosmosClient.GetContainer(databaseName, containerName);
         }
 
@@ -150,7 +118,33 @@ namespace GamerUncle.Functions
         [Function(nameof(UpsertGameDocumentActivity))]
         public async Task UpsertGameDocumentActivity([ActivityTrigger] GameDocument gameDocument)
         {
-            await _container.UpsertItemAsync(gameDocument, new PartitionKey(gameDocument.id));
+            try
+            {
+                _logger.LogInformation("Attempting to upsert game document: {GameId}", gameDocument.id);
+                await _container.UpsertItemAsync(gameDocument, new PartitionKey(gameDocument.id));
+                _logger.LogInformation("Successfully upserted game document: {GameId}", gameDocument.id);
+            }
+            catch (CredentialUnavailableException ex)
+            {
+                _logger.LogError(ex, "Azure credentials unavailable when trying to upsert game document {GameId}. Check managed identity configuration.", gameDocument.id);
+                throw;
+            }
+            catch (AuthenticationFailedException ex)
+            {
+                _logger.LogError(ex, "Authentication failed when trying to upsert game document {GameId}. This indicates a managed identity issue.", gameDocument.id);
+                throw;
+            }
+            catch (RequestFailedException ex)
+            {
+                _logger.LogError(ex, "Azure request failed when trying to upsert game document {GameId}. Status: {Status}, Error: {ErrorCode}", 
+                    gameDocument.id, ex.Status, ex.ErrorCode);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error when trying to upsert game document {GameId}", gameDocument.id);
+                throw;
+            }
         }
 
         [Function("GameSyncHttpStart")]

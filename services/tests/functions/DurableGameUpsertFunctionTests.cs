@@ -189,4 +189,48 @@ namespace GamerUncle.Functions.Tests
             }
         }
     }
+
+    public class DurableGameUpsertFunctionDependencyInjectionTests
+    {
+        [Fact]
+        public void Constructor_WithValidCosmosClient_ShouldInitializeSuccessfully()
+        {
+            // Arrange
+            var mockCosmosClient = new Mock<Microsoft.Azure.Cosmos.CosmosClient>();
+            var mockContainer = new Mock<Microsoft.Azure.Cosmos.Container>();
+            var mockLogger = new Mock<ILogger<DurableGameUpsertFunction>>();
+            
+            // Setup the mock to return a container
+            mockCosmosClient.Setup(x => x.GetContainer(It.IsAny<string>(), It.IsAny<string>()))
+                          .Returns(mockContainer.Object);
+
+            // Act
+            var function = new DurableGameUpsertFunction(mockCosmosClient.Object, mockLogger.Object);
+
+            // Assert
+            Assert.NotNull(function);
+        }
+
+        [Fact]
+        public void Constructor_WithNullCosmosClient_ShouldThrowArgumentNullException()
+        {
+            // Arrange
+            var mockLogger = new Mock<ILogger<DurableGameUpsertFunction>>();
+
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => 
+                new DurableGameUpsertFunction(null!, mockLogger.Object));
+        }
+
+        [Fact]
+        public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
+        {
+            // Arrange
+            var mockCosmosClient = new Mock<Microsoft.Azure.Cosmos.CosmosClient>();
+
+            // Act & Assert
+            Assert.Throws<ArgumentNullException>(() => 
+                new DurableGameUpsertFunction(mockCosmosClient.Object, null!));
+        }
+    }
 }
