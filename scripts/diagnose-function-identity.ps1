@@ -152,20 +152,131 @@ try {
     Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Red
 }
 
+# 6. Check Authentication (EasyAuth) settings - common cause of 401 on internal endpoints like /memoryactivity
+Write-Host "`n6. Checking App Service Authentication (EasyAuth) settings..." -ForegroundColor Yellow
+try {
+    $auth = az webapp auth show --name $FunctionAppName --resource-group $ResourceGroup | ConvertFrom-Json
+
+    if ($null -ne $auth) {
+        # Support both v1 and v2 schema
+        $isEnabled = $false
+        $unauthAction = $null
+        if ($auth.platform -and $auth.platform.enabled -ne $null) {
+            # v2
+            $isEnabled = [bool]$auth.platform.enabled
+            if ($auth.globalValidation -and $auth.globalValidation.unauthenticatedClientAction) {
+                $unauthAction = $auth.globalValidation.unauthenticatedClientAction
+            }
+        } elseif ($auth.enabled -ne $null) {
+            # v1
+            $isEnabled = [bool]$auth.enabled
+            # v1 does not expose unauth action in same way
+        }
+
+        if ($isEnabled) {
+            Write-Host "   ✅ EasyAuth is ENABLED" -ForegroundColor Green
+            if ($unauthAction) {
+                Write-Host "   Unauthenticated client action: $unauthAction" -ForegroundColor White
+                if ($unauthAction -ne "AllowAnonymous") {
+                    Write-Host "   ⚠️ EasyAuth may be blocking internal runtime endpoints (e.g., /memoryactivity), causing 401 logs." -ForegroundColor Yellow
+                    Write-Host "   Recommendation: Disable EasyAuth on the Function App, or set unauthenticatedClientAction to 'AllowAnonymous'." -ForegroundColor Yellow
+                    Write-Host "   Note: Keep AAD auth on the public API app; background Function apps typically shouldn't use EasyAuth." -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "   (Auth settings version may be v1; ensure EasyAuth isn't enforcing auth on all routes.)" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "   ✅ EasyAuth is DISABLED" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "   ⚠️ Unable to retrieve auth settings." -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "❌ Failed to check App Service Authentication settings" -ForegroundColor Red
+    Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+# 7. Check Durable Functions storage configuration and RBAC for Managed Identity
+Write-Host "`n7. Checking Durable Functions storage (AzureWebJobsStorage) configuration..." -ForegroundColor Yellow
+try {
+    if (-not $appSettings) {
+        $appSettings = az functionapp config appsettings list --name $FunctionAppName --resource-group $ResourceGroup | ConvertFrom-Json
+    }
+
+    $storageConn = $appSettings | Where-Object { $_.name -eq "AzureWebJobsStorage" }
+    $storageAccountNameSetting = $appSettings | Where-Object { $_.name -eq "AzureWebJobsStorage__accountName" }
+    $storageCredentialSetting = $appSettings | Where-Object { $_.name -eq "AzureWebJobsStorage__credential" }
+
+    if ($storageConn) {
+        $masked = if ($storageConn.value.Length -gt 20) { $storageConn.value.Substring(0,20) + "..." } else { $storageConn.value }
+        Write-Host "   ✅ AzureWebJobsStorage connection string is set: $masked" -ForegroundColor Green
+        Write-Host "   (RBAC checks are not applicable when using a connection string)" -ForegroundColor White
+    } elseif ($storageAccountNameSetting -and $storageCredentialSetting -and $storageCredentialSetting.value -ieq "managedidentity") {
+        $saName = $storageAccountNameSetting.value
+        Write-Host "   ✅ Using Managed Identity for storage. Account: $saName" -ForegroundColor Green
+
+        $storageAccounts = az storage account list | ConvertFrom-Json
+        $sa = $storageAccounts | Where-Object { $_.name -eq $saName }
+        if ($sa) {
+            Write-Host "   Storage Account found in subscription. RG: $($sa.resourceGroup)" -ForegroundColor White
+            if ($identity.principalId) {
+                $saAssignments = az role assignment list --assignee $identity.principalId --scope $sa.id | ConvertFrom-Json
+                if ($saAssignments.Count -gt 0) {
+                    Write-Host "   ✅ Found Storage RBAC assignments:" -ForegroundColor Green
+                    foreach ($a in $saAssignments) {
+                        Write-Host "     - Role: $($a.roleDefinitionName) | Scope: $($a.scope)" -ForegroundColor White
+                    }
+                } else {
+                    Write-Host "   ❌ No RBAC assignments found for Managed Identity on storage" -ForegroundColor Red
+                }
+
+                $requiredRoles = @(
+                    'Storage Blob Data Contributor',
+                    'Storage Queue Data Contributor',
+                    'Storage Table Data Contributor'
+                )
+                foreach ($r in $requiredRoles) {
+                    $hasRole = $saAssignments | Where-Object { $_.roleDefinitionName -eq $r }
+                    if (-not $hasRole) {
+                        Write-Host "   ⚠️ Missing recommended role: $r" -ForegroundColor Yellow
+                    }
+                }
+            } else {
+                Write-Host "   ⚠️ Managed Identity principalId not available to check storage RBAC" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "   ⚠️ Storage account '$saName' not found in current subscription" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "   ❌ AzureWebJobsStorage is not configured (neither connection string nor MI-based settings found)" -ForegroundColor Red
+        Write-Host "   Expected either 'AzureWebJobsStorage' or 'AzureWebJobsStorage__accountName' + 'AzureWebJobsStorage__credential=managedidentity'" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "❌ Failed to check Durable Functions storage configuration" -ForegroundColor Red
+    Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Red
+}
+
 Write-Host "`n🔧 Troubleshooting Recommendations:" -ForegroundColor Blue
 Write-Host "=================================" -ForegroundColor Blue
 Write-Host "1. If RBAC assignments are missing:" -ForegroundColor Blue
-Write-Host "   az cosmosdb sql role assignment create \\" -ForegroundColor Gray
-Write-Host "     --account-name <cosmos-account-name> \\" -ForegroundColor Gray
-Write-Host "     --resource-group <cosmos-resource-group> \\" -ForegroundColor Gray
-Write-Host "     --scope '/' \\" -ForegroundColor Gray
-Write-Host "     --principal-id $($identity.principalId) \\" -ForegroundColor Gray
+Write-Host "   az cosmosdb sql role assignment create \" -ForegroundColor Gray
+Write-Host "     --account-name <cosmos-account-name> \" -ForegroundColor Gray
+Write-Host "     --resource-group <cosmos-resource-group> \" -ForegroundColor Gray
+Write-Host "     --scope '/' \" -ForegroundColor Gray
+Write-Host "     --principal-id $($identity.principalId) \" -ForegroundColor Gray
 Write-Host "     --role-definition-name 'Cosmos DB Built-in Data Contributor'" -ForegroundColor Gray
 
 Write-Host "`n2. If managed identity is missing:" -ForegroundColor Blue
 Write-Host "   az functionapp identity assign --name $FunctionAppName --resource-group $ResourceGroup" -ForegroundColor Gray
 
-Write-Host "`n3. Check Application Insights for detailed error logs" -ForegroundColor Blue
-Write-Host "`n4. Verify all environment variables are correctly set" -ForegroundColor Blue
+Write-Host "`n3. If you see 401s to /memoryactivity with EasyAuth enabled:" -ForegroundColor Blue
+Write-Host "   Consider disabling EasyAuth on the Function App, or set authsettingsV2 unauthenticatedClientAction to 'AllowAnonymous'." -ForegroundColor Gray
+Write-Host "   az webapp auth update --resource-group $ResourceGroup --name $FunctionAppName --set globalValidation.unauthenticatedClientAction=AllowAnonymous" -ForegroundColor Gray
+
+Write-Host "`n4. Verify Durable Functions storage configuration and assign roles:" -ForegroundColor Blue
+Write-Host "   Required roles on the storage account: 'Storage Blob/Queue/Table Data Contributor' for the Function's managed identity." -ForegroundColor Gray
+
+Write-Host "`n5. Check Application Insights for detailed error logs" -ForegroundColor Blue
+Write-Host "`n6. Verify all environment variables are correctly set" -ForegroundColor Blue
 
 Write-Host "`n✅ Diagnostic completed!" -ForegroundColor Green
