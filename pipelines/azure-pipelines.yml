@@ -449,14 +449,13 @@ stages:
                     'COSMOS_DATABASE_NAME=gamer-uncle-dev-cosmos-container' \
                     'COSMOS_CONTAINER_NAME=Games' \
                     'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
-                    'SyncGameCount=10'
+                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26'
                 
                 echo "Verifying settings were applied..."
                 az functionapp config appsettings list \
                   --name gamer-uncle-dev-function \
                   --resource-group gamer-uncle-dev-rg \
-                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='AZURE_CLIENT_ID']" \
                   -o table
 
           - task: AzureFunctionApp@1
@@ -996,15 +995,14 @@ stages:
               'COSMOS_DATABASE_NAME=gamer-uncle-prod-cosmos-container' \
               'COSMOS_CONTAINER_NAME=Games' \
               'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-              'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26' \
-              'SyncGameCount=10' \
+              'AZURE_CLIENT_ID=0ba1bae1-6df4-4f2a-b874-41321a154d2b' \
               'AZURE_FUNCTIONS_ENVIRONMENT=Production'
           
           echo "Verifying prod settings were applied..."
           az functionapp config appsettings list \
             --name gamer-uncle-prod-function \
             --resource-group gamer-uncle-prod-rg \
-            --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='SyncGameCount']" \
+            --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='AZURE_CLIENT_ID' || name=='AZURE_FUNCTIONS_ENVIRONMENT']" \
             -o table
 
     - task: AzureFunctionApp@1

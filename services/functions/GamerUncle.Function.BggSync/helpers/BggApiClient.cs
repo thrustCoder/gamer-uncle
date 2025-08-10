@@ -19,41 +19,10 @@ namespace GamerUncle.Functions.Helpers
             _httpClient = httpClient;
         }
 
-        public async Task<GameDocument> FetchGameDataAsync(string gameId)
+        public async Task<GameDocument?> FetchGameDataAsync(string gameId)
         {
             try
             {
-                #region mocked response
-                // Parse the response here (mocked for simplicity)
-                // In a real implementation, you would deserialize the XML response into a GameDocument object
-                // var gameData = new GameDocument
-                // {
-                //     id = gameId,
-                //     name = "Mocked Game Name",
-                //     overview = "Mocked Overview",
-                //     description = "Mocked Description",
-                //     minPlayers = 1,
-                //     maxPlayers = 4,
-                //     minPlaytime = 30,
-                //     maxPlaytime = 120,
-                //     weight = 2.5,
-                //     averageRating = 7.5,
-                //     bggRating = 8.0,
-                //     numVotes = 100,
-                //     ageRequirement = 12,
-                //     yearPublished = 2020,
-                //     imageUrl = "http://example.com/image.jpg",
-                //     shopLink = "http://example.com/shop",
-                //     mechanics = new List<string> { "Strategy", "Cooperative" },
-                //     categories = new List<string> { "Family", "Card Game" },
-                //     setupGuide = "Mocked Setup Guide",
-                //     rulesUrl = "http://example.com/rules",
-                //     ruleQnA = new List<RuleQnA>(),
-                //     moderatorScripts = new List<ModeratorScript>(),
-                //     narrationTTS = new NarrationTTS()
-                // };
-                #endregion
-
                 var response = await _httpClient.GetAsync($"https://www.boardgamegeek.com/xmlapi2/thing?id={gameId}&stats=1");
                 response.EnsureSuccessStatusCode();
 
@@ -63,22 +32,31 @@ namespace GamerUncle.Functions.Helpers
                 if (item == null)
                     return null;
 
+                // Only accept base games (exclude expansions and other subtypes)
+                var type = item.Attribute("type")?.Value;
+                if (!string.Equals(type, "boardgame", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
                 var name = item.Elements("name")
                             .FirstOrDefault(e => e.Attribute("type")?.Value == "primary")?.Attribute("value")?.Value;
-                var description = item.Element("description")?.Value ?? "";
+                var description = item.Element("description")?.Value ?? string.Empty;
 
-                // Extract mechanics from link elements
+                // Extract mechanics from link elements (non-null strings)
                 var mechanics = item.Elements("link")
                     .Where(e => e.Attribute("type")?.Value == "boardgamemechanic")
                     .Select(e => e.Attribute("value")?.Value)
-                    .Where(v => !string.IsNullOrEmpty(v))
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Select(v => v!)
                     .ToList();
 
-                // Extract categories from link elements
+                // Extract categories from link elements (non-null strings)
                 var categories = item.Elements("link")
                     .Where(e => e.Attribute("type")?.Value == "boardgamecategory")
                     .Select(e => e.Attribute("value")?.Value)
-                    .Where(v => !string.IsNullOrEmpty(v))
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .Select(v => v!)
                     .ToList();
 
                 // Extract weight (complexity rating)
@@ -94,10 +72,9 @@ namespace GamerUncle.Functions.Helpers
 
                 var game = new GameDocument
                 {
-                    id = $"bgg-{gameId}", // Prefix with bgg- as per your model
+                    id = $"bgg-{gameId}",
                     name = name ?? "Unknown Game",
-                    overview = !string.IsNullOrEmpty(description) ?
-                        TruncateDescription(description, 200) : "", // Create overview from description
+                    overview = !string.IsNullOrEmpty(description) ? TruncateDescription(description, 200) : string.Empty,
                     description = description,
                     yearPublished = int.TryParse(item.Element("yearpublished")?.Attribute("value")?.Value, out var y) ? y : 0,
                     minPlayers = int.TryParse(item.Element("minplayers")?.Attribute("value")?.Value, out var minP) ? minP : 0,
@@ -105,7 +82,7 @@ namespace GamerUncle.Functions.Helpers
                     minPlaytime = int.TryParse(item.Element("minplaytime")?.Attribute("value")?.Value, out var minT) ? minT : 0,
                     maxPlaytime = int.TryParse(item.Element("maxplaytime")?.Attribute("value")?.Value, out var maxT) ? maxT : 0,
                     ageRequirement = int.TryParse(item.Element("minage")?.Attribute("value")?.Value, out var age) ? age : 0,
-                    imageUrl = item.Element("image")?.Value ?? "",
+                    imageUrl = item.Element("image")?.Value ?? string.Empty,
                     shopLink = shopLink,
                 
                     // Ratings and stats
@@ -130,9 +107,9 @@ namespace GamerUncle.Functions.Helpers
                     categories = categories,
                     setupGuide = GenerateSetupGuide(name, minP, maxP, minT, maxT, age),
                     rulesUrl = rulesUrl,
-                    ruleQnA = new List<RuleQnA>(), // Empty for now - would need additional API calls
-                    moderatorScripts = new List<ModeratorScript>(), // Empty for now - custom content
-                    narrationTTS = null // Empty for now - custom content
+                    ruleQnA = new List<RuleQnA>(),
+                    moderatorScripts = new List<ModeratorScript>(),
+                    narrationTTS = null
                 };
 
                 return game;
@@ -154,15 +131,13 @@ namespace GamerUncle.Functions.Helpers
             if (string.IsNullOrEmpty(description) || description.Length <= maxLength)
                 return description;
 
-            // Remove HTML tags for overview
             var cleanText = System.Text.RegularExpressions.Regex.Replace(description, "<.*?>", "");
 
             if (cleanText.Length <= maxLength)
                 return cleanText;
 
-            // Find the last sentence that fits
             var sentences = cleanText.Split('.', '!', '?');
-            var result = "";
+            var result = string.Empty;
 
             foreach (var sentence in sentences)
             {
@@ -191,29 +166,11 @@ namespace GamerUncle.Functions.Helpers
             if (string.IsNullOrEmpty(gameName))
                 return "unknown-game";
 
-            // Convert to lowercase
             var slug = gameName.ToLowerInvariant();
 
-            // Replace common Unicode characters with ASCII equivalents
-            slug = slug
-                .Replace("ä", "a").Replace("à", "a").Replace("á", "a").Replace("â", "a").Replace("ã", "a").Replace("å", "a")
-                .Replace("ö", "o").Replace("ò", "o").Replace("ó", "o").Replace("ô", "o").Replace("õ", "o")
-                .Replace("ü", "u").Replace("ù", "u").Replace("ú", "u").Replace("û", "u")
-                .Replace("ë", "e").Replace("è", "e").Replace("é", "e").Replace("ê", "e")
-                .Replace("ï", "i").Replace("ì", "i").Replace("í", "i").Replace("î", "i")
-                .Replace("ç", "c").Replace("ñ", "n").Replace("ß", "ss")
-                .Replace("æ", "ae").Replace("œ", "oe");
-
-            // Remove special characters except spaces, numbers, and letters
             slug = Regex.Replace(slug, @"[^a-z0-9\s]", "");
-
-            // Replace multiple spaces with single space
             slug = Regex.Replace(slug, @"\s+", " ");
-
-            // Trim and replace spaces with hyphens
             slug = slug.Trim().Replace(" ", "-");
-
-            // Remove any trailing or leading hyphens
             slug = slug.Trim('-');
 
             return slug;
