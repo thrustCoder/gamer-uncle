@@ -13,6 +13,8 @@ using System.Net;
 using System;
 using Microsoft.Extensions.Logging;
 using GamerUncle.Shared.Models;
+using System.IO;
+using System.Text.Json;
 
 namespace GamerUncle.Functions
 {
@@ -54,7 +56,7 @@ namespace GamerUncle.Functions
             for (int i = 1; i <= syncCount; i++)
             {
                 string gameId = i.ToString();
-                GameDocument gameDocument = await context.CallActivityAsync<GameDocument>(
+                GameDocument? gameDocument = await context.CallActivityAsync<GameDocument?>(
                     nameof(FetchGameDataActivity), gameId);
 
                 if (gameDocument != null)
@@ -65,40 +67,16 @@ namespace GamerUncle.Functions
         }
 
         [Function(nameof(FetchGameDataActivity))]
-        public async Task<GameDocument> FetchGameDataActivity([ActivityTrigger] string gameId)
+        public async Task<GameDocument?> FetchGameDataActivity([ActivityTrigger] string gameId)
         {
-            #region mocked response
-            // Mocked data for demonstration purposes
-            // return Task.FromResult(new GameDocument
-            // {
-            //     id = $"bgg-{gameId}",
-            //     name = "Mocked Game Name",
-            //     overview = "This is a mocked overview.",
-            //     description = "This is a mocked description.",
-            //     minPlayers = 1,
-            //     maxPlayers = 4,
-            //     minPlaytime = 30,
-            //     maxPlaytime = 120,
-            //     weight = 2.5,
-            //     averageRating = 4.5,
-            //     bggRating = 4.7,
-            //     numVotes = 100,
-            //     ageRequirement = 12,
-            //     yearPublished = 2020,
-            //     imageUrl = "http://example.com/image.jpg",
-            //     shopLink = "http://example.com/shop",
-            //     mechanics = new List<string> { "Mechanic1", "Mechanic2" },
-            //     categories = new List<string> { "Category1", "Category2" },
-            //     setupGuide = "Setup guide content.",
-            //     rulesUrl = "http://example.com/rules",
-            //     ruleQnA = new List<RuleQnA>(),
-            //     moderatorScripts = new List<ModeratorScript>(),
-            //     narrationTTS = new NarrationTTS()
-            // });
-            #endregion
+            // Return null if invalid id
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                return null;
+            }
 
             // Remove any extra quotes that might come from JSON serialization
-            if (gameId != null && gameId.StartsWith("\"") && gameId.EndsWith("\""))
+            if (gameId.StartsWith("\"") && gameId.EndsWith("\""))
             {
                 gameId = gameId.Trim('"');
             }
@@ -152,12 +130,32 @@ namespace GamerUncle.Functions
             [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
             [DurableClient] DurableTaskClient client)
         {
-            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
-            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
+            // Try to parse count from JSON body: { "count": number }
+            int? requestCount = null;
+            try
+            {
+                if (req.Body != null)
+                {
+                    using var reader = new StreamReader(req.Body);
+                    var body = await reader.ReadToEndAsync();
+                    requestCount = RequestCountParser.TryParseCountFromJson(body);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse request body for count. Falling back to environment/default.");
+            }
+
+            var envDefault = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
+            int syncCount = requestCount.HasValue && requestCount.Value > 0
+                ? requestCount.Value
+                : (int.TryParse(envDefault, out var envParsed) && envParsed > 0 ? envParsed : 5);
+
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCount.ToString());
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             response.Headers.Add("Content-Type", "application/json");
-            await response.WriteStringAsync($"{{\"instanceId\": \"{instanceId}\"}}");
+            await response.WriteStringAsync($"{{\"instanceId\": \"{instanceId}\", \"count\": {syncCount}}}");
             return response;
         }
         
@@ -241,6 +239,90 @@ namespace GamerUncle.Functions
             string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
             
             log.LogInformation($"Started prod orchestration with ID = '{instanceId}'");
+        }
+
+        [Function(nameof(DurableHighSignalUpsertOrchestrator))]
+        public async Task DurableHighSignalUpsertOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
+        {
+            var request = context.GetInput<HighSignalSyncRequest>() ?? new HighSignalSyncRequest();
+
+            int upserted = 0;
+            for (int id = request.StartId; id <= request.EndId; id++)
+            {
+                if (upserted >= request.Limit)
+                {
+                    break;
+                }
+
+                var gameId = id.ToString();
+                GameDocument? game = await context.CallActivityAsync<GameDocument?>(nameof(FetchGameDataActivity), gameId);
+                if (game == null)
+                {
+                    continue;
+                }
+
+                if (HighSignalFilter.IsHighSignal(game, request.MinAverage, request.MinBayes, request.MinVotes))
+                {
+                    await context.CallActivityAsync(nameof(UpsertGameDocumentActivity), game);
+                    upserted++;
+                }
+            }
+        }
+
+        [Function("GameSyncHighSignalStart")]
+        public async Task<HttpResponseData> GameSyncHighSignalStart(
+            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
+            [DurableClient] DurableTaskClient client)
+        {
+            HighSignalSyncRequest? request = null;
+            try
+            {
+                using var reader = new StreamReader(req.Body);
+                var body = await reader.ReadToEndAsync();
+                request = JsonSerializer.Deserialize<HighSignalSyncRequest>(body, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse high-signal request body. Using defaults.");
+            }
+
+            request ??= new HighSignalSyncRequest();
+
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableHighSignalUpsertOrchestrator), request);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json");
+            await response.WriteStringAsync(JsonSerializer.Serialize(new
+            {
+                instanceId,
+                request
+            }));
+            return response;
+        }
+    }
+
+    public class HighSignalSyncRequest
+    {
+        public int StartId { get; set; } = 1;
+        public int EndId { get; set; } = 150000; // scan window
+        public int Limit { get; set; } = 2000; // how many to upsert
+        public double MinAverage { get; set; } = 7.2;
+        public double MinBayes { get; set; } = 7.0;
+        public int MinVotes { get; set; } = 1000;
+    }
+
+    public static class HighSignalFilter
+    {
+        public static bool IsHighSignal(GameDocument g, double minAverage, double minBayes, int minVotes)
+        {
+            if (g == null) return false;
+            if (g.numVotes < minVotes) return false;
+            if (g.bggRating < minBayes) return false;
+            if (g.averageRating < minAverage) return false;
+            return true;
         }
     }
 }
