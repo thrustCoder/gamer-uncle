@@ -202,7 +202,7 @@ namespace GamerUncle.Functions
 
         [Function("GameSyncTimerTriggerProd")]
         public async Task GameSyncTimerTriggerProd(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 * * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 1 * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
@@ -307,7 +307,7 @@ namespace GamerUncle.Functions
     public class HighSignalSyncRequest
     {
         public int StartId { get; set; } = 1;
-        public int EndId { get; set; } = 150000; // scan window
+        public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
         public int Limit { get; set; } = 2000; // how many to upsert
         public double MinAverage { get; set; } = 7.2;
         public double MinBayes { get; set; } = 7.0;
