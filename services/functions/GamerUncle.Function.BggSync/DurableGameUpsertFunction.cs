@@ -309,9 +309,9 @@ namespace GamerUncle.Functions
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
         public int Limit { get; set; } = 2000; // how many to upsert
-        public double MinAverage { get; set; } = 7.2;
-        public double MinBayes { get; set; } = 7.0;
-        public int MinVotes { get; set; } = 1000;
+        public double MinAverage { get; set; } = 6.0;
+        public double MinBayes { get; set; } = 5.8;
+        public int MinVotes { get; set; } = 50;
     }
 
     public static class HighSignalFilter
