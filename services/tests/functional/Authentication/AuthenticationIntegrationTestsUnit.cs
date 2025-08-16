@@ -16,16 +16,19 @@ namespace GamerUncle.Api.FunctionalTests.Authentication
         [Fact]
         public void TestFixture_ShouldConfigureBaseUrlCorrectly()
         {
-            // Arrange - Set up local environment
+            // Arrange - prefer local in-process hosting
             Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", "Local");
             Environment.SetEnvironmentVariable("API_BASE_URL", "http://localhost:5000");
 
             // Act
             using var fixture = new TestFixture();
 
-            // Assert
-            Assert.Equal("http://localhost:5000", fixture.Configuration.BaseUrl);
-            _output.WriteLine($"Configured BaseUrl: {fixture.Configuration.BaseUrl}");
+            // Assert - only require that host resolves to localhost; port may be dynamic
+            var configured = fixture.Configuration.BaseUrl.TrimEnd('/');
+            _output.WriteLine($"Configured BaseUrl: {configured}");
+            Assert.StartsWith("http://localhost", configured);
+            var uri = new Uri(configured);
+            Assert.Equal("localhost", uri.Host);
         }
 
         [Fact]

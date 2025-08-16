@@ -100,7 +100,15 @@ builder.Services.AddRateLimiter(options =>
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
-builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
+// Use fake agent only when explicitly requested
+if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
+{
+    builder.Services.AddSingleton<IAgentServiceClient, FakeAgentServiceClient>();
+}
+else
+{
+    builder.Services.AddTransient<IAgentServiceClient, AgentServiceClient>();
+}
 builder.Services.AddTransient<AzureAuthenticationValidator>();
 
 // Add health checks including authentication
