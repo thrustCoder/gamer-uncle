@@ -53,15 +53,31 @@ namespace GamerUncle.Functions
                 out var result
             ) ? result : 5;
 
+            int processedCount = 0;
+            int skippedCount = 0;
+
             for (int i = 1; i <= syncCount; i++)
             {
                 string gameId = i.ToString();
+                
+                // First check if the game already exists in Cosmos DB
+                bool gameExists = await context.CallActivityAsync<bool>(
+                    nameof(CheckGameExistsActivity), gameId);
+
+                if (gameExists)
+                {
+                    skippedCount++;
+                    continue; // Skip this game as it already exists
+                }
+
+                // Only fetch and upsert if the game doesn't exist
                 GameDocument? gameDocument = await context.CallActivityAsync<GameDocument?>(
                     nameof(FetchGameDataActivity), gameId);
 
                 if (gameDocument != null)
                 {
                     await context.CallActivityAsync(nameof(UpsertGameDocumentActivity), gameDocument);
+                    processedCount++;
                 }
             }
         }
@@ -91,6 +107,46 @@ namespace GamerUncle.Functions
             }
 
             return gameDocument;
+        }
+
+        [Function(nameof(CheckGameExistsActivity))]
+        public async Task<bool> CheckGameExistsActivity([ActivityTrigger] string gameId)
+        {
+            try
+            {
+                // Return false if invalid id
+                if (string.IsNullOrWhiteSpace(gameId))
+                {
+                    return false;
+                }
+
+                // Remove any extra quotes that might come from JSON serialization
+                if (gameId.StartsWith("\"") && gameId.EndsWith("\""))
+                {
+                    gameId = gameId.Trim('"');
+                }
+
+                // Create the document ID that would be used in Cosmos DB (BGG ID prefixed with bgg-)
+                var documentId = $"bgg-{gameId}";
+
+                // Try to read the item from Cosmos DB
+                var response = await _container.ReadItemAsync<GameDocument>(documentId, new PartitionKey(documentId));
+                
+                _logger.LogInformation("Game {GameId} already exists in Cosmos DB, skipping sync", gameId);
+                return true;
+            }
+            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Game doesn't exist, we should sync it
+                _logger.LogInformation("Game {GameId} not found in Cosmos DB, will sync from BGG", gameId);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error checking if game {GameId} exists in Cosmos DB, will attempt to sync", gameId);
+                // If we can't check, err on the side of attempting to sync
+                return false;
+            }
         }
 
         [Function(nameof(UpsertGameDocumentActivity))]
@@ -161,7 +217,7 @@ namespace GamerUncle.Functions
         
         [Function("GameSyncTimerTriggerDev")]
         public async Task GameSyncTimerTriggerDev(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 * * 1,4", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 0 1 * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
@@ -202,7 +258,7 @@ namespace GamerUncle.Functions
 
         [Function("GameSyncTimerTriggerProd")]
         public async Task GameSyncTimerTriggerProd(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 5 8 1 * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 0 1 */6 *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
@@ -247,6 +303,8 @@ namespace GamerUncle.Functions
             var request = context.GetInput<HighSignalSyncRequest>() ?? new HighSignalSyncRequest();
 
             int upserted = 0;
+            int skipped = 0;
+            
             for (int id = request.StartId; id <= request.EndId; id++)
             {
                 if (upserted >= request.Limit)
@@ -255,6 +313,17 @@ namespace GamerUncle.Functions
                 }
 
                 var gameId = id.ToString();
+                
+                // First check if the game already exists in Cosmos DB
+                bool gameExists = await context.CallActivityAsync<bool>(
+                    nameof(CheckGameExistsActivity), gameId);
+
+                if (gameExists)
+                {
+                    skipped++;
+                    continue; // Skip this game as it already exists
+                }
+
                 GameDocument? game = await context.CallActivityAsync<GameDocument?>(nameof(FetchGameDataActivity), gameId);
                 if (game == null)
                 {

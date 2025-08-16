@@ -5,6 +5,10 @@ using Moq;
 using Xunit;
 using GamerUncle.Functions;
 using System.Reflection;
+using System.Threading.Tasks;
+using Microsoft.Azure.Cosmos;
+using System.Net;
+using GamerUncle.Shared.Models;
 
 namespace GamerUncle.Functions.Tests
 {
@@ -231,6 +235,145 @@ namespace GamerUncle.Functions.Tests
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => 
                 new DurableGameUpsertFunction(mockCosmosClient.Object, null!));
+        }
+    }
+
+    public class CheckGameExistsActivityTests
+    {
+        private readonly Mock<CosmosClient> _mockCosmosClient;
+        private readonly Mock<Container> _mockContainer;
+        private readonly Mock<ILogger<DurableGameUpsertFunction>> _mockLogger;
+        private readonly DurableGameUpsertFunction _function;
+
+        public CheckGameExistsActivityTests()
+        {
+            _mockCosmosClient = new Mock<CosmosClient>();
+            _mockContainer = new Mock<Container>();
+            _mockLogger = new Mock<ILogger<DurableGameUpsertFunction>>();
+
+            _mockCosmosClient.Setup(x => x.GetContainer(It.IsAny<string>(), It.IsAny<string>()))
+                           .Returns(_mockContainer.Object);
+
+            _function = new DurableGameUpsertFunction(_mockCosmosClient.Object, _mockLogger.Object);
+        }
+
+        [Fact]
+        public async Task CheckGameExistsActivity_WhenGameExists_ShouldReturnTrue()
+        {
+            // Arrange
+            var gameId = "123";
+            var documentId = "bgg-123";
+            var gameDocument = new GameDocument { id = documentId, name = "Test Game" };
+            
+            var mockResponse = new Mock<ItemResponse<GameDocument>>();
+            mockResponse.Setup(x => x.Resource).Returns(gameDocument);
+
+            _mockContainer.Setup(x => x.ReadItemAsync<GameDocument>(
+                documentId, 
+                new PartitionKey(documentId), 
+                null, 
+                default))
+                .ReturnsAsync(mockResponse.Object);
+
+            // Act
+            var result = await _function.CheckGameExistsActivity(gameId);
+
+            // Assert
+            Assert.True(result);
+            _mockContainer.Verify(x => x.ReadItemAsync<GameDocument>(
+                documentId, 
+                new PartitionKey(documentId), 
+                null, 
+                default), Times.Once);
+        }
+
+        [Fact]
+        public async Task CheckGameExistsActivity_WhenGameNotFound_ShouldReturnFalse()
+        {
+            // Arrange
+            var gameId = "123";
+            var documentId = "bgg-123";
+
+            _mockContainer.Setup(x => x.ReadItemAsync<GameDocument>(
+                documentId, 
+                new PartitionKey(documentId), 
+                null, 
+                default))
+                .ThrowsAsync(new CosmosException("Not Found", HttpStatusCode.NotFound, 0, "", 0));
+
+            // Act
+            var result = await _function.CheckGameExistsActivity(gameId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CheckGameExistsActivity_WhenOtherCosmosException_ShouldReturnFalse()
+        {
+            // Arrange
+            var gameId = "123";
+            var documentId = "bgg-123";
+
+            _mockContainer.Setup(x => x.ReadItemAsync<GameDocument>(
+                documentId, 
+                new PartitionKey(documentId), 
+                null, 
+                default))
+                .ThrowsAsync(new CosmosException("Server Error", HttpStatusCode.InternalServerError, 0, "", 0));
+
+            // Act
+            var result = await _function.CheckGameExistsActivity(gameId);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData(" ")]
+        [InlineData(null)]
+        public async Task CheckGameExistsActivity_WithInvalidGameId_ShouldReturnFalse(string invalidGameId)
+        {
+            // Act
+            var result = await _function.CheckGameExistsActivity(invalidGameId);
+
+            // Assert
+            Assert.False(result);
+            _mockContainer.Verify(x => x.ReadItemAsync<GameDocument>(
+                It.IsAny<string>(), 
+                It.IsAny<PartitionKey>(), 
+                It.IsAny<ItemRequestOptions>(), 
+                default), Times.Never);
+        }
+
+        [Fact]
+        public async Task CheckGameExistsActivity_WithQuotedGameId_ShouldStripQuotes()
+        {
+            // Arrange
+            var gameId = "\"123\"";
+            var expectedDocumentId = "bgg-123";
+            
+            var mockResponse = new Mock<ItemResponse<GameDocument>>();
+            mockResponse.Setup(x => x.Resource).Returns(new GameDocument { id = expectedDocumentId });
+
+            _mockContainer.Setup(x => x.ReadItemAsync<GameDocument>(
+                expectedDocumentId, 
+                new PartitionKey(expectedDocumentId), 
+                null, 
+                default))
+                .ReturnsAsync(mockResponse.Object);
+
+            // Act
+            var result = await _function.CheckGameExistsActivity(gameId);
+
+            // Assert
+            Assert.True(result);
+            _mockContainer.Verify(x => x.ReadItemAsync<GameDocument>(
+                expectedDocumentId, 
+                new PartitionKey(expectedDocumentId), 
+                null, 
+                default), Times.Once);
         }
     }
 }
