@@ -93,10 +93,18 @@ export const landingStyles = StyleSheet.create({
     height: '100%',
   },
   versionText: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.white,
     textAlign: 'center',
-    paddingVertical: 10,
+    paddingVertical: 5,
+    paddingBottom: 5, // Reduced bottom padding since AI model text will follow
+  },
+  aiModelText: {
+    fontSize: 14,
+    color: Colors.white,
+    textAlign: 'center',
+    paddingVertical: 5,
+    paddingTop: 0, // No top padding since it follows version text
     paddingBottom: 30, // Extra bottom padding for safe area
   },
 });
