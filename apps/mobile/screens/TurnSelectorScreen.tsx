@@ -171,6 +171,7 @@ export default function TurnSelectorScreen() {
                 }}
                 placeholder={`Player ${i + 1}`}
                 placeholderTextColor={Colors.grayDark}
+                value={playerNames[i] ?? ''}
                 onChangeText={(text) => handleNameChange(i, text)}
               />
             ))}

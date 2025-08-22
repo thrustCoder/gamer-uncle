@@ -65,15 +65,15 @@ describe('E2E CI Configuration Tests', () => {
     it('should use shorter timeouts in CI', () => {
       process.env.CI = 'true';
       
-      const testTimeout = process.env.CI ? 30 * 1000 : 60 * 1000;
-      const expectTimeout = process.env.CI ? 5 * 1000 : 10 * 1000;
-      const actionTimeout = process.env.CI ? 15000 : 30000;
-      const navigationTimeout = process.env.CI ? 30000 : 60000;
+  const testTimeout = process.env.CI ? 20 * 1000 : 60 * 1000;
+  const expectTimeout = process.env.CI ? 3 * 1000 : 10 * 1000;
+  const actionTimeout = process.env.CI ? 10000 : 30000;
+  const navigationTimeout = process.env.CI ? 20000 : 60000;
       
-      expect(testTimeout).toBe(30000);
-      expect(expectTimeout).toBe(5000);
-      expect(actionTimeout).toBe(15000);
-      expect(navigationTimeout).toBe(30000);
+  expect(testTimeout).toBe(20000);
+  expect(expectTimeout).toBe(3000);
+  expect(actionTimeout).toBe(10000);
+  expect(navigationTimeout).toBe(20000);
     });
 
     it('should use longer timeouts in development', () => {

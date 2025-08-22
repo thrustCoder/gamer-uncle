@@ -74,11 +74,11 @@ describe('CI Script Integration Tests', () => {
       
       // We can't easily import the config directly due to ES modules,
       // but we can test the logic that would be in the config
-      const testTimeout = process.env.CI ? 30 * 1000 : 60 * 1000;
-      const expectTimeout = process.env.CI ? 5 * 1000 : 10 * 1000;
+      const testTimeout = process.env.CI ? 20 * 1000 : 60 * 1000;
+      const expectTimeout = process.env.CI ? 3 * 1000 : 10 * 1000;
       
-      expect(testTimeout).toBe(30000);
-      expect(expectTimeout).toBe(5000);
+      expect(testTimeout).toBe(20000);
+      expect(expectTimeout).toBe(3000);
     });
 
     it('should disable webServer in CI', () => {

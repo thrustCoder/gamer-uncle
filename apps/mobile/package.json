@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.4",
-    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-masked-view/masked-view": "github:react-native-masked-view/masked-view",
     "@react-native-picker/picker": "2.11.0",
     "@react-navigation/native": "^7.1.10",
