@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { diceRollerStyles as styles } from '../styles/diceRollerStyles';
 import BackButton from '../components/BackButton';
+import { appCache } from '../services/storage/appCache';
 
 const { width, height } = Dimensions.get('window');
 
@@ -108,6 +109,16 @@ export default function DiceRollerScreen() {
       }
     }, 100);  
   };
+
+  // hydrate persisted diceCount on mount
+  useEffect(() => {
+    appCache.getDiceCount(1).then(setDiceCount).catch(() => {});
+  }, []);
+
+  // persist diceCount whenever changed
+  useEffect(() => {
+    appCache.setDiceCount(diceCount);
+  }, [diceCount]);
 
   return (
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.bg}>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
 import BackButton from '../components/BackButton';
+import { appCache } from '../services/storage/appCache';
+import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 
 const MAX_PLAYERS = 20;
 
@@ -29,7 +31,7 @@ export default function TurnSelectorScreen() {
   const handleNameChange = (index: number, name: string) => {
     const updatedNames = [...playerNames];
     updatedNames[index] = name || `P${index + 1}`;
-    setPlayerNames(updatedNames);
+  setPlayerNames(updatedNames);
   };
 
   const handleSpin = async (selectedIndex: number) => {
@@ -53,12 +55,36 @@ export default function TurnSelectorScreen() {
             const newCount = i + 2;
             setPlayerCount(newCount);
             setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
+            appCache.setPlayerCount(newCount);
           }
         })),
         { text: "Cancel", style: "cancel" }
       ]
     );
   };
+
+  // hydrate cache on mount
+  useEffect(() => {
+    (async () => {
+      const [pc, names] = await Promise.all([
+        appCache.getPlayerCount(4),
+        appCache.getPlayers([]),
+      ]);
+      setPlayerCount(pc);
+      if (names.length > 0) {
+        const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
+        setPlayerNames(adjusted);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    appCache.setPlayerCount(playerCount);
+  }, [playerCount]);
+
+  useDebouncedEffect(() => {
+    appCache.setPlayers(playerNames);
+  }, [playerNames], 400);
 
   return (
     <ImageBackground 
