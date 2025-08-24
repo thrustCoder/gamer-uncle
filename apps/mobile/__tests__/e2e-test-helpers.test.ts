@@ -3,7 +3,7 @@
  * These tests verify that our fallback message detection works correctly
  */
 
-import { FALLBACK_MESSAGES, TEST_SCENARIOS } from './test-data';
+import { FALLBACK_MESSAGES, TEST_SCENARIOS } from '../e2e/test-data';
 
 describe('E2E Test Helpers', () => {
   // Helper function to mimic the ChatPage.isFallbackMessage method

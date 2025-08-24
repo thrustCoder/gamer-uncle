@@ -36,9 +36,9 @@ describe('CI Script Integration Tests', () => {
     it('should handle URL validation', async () => {
       const scriptContent = fs.readFileSync('./run-e2e-ci.sh', 'utf8');
       
-      expect(scriptContent).toContain('curl -f -s --max-time 30');
+      expect(scriptContent).toContain('curl -f -s --max-time 15 --retry 2');
       expect(scriptContent).toContain('Checking if target URL is accessible');
-      expect(scriptContent).toContain('Falling back to localhost');
+      expect(scriptContent).toContain('Continuing with localhost fallback');
     });
 
     it('should use correct timeout approach', async () => {
@@ -93,8 +93,8 @@ describe('CI Script Integration Tests', () => {
     it('should save diagnostic information on failure', async () => {
       const scriptContent = fs.readFileSync('./run-e2e-ci.sh', 'utf8');
       
-      expect(scriptContent).toContain('playwright-report directory exists');
-      expect(scriptContent).toContain('JUnit results file exists');
+      expect(scriptContent).toContain('📋 Playwright report directory exists');
+      expect(scriptContent).toContain('📊 JUnit results file exists');
       expect(scriptContent).toContain('ls -la');
     });
 
