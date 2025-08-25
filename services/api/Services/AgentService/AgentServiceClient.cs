@@ -511,7 +511,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             var sb = new StringBuilder();
             sb.AppendLine("Here are relevant board games from the database:");
             
-            // Limit to top 20 games to prevent payload size issues
+            // Limit to top 20 highest-rated games to prevent payload size issues
+            // Note: games are already sorted by averageRating in descending order
             var limitedGames = games.Take(20).ToList();
             
             if (!limitedGames.Any())
@@ -520,7 +521,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 return sb.ToString();
             }
             
-            sb.AppendLine($"Found {limitedGames.Count} top games (from {games.Count()} total):");
+            sb.AppendLine($"Found {limitedGames.Count} top-rated games (from {games.Count()} total):");
             sb.AppendLine();
 
             foreach (var game in limitedGames)
