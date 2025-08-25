@@ -17,6 +17,11 @@ namespace GamerUncle.Api.Services.Cosmos
             var tenantId = config["CosmosDb:TenantId"]
                 ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
 
+            var databaseName = config["CosmosDb:DatabaseName"]
+                ?? throw new InvalidOperationException("Missing Cosmos DB database name config.");
+
+            var containerName = config["CosmosDb:ContainerName"] ?? "Games";
+
             var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
             {
                 TenantId = tenantId,
@@ -25,7 +30,7 @@ namespace GamerUncle.Api.Services.Cosmos
             });
 
             var client = new CosmosClient(endpoint, credential);
-            _container = client.GetContainer("gamer-uncle-dev-cosmos-container", "Games");
+            _container = client.GetContainer(databaseName, containerName);
         }
 
         public async Task<IEnumerable<GameDocument>> QueryGamesAsync(GameQueryCriteria criteria)
