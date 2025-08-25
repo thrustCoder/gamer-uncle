@@ -46,9 +46,9 @@ describe('E2E Test Structure', () => {
     const landingContent = fs.readFileSync(landingSpecPath, 'utf8');
     
     // Should have simplified test structure
-    expect(landingContent).toContain('should display all navigation elements');
-    expect(landingContent).toContain('should navigate to Chat screen');
-    expect(landingContent).toContain('should navigate to at least one tool screen and back');
+    expect(landingContent).toContain('should load landing page and navigate to chat');
+    expect(landingContent).toContain('Navigate to chat');
+    expect(landingContent).toContain('Verify landing page loads');
     
     // Should not have detailed tool tests
     expect(landingContent).not.toContain('Turn Selector screen');
@@ -61,9 +61,9 @@ describe('E2E Test Structure', () => {
     const chatContent = fs.readFileSync(chatSpecPath, 'utf8');
     
     // Should have basic chat functionality
-    expect(chatContent).toContain('should successfully send and receive messages');
-    expect(chatContent).toContain('should provide meaningful game recommendations');
-    expect(chatContent).toContain('should handle multiple messages in sequence');
+    expect(chatContent).toContain('should handle game recommendation prompts');
+    expect(chatContent).toContain('should respond to board game help requests');
+    expect(chatContent).toContain('sendMessageAndWaitForResponse');
     
     // Should not have extensive test scenarios
     expect(chatContent).not.toContain('TEST_SCENARIOS');

@@ -51,6 +51,7 @@ export default defineConfig({
         ...(process.env.CI && { headless: true })
       },
     },
+    // Dont need to test on other browsers
   ],
 
   /* Run your local dev server before starting the tests */

@@ -31,7 +31,8 @@ describe('Playwright command fix', () => {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
     
     // Check specific CI script
-    expect(packageJson.scripts['test:e2e:ci']).toBe('playwright test --reporter=junit');
+    // CI should use the wrapper script that configures environment and reporters
+    expect(packageJson.scripts['test:e2e:ci']).toBe('./run-e2e-ci.sh');
     expect(packageJson.scripts['test:e2e:ci']).not.toContain('--output-dir');
   });
 
@@ -40,6 +41,6 @@ describe('Playwright command fix', () => {
     
     // Verify that output configuration is in the config file
     expect(configContent).toContain('outputFile: \'test-results/junit-results.xml\'');
-    expect(configContent).toContain('outputFolder: \'test-results/html-report\'');
+    expect(configContent).toContain('\'html\', { outputFolder: \'playwright-report\', open: \'never\' }');
   });
 });

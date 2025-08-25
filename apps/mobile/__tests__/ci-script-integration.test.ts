@@ -36,9 +36,9 @@ describe('CI Script Integration Tests', () => {
     it('should handle URL validation', async () => {
       const scriptContent = fs.readFileSync('./run-e2e-ci.sh', 'utf8');
       
-      expect(scriptContent).toContain('curl -f -s --max-time 30');
+      expect(scriptContent).toContain('curl -f -s --max-time 15 --retry 2');
       expect(scriptContent).toContain('Checking if target URL is accessible');
-      expect(scriptContent).toContain('Falling back to localhost');
+      expect(scriptContent).toContain('Continuing with localhost fallback');
     });
 
     it('should use correct timeout approach', async () => {
@@ -74,11 +74,11 @@ describe('CI Script Integration Tests', () => {
       
       // We can't easily import the config directly due to ES modules,
       // but we can test the logic that would be in the config
-      const testTimeout = process.env.CI ? 30 * 1000 : 60 * 1000;
-      const expectTimeout = process.env.CI ? 5 * 1000 : 10 * 1000;
+      const testTimeout = process.env.CI ? 20 * 1000 : 60 * 1000;
+      const expectTimeout = process.env.CI ? 3 * 1000 : 10 * 1000;
       
-      expect(testTimeout).toBe(30000);
-      expect(expectTimeout).toBe(5000);
+      expect(testTimeout).toBe(20000);
+      expect(expectTimeout).toBe(3000);
     });
 
     it('should disable webServer in CI', () => {
@@ -93,8 +93,8 @@ describe('CI Script Integration Tests', () => {
     it('should save diagnostic information on failure', async () => {
       const scriptContent = fs.readFileSync('./run-e2e-ci.sh', 'utf8');
       
-      expect(scriptContent).toContain('playwright-report directory exists');
-      expect(scriptContent).toContain('JUnit results file exists');
+      expect(scriptContent).toContain('📋 Playwright report directory exists');
+      expect(scriptContent).toContain('📊 JUnit results file exists');
       expect(scriptContent).toContain('ls -la');
     });
 

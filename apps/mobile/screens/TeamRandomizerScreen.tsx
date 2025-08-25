@@ -14,6 +14,8 @@ import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import { appCache } from '../services/storage/appCache';
+import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 
 const MAX_PLAYERS = 20;
 
@@ -29,7 +31,7 @@ export default function TeamRandomizerScreen() {
   const handleNameChange = (index: number, name: string) => {
     const updated = [...playerNames];
     updated[index] = name;
-    setPlayerNames(updated);
+  setPlayerNames(updated);
   };
 
   const showPlayerCountPicker = () => {
@@ -44,6 +46,7 @@ export default function TeamRandomizerScreen() {
             setPlayerCount(newCount);
             setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
             setTeamCount(Math.min(teamCount, Math.floor(newCount / 2)));
+            appCache.setPlayerCount(newCount);
           }
         })),
         { text: "Cancel", style: "cancel" }
@@ -61,7 +64,11 @@ export default function TeamRandomizerScreen() {
       [
         ...Array.from({ length: maxTeams - 1 }, (_, i) => ({
           text: `${i + 2}`,
-          onPress: () => setTeamCount(i + 2)
+          onPress: () => {
+            const val = i + 2;
+            setTeamCount(val);
+            appCache.setTeamCount(val);
+          }
         })),
         { text: "Cancel", style: "cancel" }
       ]
@@ -85,6 +92,37 @@ export default function TeamRandomizerScreen() {
     const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/fanfare.mp3'));
     await sound.playAsync();
   };
+
+  // hydrate cache on mount
+  useEffect(() => {
+    (async () => {
+      const [pc, tc, names] = await Promise.all([
+        appCache.getPlayerCount(4),
+        appCache.getTeamCount(2),
+        appCache.getPlayers([]),
+      ]);
+      setPlayerCount(pc);
+      setTeamCount(tc);
+      if (names.length > 0) {
+        // ensure length matches playerCount
+        const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
+        setPlayerNames(adjusted);
+      }
+    })();
+  }, []);
+
+  // persist when core counts change
+  useEffect(() => {
+    appCache.setPlayerCount(playerCount);
+  }, [playerCount]);
+
+  useEffect(() => {
+    appCache.setTeamCount(teamCount);
+  }, [teamCount]);
+
+  useDebouncedEffect(() => {
+    appCache.setPlayers(playerNames);
+  }, [playerNames], 400);
 
   return (
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>

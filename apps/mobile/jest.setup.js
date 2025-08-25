@@ -55,6 +55,26 @@ jest.mock('expo-av', () => ({
 // Mock react-native-confetti-cannon
 jest.mock('react-native-confetti-cannon', () => 'ConfettiCannon');
 
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => {
+  let store = {};
+  return {
+    __esModule: true,
+    default: {
+      setItem: jest.fn(async (key, value) => {
+        store[key] = value;
+      }),
+      getItem: jest.fn(async (key) => store[key] ?? null),
+      removeItem: jest.fn(async (key) => {
+        delete store[key];
+      }),
+      clear: jest.fn(async () => {
+        store = {};
+      }),
+    },
+  };
+});
+
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => ({
   gestureHandlerRootHOC: jest.fn(),

@@ -141,19 +141,40 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     response = raw;
                     currentThreadId = threadIdResult;
 
+                    // Enhanced logging for debugging production issues
+                    _logger.LogInformation("Agent response attempt {Attempt}: Length={Length}, Content={Content}", 
+                        attempt, response?.Length ?? 0, response?.Substring(0, Math.Min(response?.Length ?? 0, 200)) ?? "NULL");
+
                     if (!IsLowQualityResponse(response)) break;
+
+                    _logger.LogWarning("Low quality response detected on attempt {Attempt}: {Response}", 
+                        attempt, response?.Substring(0, Math.Min(response?.Length ?? 0, 500)) ?? "NULL");
 
                     _telemetryClient?.TrackEvent("AgentResponse.LowQualityRetry", new Dictionary<string, string>
                     {
                         ["Attempt"] = attempt.ToString(),
                         ["UserInput"] = userInput,
-                        ["ThreadId"] = currentThreadId ?? "new"
+                        ["ThreadId"] = currentThreadId ?? "new",
+                        ["ResponseLength"] = response?.Length.ToString() ?? "0",
+                        ["ResponsePreview"] = response?.Substring(0, Math.Min(response?.Length ?? 0, 200)) ?? "NULL"
                     });
                 } while (attempt <= _maxLowQualityRetries);
 
                 // Final safeguard upgrade
                 if (IsLowQualityResponse(response))
                 {
+                    _logger.LogWarning("Using fallback response after {MaxRetries} retries. Final response: {Response}", 
+                        _maxLowQualityRetries, response?.Substring(0, Math.Min(response?.Length ?? 0, 500)) ?? "NULL");
+                    
+                    _telemetryClient?.TrackEvent("AgentResponse.FallbackUsed", new Dictionary<string, string>
+                    {
+                        ["UserInput"] = userInput,
+                        ["ThreadId"] = currentThreadId ?? "new",
+                        ["FinalResponseLength"] = response?.Length.ToString() ?? "0",
+                        ["FinalResponsePreview"] = response?.Substring(0, Math.Min(response?.Length ?? 0, 200)) ?? "NULL",
+                        ["MaxRetries"] = _maxLowQualityRetries.ToString()
+                    });
+                    
                     response = GenerateEnhancedResponse(userInput, matchingGames);
                 }
                 
@@ -251,74 +272,96 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
         private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
         {
-            PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
-
-            string? originalId = threadId;
-            string? internalThreadId = threadId;
-            if (!string.IsNullOrEmpty(threadId) && !threadId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
-            {
-                // Treat provided id as conversation id
-                if (_conversationThreadMap.TryGetValue(threadId, out var mapped))
-                {
-                    internalThreadId = mapped;
-                }
-                else
-                {
-                    internalThreadId = null; // force create new
-                }
-            }
-
-            PersistentAgentThread thread;
             try
             {
-                if (!string.IsNullOrEmpty(internalThreadId))
+                PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
+                _logger.LogInformation("Retrieved agent {AgentId} successfully", _agentId);
+
+                string? originalId = threadId;
+                string? internalThreadId = threadId;
+                
+                if (!string.IsNullOrEmpty(threadId) && !threadId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine($"Using existing thread: {internalThreadId}");
-                    thread = _agentsClient.Threads.GetThread(internalThreadId);
+                    // Treat provided id as conversation id
+                    if (_conversationThreadMap.TryGetValue(threadId, out var mapped))
+                    {
+                        internalThreadId = mapped;
+                    }
+                    else
+                    {
+                        internalThreadId = null; // force create new
+                    }
                 }
-                else
+
+                PersistentAgentThread thread;
+                try
                 {
-                    Console.WriteLine("Creating new thread");
+                    if (!string.IsNullOrEmpty(internalThreadId))
+                    {
+                        _logger.LogInformation("Using existing thread: {ThreadId}", internalThreadId);
+                        thread = _agentsClient.Threads.GetThread(internalThreadId);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Creating new thread");
+                        thread = _agentsClient.Threads.CreateThread();
+                        if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _conversationThreadMap[originalId] = thread.Id;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error retrieving thread {ThreadId}. Creating new thread", internalThreadId);
                     thread = _agentsClient.Threads.CreateThread();
                     if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                     {
                         _conversationThreadMap[originalId] = thread.Id;
                     }
                 }
+
+                // Modify the request payload to include instructions for JSON response
+                var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
+
+                _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
+                _logger.LogInformation("Created message in thread {ThreadId}", thread.Id);
+
+                ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
+                _logger.LogInformation("Started run {RunId} in thread {ThreadId}", run.Id, thread.Id);
+
+                int pollCount = 0;
+                do
+                {
+                    await Task.Delay(500);
+                    run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
+                    pollCount++;
+                } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
+
+                if (run.Status != RunStatus.Completed)
+                {
+                    _logger.LogWarning("Run {RunId} in thread {ThreadId} did not complete. Status: {Status}, PollCount: {PollCount}", 
+                        run.Id, thread.Id, run.Status, pollCount);
+                }
+
+                var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
+                var lastMessage = messagesResult.LastOrDefault();
+                var rawResponse = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
+
+                _logger.LogInformation("Raw response from agent: Length={Length}, Preview={Preview}", 
+                    rawResponse?.Length ?? 0, 
+                    rawResponse?.Substring(0, Math.Min(rawResponse?.Length ?? 0, 100)) ?? "NULL");
+
+                // Extract the actual response content and ensure it's valid
+                var response = ExtractAndValidateResponse(rawResponse);
+
+                return (response, thread.Id);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving thread {internalThreadId}: {ex.Message}. Creating new thread.");
-                thread = _agentsClient.Threads.CreateThread();
-                if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
-                {
-                    _conversationThreadMap[originalId] = thread.Id;
-                }
+                _logger.LogError(ex, "Error in RunAgentWithMessagesAsync for threadId: {ThreadId}", threadId);
+                throw;
             }
-
-            // Modify the request payload to include instructions for JSON response
-            var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
-
-            _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
-
-            ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
-
-            int pollCount = 0;
-            do
-            {
-                await Task.Delay(500);
-                run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
-                pollCount++;
-            } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
-
-            var messagesResult = _agentsClient.Messages.GetMessages(thread.Id, order: ListSortOrder.Ascending);
-            var lastMessage = messagesResult.LastOrDefault();
-            var rawResponse = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
-
-            // Extract the actual response content and ensure it's valid
-            var response = ExtractAndValidateResponse(rawResponse);
-
-            return (response, thread.Id);
         }
 
         private async Task<(string? response, string threadId)> RunAgentForCriteriaExtractionAsync(object requestPayload, string? threadId)
@@ -627,6 +670,15 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
         {
             if (string.IsNullOrWhiteSpace(response)) return true;
             if (response.Length < 25) return true;
+            
+            // Temporary bypass for production debugging
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("PROD DEBUG: Bypassing quality check. Response: {Response}", response);
+                return false; // Never consider production responses as low quality temporarily
+            }
+            
             var fallbackPatterns = new[]
             {
                 "Let me help you with that board game question!",
