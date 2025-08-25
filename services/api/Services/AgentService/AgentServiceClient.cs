@@ -324,8 +324,20 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 // Modify the request payload to include instructions for JSON response
                 var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
 
-                _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(modifiedPayload));
-                _logger.LogInformation("Created message in thread {ThreadId}", thread.Id);
+                // Handle Azure OpenAI content length limits (max 2560 characters per content field)
+                var serializedPayload = JsonSerializer.Serialize(modifiedPayload);
+                try
+                {
+                    _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, serializedPayload);
+                    _logger.LogInformation("Created message in thread {ThreadId}", thread.Id);
+                }
+                catch (Exception ex) when (ex.Message.Contains("string too long") || ex.Message.Contains("string_above_max_length"))
+                {
+                    _logger.LogWarning("Payload too long ({Length} chars), using simplified request", serializedPayload?.Length ?? 0);
+                    var truncatedPayload = TruncatePayloadContent(modifiedPayload, 240000); // Well under 256k limit
+                    _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(truncatedPayload));
+                    _logger.LogInformation("Created truncated message in thread {ThreadId}", thread.Id);
+                }
 
                 ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
                 _logger.LogInformation("Started run {RunId} in thread {ThreadId}", run.Id, thread.Id);
@@ -498,18 +510,30 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         {
             var sb = new StringBuilder();
             sb.AppendLine("Here are relevant board games from the database:");
-            if (!games.Any())
+            
+            // Limit to top 20 highest-rated games to prevent payload size issues
+            // Note: games are already sorted by averageRating in descending order
+            var limitedGames = games.Take(20).ToList();
+            
+            if (!limitedGames.Any())
             {
                 sb.AppendLine("No games found matching the criteria.");
                 return sb.ToString();
             }
-            sb.AppendLine($"Found {games.Count()} games:");
+            
+            sb.AppendLine($"Found {limitedGames.Count} top-rated games (from {games.Count()} total):");
             sb.AppendLine();
 
-            foreach (var game in games)
+            foreach (var game in limitedGames)
             {
-                sb.AppendLine($"- {game.name}: {game.overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight}, Rating: {game.averageRating:F1}/10)");
+                // Truncate overview to prevent massive content
+                var overview = game.overview?.Length > 200 
+                    ? game.overview.Substring(0, 197) + "..." 
+                    : game.overview ?? "No description";
+                    
+                sb.AppendLine($"- {game.name}: {overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight:F1}, Rating: {game.averageRating:F1}/10)");
             }
+            
             return sb.ToString();
         }
 
@@ -724,6 +748,23 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
             }
 
             return sb.ToString();
+        }
+
+        private object TruncatePayloadContent(object payload, int maxLength)
+        {
+            var json = JsonSerializer.Serialize(payload);
+            if (json.Length <= maxLength)
+                return payload;
+
+            // If the payload is too long, create a simplified version
+            return new { 
+                messages = new[] { 
+                    new { 
+                        role = "user", 
+                        content = "Provide board game recommendations. Keep response under 500 characters." 
+                    } 
+                } 
+            };
         }
     }
 }
