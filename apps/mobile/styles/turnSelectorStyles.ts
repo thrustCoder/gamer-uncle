@@ -20,7 +20,7 @@ export const turnSelectorStyles = StyleSheet.create({
     textShadowRadius: 2,
   },
   inputBox: {
-    backgroundColor: Colors.whiteTransparent,
+    backgroundColor: Colors.teamTitleYellow,
     padding: 20,
     borderRadius: 20,
     marginBottom: 20,
@@ -56,7 +56,7 @@ export const turnSelectorStyles = StyleSheet.create({
     gap: 10,
   },
   nameInput: {
-    backgroundColor: Colors.themeYellow,
+    backgroundColor: Colors.teamTitleYellow,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
