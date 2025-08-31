@@ -30,12 +30,13 @@ export default function TurnSelectorScreen() {
 
   const handleNameChange = (index: number, name: string) => {
     const updatedNames = [...playerNames];
-    updatedNames[index] = name || `P${index + 1}`;
-  setPlayerNames(updatedNames);
+    updatedNames[index] = name;
+    setPlayerNames(updatedNames);
   };
 
   const handleSpin = async (selectedIndex: number) => {
-    setWinner(playerNames[selectedIndex]);
+    const selectedName = playerNames[selectedIndex] || `P${selectedIndex + 1}`;
+    setWinner(selectedName);
     setCelebrate(false); // Reset first
     setTimeout(() => {
       setCelebrate(true); // Then trigger
@@ -74,6 +75,9 @@ export default function TurnSelectorScreen() {
       if (names.length > 0) {
         const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
         setPlayerNames(adjusted);
+      } else {
+        // Only set default names if no cached names exist
+        setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
   }, []);

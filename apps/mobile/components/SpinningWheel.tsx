@@ -101,7 +101,7 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
                       y={textY}
                       textAnchor="middle"
                       alignmentBaseline="middle">
-                      {name}
+                      {name || `P${index + 1}`}
                     </SvgText>
                   </G>
                 );

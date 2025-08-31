@@ -76,11 +76,15 @@ export default function TeamRandomizerScreen() {
   };
 
   const randomizeTeams = async () => {
-    const names = playerNames.slice(0, playerCount);
-    const shuffled = names.sort(() => 0.5 - Math.random());
+    // Create array of objects with name and original index
+    const playersWithIndex = playerNames.slice(0, playerCount).map((name, index) => ({
+      name: name || `P${index + 1}`,
+      originalIndex: index
+    }));
+    const shuffled = playersWithIndex.sort(() => 0.5 - Math.random());
     const result: string[][] = Array.from({ length: teamCount }, () => []);
-    shuffled.forEach((name, i) => {
-      result[i % teamCount].push(name);
+    shuffled.forEach((player, i) => {
+      result[i % teamCount].push(player.name);
     });
     setTeams(result);
     setCelebrate(false);
@@ -107,6 +111,9 @@ export default function TeamRandomizerScreen() {
         // ensure length matches playerCount
         const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
         setPlayerNames(adjusted);
+      } else {
+        // Only set default names if no cached names exist
+        setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
   }, []);
@@ -164,6 +171,8 @@ export default function TeamRandomizerScreen() {
               <TextInput
                 key={index}
                 style={[styles.nameInput, playerCount <= 4 && styles.nameInputWide]}
+                placeholder={`Player ${index + 1}`}
+                placeholderTextColor="#999"
                 value={name}
                 onChangeText={(text) => handleNameChange(index, text)}
               />
