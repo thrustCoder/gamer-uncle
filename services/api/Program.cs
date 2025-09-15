@@ -2,6 +2,8 @@ using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
+using GamerUncle.Api.Services.GameData;
+using GamerUncle.Api.Services.VoiceService;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
@@ -100,6 +102,7 @@ builder.Services.AddRateLimiter(options =>
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
+builder.Services.AddHttpClient<IFoundryVoiceService, FoundryVoiceService>();
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
 {
