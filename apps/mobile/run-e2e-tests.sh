@@ -80,8 +80,14 @@ configure_environment() {
             
         "staging")
             echo -e "${YELLOW}🚀 Configuring for staging environment testing${NC}"
-            export E2E_BASE_URL="https://gamer-uncle-staging-mobile.azurewebsites.net"
-            export API_BASE_URL="https://gamer-uncle-staging-api.azurewebsites.net"
+            export E2E_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            ;;
+            
+        "prod"|"production")
+            echo -e "${GREEN}🚀 Configuring for production environment testing${NC}"
+            export E2E_BASE_URL="https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"
             ;;
             
         *)

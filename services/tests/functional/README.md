@@ -91,7 +91,7 @@ dotnet test
 ```bash
 # Set environment variables
 export TEST_ENVIRONMENT=Dev
-export API_BASE_URL=https://gamer-uncle-dev-app-svc.azurewebsites.net
+export API_BASE_URL=https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net
 
 # Run tests
 dotnet test
