@@ -36,13 +36,13 @@ namespace GamerUncle.Api.FunctionalTests.Authentication
         {
             // Arrange - Set up dev environment
             Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", "Dev");
-            Environment.SetEnvironmentVariable("API_BASE_URL", "https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net");
+            Environment.SetEnvironmentVariable("API_BASE_URL", "https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net");
 
             // Act
             using var fixture = new TestFixture();
 
             // Assert
-            Assert.Equal("https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net", fixture.Configuration.BaseUrl);
+            Assert.Equal("https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net", fixture.Configuration.BaseUrl);
             _output.WriteLine($"Configured BaseUrl: {fixture.Configuration.BaseUrl}");
         }
 
@@ -59,8 +59,8 @@ namespace GamerUncle.Api.FunctionalTests.Authentication
 
             var externalUrls = new[]
             {
-                "https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net",
-                "https://gamer-uncle-prod-app-svc.azurewebsites.net"
+                "https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net",
+                "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"
             };
 
             foreach (var url in localUrls)
