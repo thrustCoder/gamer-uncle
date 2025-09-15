@@ -53,7 +53,7 @@ configure_environment() {
         "local"|"pr")
             echo -e "${YELLOW}🏠 Configuring for local testing${NC}"
             export E2E_BASE_URL="http://localhost:8081"
-            export API_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
+            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
             
             # Check if API is accessible
             if ! check_url "$API_BASE_URL/api" "API Service"; then
@@ -63,8 +63,8 @@ configure_environment() {
             
         "dev")
             echo -e "${YELLOW}🌐 Configuring for dev environment testing${NC}"
-            export E2E_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
-            export API_BASE_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
+            export E2E_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
             
             # Check if both app and API are accessible
             if ! check_url "$E2E_BASE_URL" "Mobile App"; then
