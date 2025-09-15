@@ -8,8 +8,8 @@ const getApiBaseUrl = (): string => {
     return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
   }
   
-  // Default to production
-  return 'https://gamer-uncle-prod-app-svc.azurewebsites.net/api/';
+  // For production, use Azure Front Door endpoint
+  return 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/';
 };
 
 const api = axios.create({
