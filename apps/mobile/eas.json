@@ -1,5 +1,23 @@
 {
   "build": {
+    "development": {
+      "ios": {
+        "simulator": true,
+        "developmentClient": true
+      },
+      "android": {
+        "developmentClient": true
+      }
+    },
+    "preview": {
+      "ios": {
+        "simulator": true,
+        "developmentClient": true
+      },
+      "android": {
+        "developmentClient": true
+      }
+    },
     "production": {
       "ios": {
         "distribution": "store",

@@ -10,12 +10,16 @@ import {
   ImageBackground,
   Image,
   Alert,
+  PanResponder,
+  Animated,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
+import { chatVoiceStyles as voiceStyles } from '../styles/chatVoiceStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
+import { useVoiceSession } from '../hooks/useVoiceSession';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -60,9 +64,26 @@ export default function ChatScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
+  const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
+
+  // Voice session hook
+  const {
+    isActive: isVoiceActive,
+    isConnecting: isVoiceConnecting,
+    isRecording,
+    error: voiceError,
+    startVoiceSession,
+    stopVoiceSession,
+    setRecording,
+    clearError: clearVoiceError,
+    isSupported: isVoiceSupported,
+  } = useVoiceSession();
+
+  // Animation for mic button
+  const micScale = useRef(new Animated.Value(1)).current;
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -73,6 +94,122 @@ export default function ChatScreen() {
       }, 300);
     }
   }, [messages.length]); // Only trigger when message count changes
+
+  // Hide voice instructions after first use or timeout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowVoiceInstructions(false);
+    }, 10000); // Hide after 10 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Voice session handlers
+  const handleStartVoice = async () => {
+    if (!isVoiceSupported) {
+      Alert.alert(
+        'Voice Not Supported',
+        'Voice functionality is not supported on this device.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      await startVoiceSession({
+        Query: "Start voice conversation", // Required query for voice session
+        ConversationId: conversationId || undefined,
+        UserId: userId, // Include user ID for tracking
+      });
+      setShowVoiceInstructions(false);
+    } catch (error) {
+      console.error('Failed to start voice session:', error);
+    }
+  };
+
+  const handleStopVoice = async () => {
+    try {
+      await stopVoiceSession();
+    } catch (error) {
+      console.error('Failed to stop voice session:', error);
+    }
+  };
+
+  // Pan responder for press-and-hold microphone functionality
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => false,
+    
+    onPanResponderGrant: () => {
+      // Start recording on press
+      Animated.spring(micScale, {
+        toValue: 1.2,
+        useNativeDriver: true,
+      }).start();
+      
+      if (isVoiceActive) {
+        setRecording(true);
+      } else {
+        handleStartVoice();
+      }
+    },
+    
+    onPanResponderRelease: () => {
+      // Stop recording on release
+      Animated.spring(micScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+      
+      if (isVoiceActive && isRecording) {
+        setRecording(false);
+      }
+    },
+    
+    onPanResponderTerminate: () => {
+      // Stop recording if gesture is terminated
+      Animated.spring(micScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+      
+      if (isVoiceActive && isRecording) {
+        setRecording(false);
+      }
+    },
+  });
+
+  // Get microphone button style based on voice state
+  const getMicButtonStyle = () => {
+    if (!isVoiceSupported) {
+      return [voiceStyles.micButton, voiceStyles.micButtonDisabled];
+    }
+    if (isRecording) {
+      return [voiceStyles.micButton, voiceStyles.micButtonActive];
+    }
+    if (isVoiceConnecting) {
+      return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
+    }
+    return voiceStyles.micButton;
+  };
+
+  // Get voice status text
+  const getVoiceStatusText = () => {
+    if (isRecording) return 'Recording... Release to stop';
+    if (isVoiceConnecting) return 'Connecting to voice service...';
+    if (isVoiceActive) return 'Voice ready - Hold mic to talk';
+    if (voiceError) return voiceError;
+    return '';
+  };
+
+  // Get voice status icon
+  const getVoiceStatusIcon = () => {
+    if (isRecording) return '🔴';
+    if (isVoiceConnecting) return '🔄';
+    if (isVoiceActive) return '🎤';
+    if (voiceError) return '⚠️';
+    return '';
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -215,6 +352,31 @@ export default function ChatScreen() {
               testID="chat-input"
               {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
             />
+            
+            {/* Voice Controls */}
+            {isVoiceSupported && (
+              <View style={voiceStyles.voiceContainer}>
+                <Animated.View 
+                  style={[
+                    { transform: [{ scale: micScale }] }
+                  ]}
+                  {...panResponder.panHandlers}
+                >
+                  <TouchableOpacity
+                    style={getMicButtonStyle()}
+                    activeOpacity={0.8}
+                    testID="mic-button"
+                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                  >
+                    <Text style={voiceStyles.micIcon}>🎤</Text>
+                    {isRecording && (
+                      <View style={voiceStyles.recordingIndicator} />
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            )}
+
             <TouchableOpacity 
               onPress={handleSend} 
               style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
@@ -225,6 +387,54 @@ export default function ChatScreen() {
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Voice Status Overlay */}
+          {(isVoiceActive || isVoiceConnecting || voiceError) && (
+            <View style={[
+              voiceStyles.voiceStatusOverlay, 
+              voiceError && voiceStyles.voiceError
+            ]}>
+              <View style={[
+                voiceStyles.connectionDot,
+                isVoiceActive && voiceStyles.connectionDotConnected,
+                isVoiceConnecting && voiceStyles.connectionDotConnecting,
+                voiceError && voiceStyles.connectionDotDisconnected,
+              ]} />
+              <Text style={[
+                voiceStyles.voiceStatusText,
+                voiceError && voiceStyles.voiceErrorText
+              ]}>
+                {getVoiceStatusIcon()} {getVoiceStatusText()}
+              </Text>
+              
+              {voiceError && (
+                <TouchableOpacity 
+                  style={voiceStyles.dismissButton}
+                  onPress={clearVoiceError}
+                >
+                  <Text style={voiceStyles.dismissButtonText}>Dismiss</Text>
+                </TouchableOpacity>
+              )}
+              
+              {isVoiceActive && (
+                <TouchableOpacity 
+                  style={voiceStyles.dismissButton}
+                  onPress={handleStopVoice}
+                >
+                  <Text style={voiceStyles.dismissButtonText}>Stop</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Voice Instructions Overlay */}
+          {showVoiceInstructions && isVoiceSupported && !isVoiceActive && (
+            <View style={voiceStyles.holdInstructionOverlay}>
+              <Text style={voiceStyles.holdInstructionText}>
+                Hold microphone button to talk with voice
+              </Text>
+            </View>
+          )}
 
         </View>
 

@@ -18,7 +18,9 @@
       "buildNumber": "2.0.1",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
-        "UILaunchStoryboardName": "SplashScreen"
+        "UILaunchStoryboardName": "SplashScreen",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice chat functionality to enhance your gaming experience.",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -26,11 +28,24 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice chat functionality."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "e9dc20f4-0ce8-435c-8dea-9b11b46e7277"
