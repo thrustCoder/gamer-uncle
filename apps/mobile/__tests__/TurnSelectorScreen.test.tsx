@@ -3,11 +3,6 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TurnSelectorScreen from '../screens/TurnSelectorScreen';
 
 // Mock dependencies
-jest.mock('react-native-confetti-cannon', () => {
-  const MockConfettiCannon = ({ children, ...props }: any) => null;
-  return MockConfettiCannon;
-});
-
 jest.mock('expo-av', () => ({
   Audio: {
     Sound: {

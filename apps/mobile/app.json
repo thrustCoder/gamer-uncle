@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gamer Uncle",
     "slug": "gamer-uncle",
-    "version": "2.0.1",
+    "version": "2.1.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,11 +15,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thrustCoder.gamerUncle",
-      "buildNumber": "2.0.1",
+      "buildNumber": "2.1.7",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
         "UILaunchStoryboardName": "SplashScreen",
         "NSMicrophoneUsageDescription": "This app uses the microphone for voice chat functionality to enhance your gaming experience.",
+        "NSCameraUsageDescription": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
         "UIBackgroundModes": ["audio"]
       }
     },
@@ -44,7 +45,15 @@
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice chat functionality."
         }
-      ]
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
+          "microphonePermission": "This app uses the microphone for voice chat functionality to enhance your gaming experience."
+        }
+      ],
+      "./plugins/ensure-permissions"
     ],
     "extra": {
       "eas": {

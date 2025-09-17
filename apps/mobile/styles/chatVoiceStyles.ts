@@ -253,4 +253,28 @@ export const chatVoiceStyles = StyleSheet.create({
   permissionCancelText: {
     color: Colors.textDark,
   },
+
+  // Simulator-specific styles for development
+  simulatorBanner: {
+    backgroundColor: '#FFF3CD',
+    borderColor: '#FFEAA7',
+    borderWidth: 1,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  simulatorText: {
+    fontSize: 12,
+    color: '#856404',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  micButtonSimulator: {
+    borderWidth: 2,
+    borderColor: '#FFEAA7',
+    borderStyle: 'dashed',
+  },
 });

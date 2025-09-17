@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, MediaStream } from 'react-native-webrtc';
 import axios from 'axios';
 
@@ -28,14 +29,19 @@ export interface VoiceSessionState {
 
 // Environment-specific API base URLs
 const getApiBaseUrl = (): string => {
-  // Check if we're in a development environment
-  if (__DEV__) {
-    // For development, use Azure Front Door endpoint
-    return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-  }
+  // TEMPORARY: Force dev endpoint for voice testing until prod is configured
+  // TODO: Remove this when production voice service is deployed
+  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
   
-  // For production, use Azure Front Door endpoint
-  return 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/';
+  // Original logic (restored after production voice service is deployed):
+  // Check if we're in a development environment
+  // if (__DEV__) {
+  //   // For development, use Azure Front Door endpoint
+  //   return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
+  // }
+  // 
+  // // For production, use Azure Front Door endpoint
+  // return 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/';
 };
 
 const api = axios.create({
@@ -66,6 +72,8 @@ export const useVoiceSession = () => {
   // Request microphone permissions and get local audio stream
   const requestAudioPermissions = useCallback(async (): Promise<MediaStream | null> => {
     try {
+      console.log('🟡 [DEBUG] Requesting audio permissions...');
+      
       const stream = await mediaDevices.getUserMedia({
         video: false,
         audio: {
@@ -75,10 +83,16 @@ export const useVoiceSession = () => {
           sampleRate: 16000, // Optimized for voice
         } as any, // Type assertion for react-native-webrtc compatibility
       });
+      
+      console.log('🟢 [DEBUG] Audio permissions granted, stream:', {
+        id: stream.id,
+        tracks: stream.getTracks().length
+      });
+      
       return stream;
     } catch (error) {
-      console.error('Failed to get audio permissions:', error);
-      updateState({ error: 'Microphone access denied. Please grant microphone permissions in settings.' });
+      console.error('🔴 [DEBUG] Failed to get audio permissions:', error);
+      updateState({ error: 'Microphone access denied. Please grant microphone permissions in Settings > Gamer Uncle > Microphone.' });
       return null;
     }
   }, [updateState]);
@@ -86,22 +100,41 @@ export const useVoiceSession = () => {
   // Create voice session with backend - simplified for free-form input/output
   const createVoiceSession = useCallback(async (request: VoiceSessionRequest): Promise<VoiceSessionResponse | null> => {
     try {
-      const response = await api.post('voice/session', request, {
+      console.log('🟡 [DEBUG] Creating voice session:', { 
+        url: 'voice/sessions', 
+        request: request,
+        baseURL: api.defaults.baseURL 
+      });
+      
+      const response = await api.post('voice/sessions', request, {
         timeout: 10000, // 10 second timeout
         headers: {
           'Content-Type': 'application/json',
         },
       });
+      
+      console.log('🟢 [DEBUG] Voice session created successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Failed to create voice session:', error);
+      console.error('🔴 [DEBUG] Failed to create voice session:', error);
+      
       if (axios.isAxiosError(error)) {
+        console.error('🔴 [DEBUG] Axios error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method
+        });
+        
         if (error.response?.status === 429) {
           updateState({ error: 'Too many requests. Please wait a moment and try again.' });
         } else if (error.response && error.response.status >= 500) {
           updateState({ error: 'Voice service temporarily unavailable. Please try again later.' });
+        } else if (error.response?.status === 404) {
+          updateState({ error: 'Voice service not available. Please try again later.' });
         } else {
-          updateState({ error: 'Failed to start voice session. Please check your connection.' });
+          updateState({ error: `Failed to start voice session (${error.response?.status || 'network error'}). Please check your connection.` });
         }
       } else {
         updateState({ error: 'Failed to start voice session. Please try again.' });
@@ -158,6 +191,11 @@ export const useVoiceSession = () => {
 
   // Start voice session - simplified for free-form input/output
   const startVoiceSession = useCallback(async (request: VoiceSessionRequest) => {
+    console.log('🟡 [DEBUG] Starting voice session with request:', request);
+    console.log('🟡 [DEBUG] API Base URL:', getApiBaseUrl());
+    console.log('🟡 [DEBUG] Environment __DEV__:', __DEV__);
+    console.log('🟡 [DEBUG] Platform:', Platform.OS);
+    
     try {
       updateState({ isConnecting: true, error: null });
 
@@ -170,6 +208,7 @@ export const useVoiceSession = () => {
       localStreamRef.current = localStream;
 
       // Create voice session with backend
+      console.log('🟡 [DEBUG] Creating voice session via API...');
       const sessionResponse = await createVoiceSession(request);
       if (!sessionResponse) {
         updateState({ isConnecting: false });
@@ -177,34 +216,55 @@ export const useVoiceSession = () => {
         return;
       }
 
+      console.log('🟢 [DEBUG] Voice session created, sessionId:', sessionResponse.SessionId);
       sessionIdRef.current = sessionResponse.SessionId;
       updateState({ sessionId: sessionResponse.SessionId });
 
       // Setup peer connection with default configuration
+      console.log('🟡 [DEBUG] Setting up WebRTC peer connection...');
       const peerConnection = setupPeerConnection();
       peerConnectionRef.current = peerConnection;
 
       // Add local stream to peer connection
       localStream.getTracks().forEach(track => {
+        console.log('🟡 [DEBUG] Adding track to peer connection:', track.kind);
         peerConnection.addTrack(track, localStream);
       });
 
       // Create offer for simplified voice session
-      const offer = await peerConnection.createOffer();
+      console.log('🟡 [DEBUG] Creating WebRTC offer...');
+      const offer = await peerConnection.createOffer({});
       await peerConnection.setLocalDescription(offer);
+      console.log('🟢 [DEBUG] WebRTC offer created and local description set');
       
       // Send offer to backend (would be handled by voice service)
       console.log('Offer SDP:', offer.sdp);
 
       // Mark as active for simplified testing
       updateState({ isConnecting: false, isActive: true });
+      console.log('🟢 [DEBUG] Voice session started successfully');
 
     } catch (error) {
-      console.error('Failed to start voice session:', error);
+      console.error('🔴 [DEBUG] Failed to start voice session:', error);
+      
+      // Enhanced error logging
+      if (axios.isAxiosError(error)) {
+        console.error('🔴 [DEBUG] Axios error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            baseURL: error.config?.baseURL,
+            method: error.config?.method
+          }
+        });
+      }
+      
       updateState({ 
         isConnecting: false, 
         isActive: false,
-        error: 'Failed to start voice session. Please try again.' 
+        error: `Voice session failed: ${error instanceof Error ? error.message : 'Unknown error'}. API: ${getApiBaseUrl()}voice/sessions` 
       });
       
       // Cleanup on error

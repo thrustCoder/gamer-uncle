@@ -52,9 +52,6 @@ jest.mock('expo-av', () => ({
   },
 }));
 
-// Mock react-native-confetti-cannon
-jest.mock('react-native-confetti-cannon', () => 'ConfettiCannon');
-
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => {
   let store = {};
@@ -133,6 +130,3 @@ jest.mock('react-native-svg', () => ({
   G: 'G',
   Text: 'Text',
 }));
-
-// Mock react-native-confetti-cannon
-jest.mock('react-native-confetti-cannon', () => 'ConfettiCannon');

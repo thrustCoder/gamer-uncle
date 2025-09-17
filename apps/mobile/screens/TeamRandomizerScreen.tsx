@@ -8,8 +8,8 @@ import {
   FlatList,
   Alert,
   ScrollView,
+  Animated,
 } from 'react-native';
-import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
@@ -25,13 +25,65 @@ export default function TeamRandomizerScreen() {
   const [teamCount, setTeamCount] = useState(2);
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
-  const confettiRef = useRef<any>(null);
   const hasRandomizedOnce = useRef(false);
+  
+  // Animation values for celebration
+  const celebrationScale = useRef(new Animated.Value(0)).current;
+  const celebrationOpacity = useRef(new Animated.Value(0)).current;
+  const celebrationBounce = useRef(new Animated.Value(0)).current;
 
   const handleNameChange = (index: number, name: string) => {
     const updated = [...playerNames];
     updated[index] = name;
   setPlayerNames(updated);
+  };
+
+  const startCelebrationAnimation = () => {
+    // Reset animation values
+    celebrationScale.setValue(0);
+    celebrationOpacity.setValue(0);
+    celebrationBounce.setValue(0);
+    
+    setCelebrate(true);
+    
+    // Start the celebration animation sequence
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(celebrationScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 3,
+        }),
+        Animated.timing(celebrationOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(celebrationBounce, {
+            toValue: -10,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(celebrationBounce, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+        { iterations: 3 }
+      ),
+      Animated.timing(celebrationOpacity, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setCelebrate(false);
+    });
   };
 
   const showPlayerCountPicker = () => {
@@ -87,11 +139,12 @@ export default function TeamRandomizerScreen() {
       result[i % teamCount].push(player.name);
     });
     setTeams(result);
-    setCelebrate(false);
-    setTimeout(() => setCelebrate(true), 100);
-    if (!hasRandomizedOnce.current && confettiRef.current) {
+    
+    // Start celebration animation
+    setTimeout(() => startCelebrationAnimation(), 100);
+    
+    if (!hasRandomizedOnce.current) {
       hasRandomizedOnce.current = true;
-      confettiRef.current.start();
     }
     const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/fanfare.mp3'));
     await sound.playAsync();
@@ -235,13 +288,30 @@ export default function TeamRandomizerScreen() {
         </ScrollView>
 
         {celebrate && (
-          <ConfettiCannon
-            count={100}
-            origin={{ x: 200, y: 0 }}
-            fadeOut
-            autoStart
-            ref={confettiRef}
-          />
+          <Animated.View 
+            style={{ 
+              position: 'absolute', 
+              top: 60, 
+              left: 0, 
+              right: 0, 
+              alignItems: 'center',
+              transform: [
+                { scale: celebrationScale },
+                { translateY: celebrationBounce }
+              ],
+              opacity: celebrationOpacity,
+            }}
+          >
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: Colors.themeGreen, textAlign: 'center' }}>
+              🎉 🎊 🎈
+            </Text>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: Colors.themeGreen, marginTop: 5, textAlign: 'center' }}>
+              Teams Generated!
+            </Text>
+            <Text style={{ fontSize: 32, fontWeight: 'bold', color: Colors.themeGreen, textAlign: 'center' }}>
+              🏆 ⭐ �
+            </Text>
+          </Animated.View>
         )}
       </View>
     </ImageBackground>

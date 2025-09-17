@@ -20,6 +20,7 @@ import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
+import { EnvironmentDetection } from '../utils/environmentDetection';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -104,8 +105,26 @@ export default function ChatScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Show voice errors to user
+  useEffect(() => {
+    if (voiceError) {
+      Alert.alert(
+        'Voice Error',
+        voiceError,
+        [
+          { 
+            text: 'OK', 
+            onPress: () => clearVoiceError() 
+          }
+        ]
+      );
+    }
+  }, [voiceError, clearVoiceError]);
+
   // Voice session handlers
   const handleStartVoice = async () => {
+    console.log('🟡 [DEBUG] handleStartVoice called, isVoiceSupported:', isVoiceSupported);
+    
     if (!isVoiceSupported) {
       Alert.alert(
         'Voice Not Supported',
@@ -116,14 +135,21 @@ export default function ChatScreen() {
     }
 
     try {
+      console.log('🟡 [DEBUG] About to call startVoiceSession');
       await startVoiceSession({
         Query: "Start voice conversation", // Required query for voice session
         ConversationId: conversationId || undefined,
         UserId: userId, // Include user ID for tracking
       });
       setShowVoiceInstructions(false);
+      console.log('🟢 [DEBUG] Voice session started successfully');
     } catch (error) {
-      console.error('Failed to start voice session:', error);
+      console.error('🔴 [DEBUG] Failed to start voice session:', error);
+      Alert.alert(
+        'Voice Session Failed',
+        'Failed to start voice session. Please check your microphone permissions and try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -190,6 +216,12 @@ export default function ChatScreen() {
     if (isVoiceConnecting) {
       return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
     }
+    
+    // Add simulator styling in development
+    if (EnvironmentDetection.shouldUseMockVoice()) {
+      return [voiceStyles.micButton, voiceStyles.micButtonSimulator];
+    }
+    
     return voiceStyles.micButton;
   };
 
@@ -209,6 +241,19 @@ export default function ChatScreen() {
     if (isVoiceActive) return '🎤';
     if (voiceError) return '⚠️';
     return '';
+  };
+
+  // Render simulator banner for development
+  const renderSimulatorBanner = () => {
+    if (!EnvironmentDetection.shouldUseMockVoice()) return null;
+    
+    return (
+      <View style={voiceStyles.simulatorBanner}>
+        <Text style={voiceStyles.simulatorText}>
+          🔧 Simulator Mode - Voice UI Testing (Mock Data)
+        </Text>
+      </View>
+    );
   };
 
   const handleSend = async () => {
@@ -314,6 +359,9 @@ export default function ChatScreen() {
           navigation.goBack(); // <-- Add this line to actually go back
         }} />
 
+        {/* Simulator Mode Banner */}
+        {renderSimulatorBanner()}
+
         <View style={styles.container}>
           <View style={styles.header}>
             <Image source={require('../assets/images/uncle_avatar.png')} style={styles.avatar} />
@@ -360,11 +408,12 @@ export default function ChatScreen() {
                   style={[
                     { transform: [{ scale: micScale }] }
                   ]}
-                  {...panResponder.panHandlers}
+                  {...(Platform.OS !== 'web' && panResponder.panHandlers)}
                 >
                   <TouchableOpacity
                     style={getMicButtonStyle()}
                     activeOpacity={0.8}
+                    onPress={Platform.OS === 'web' ? handleStartVoice : undefined}
                     testID="mic-button"
                     {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
                   >

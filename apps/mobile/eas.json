@@ -21,7 +21,10 @@
     "production": {
       "ios": {
         "distribution": "store",
-        "developmentClient": false
+        "developmentClient": false,
+        "cache": {
+          "paths": []
+        }
       }
     }
   },  
