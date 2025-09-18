@@ -102,6 +102,7 @@ builder.Services.AddRateLimiter(options =>
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
+builder.Services.AddScoped<IGameDataService, GameDataService>();
 builder.Services.AddHttpClient<IFoundryVoiceService, FoundryVoiceService>();
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")

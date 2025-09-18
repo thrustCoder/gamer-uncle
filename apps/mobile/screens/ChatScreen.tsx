@@ -12,6 +12,7 @@ import {
   Alert,
   PanResponder,
   Animated,
+  Switch,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
 import { chatVoiceStyles as voiceStyles } from '../styles/chatVoiceStyles';
@@ -20,6 +21,7 @@ import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
+import { useFoundryVoiceSession } from '../hooks/useFoundryVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
@@ -68,6 +70,7 @@ export default function ChatScreen() {
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
+  const [useFoundryVoice, setUseFoundryVoice] = useState(true); // Toggle for Foundry Live Voice
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
     microphone: 'undetermined',
     camera: 'undetermined'
@@ -76,18 +79,8 @@ export default function ChatScreen() {
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
-  // Voice session hook
-  const {
-    isActive: isVoiceActive,
-    isConnecting: isVoiceConnecting,
-    isRecording,
-    error: voiceError,
-    startVoiceSession,
-    stopVoiceSession,
-    setRecording,
-    clearError: clearVoiceError,
-    isSupported: isVoiceSupported,
-  } = useVoiceSession((voiceResponse) => {
+  // Legacy voice session hook
+  const legacyVoiceSession = useVoiceSession((voiceResponse) => {
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
@@ -104,6 +97,41 @@ export default function ChatScreen() {
       }
     }
   });
+
+  // Foundry voice session hook
+  const foundryVoiceSession = useFoundryVoiceSession((voiceResponse) => {
+    // Handle voice response by adding it to chat messages
+    if (voiceResponse.responseText) {
+      const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
+      const newMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        text: voiceResponse.responseText
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation ID if provided (only for system responses)
+      if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
+        setConversationId(voiceResponse.threadId);
+      }
+    }
+  });
+
+  // Use the appropriate voice session based on toggle
+  const currentVoiceSession = useFoundryVoice ? foundryVoiceSession : legacyVoiceSession;
+  
+  // Extract properties from current voice session
+  const {
+    isActive: isVoiceActive,
+    isConnecting: isVoiceConnecting,
+    isRecording,
+    error: voiceError,
+    startVoiceSession,
+    stopVoiceSession,
+    setRecording,
+    clearError: clearVoiceError,
+    isSupported: isVoiceSupported,
+  } = currentVoiceSession;
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
@@ -177,11 +205,20 @@ export default function ChatScreen() {
         setPermissionStatus(newStatus);
       }
       
-      await startVoiceSession({
-        Query: "Start voice conversation",
-        ConversationId: conversationId || undefined,
-        UserId: userId,
-      });
+      // Start appropriate voice session
+      if (useFoundryVoice) {
+        await foundryVoiceSession.startVoiceSession({
+          query: "Start voice conversation",
+          conversationId: conversationId || undefined,
+          userId: userId,
+        });
+      } else {
+        await legacyVoiceSession.startVoiceSession({
+          Query: "Start voice conversation",
+          ConversationId: conversationId || undefined,
+          UserId: userId,
+        });
+      }
       setShowVoiceInstructions(false);
     } catch (error) {
       console.error('Failed to start voice session:', error);
@@ -195,7 +232,11 @@ export default function ChatScreen() {
 
   const handleStopVoice = async () => {
     try {
-      await stopVoiceSession();
+      if (useFoundryVoice) {
+        await foundryVoiceSession.stopVoiceSession();
+      } else {
+        await legacyVoiceSession.stopVoiceSession();
+      }
     } catch (error) {
       console.error('Failed to stop voice session:', error);
     }
@@ -218,7 +259,11 @@ export default function ChatScreen() {
         handleStartVoice();
       } else {
         // If voice session is already active, start recording immediately
-        setRecording(true);
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(true);
+        } else {
+          legacyVoiceSession.setRecording(true);
+        }
       }
     },
     
@@ -230,7 +275,11 @@ export default function ChatScreen() {
       }).start();
       
       if (isVoiceActive && isRecording) {
-        setRecording(false);
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(false);
+        } else {
+          legacyVoiceSession.setRecording(false);
+        }
       }
     },
     
@@ -242,7 +291,11 @@ export default function ChatScreen() {
       }).start();
       
       if (isVoiceActive && isRecording) {
-        setRecording(false);
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(false);
+        } else {
+          legacyVoiceSession.setRecording(false);
+        }
       }
     },
   });
@@ -444,6 +497,21 @@ export default function ChatScreen() {
             />
           </View>
 
+          {/* Foundry Voice Toggle - Positioned above input bar */}
+          <View style={voiceStyles.toggleContainer}>
+            <Text style={voiceStyles.toggleLabel}>
+              {useFoundryVoice ? '🎯 Foundry Live Voice' : '🎙️ Legacy Voice'}
+            </Text>
+            <Switch
+              value={useFoundryVoice}
+              onValueChange={setUseFoundryVoice}
+              trackColor={{ false: '#767577', true: '#4A90E2' }}
+              thumbColor={useFoundryVoice ? '#fff' : '#f4f3f4'}
+              testID="foundry-voice-toggle"
+              {...(Platform.OS === 'web' && { 'data-testid': 'foundry-voice-toggle' })}
+            />
+          </View>
+
           <View style={styles.inputBar}>
             <TextInput
               ref={textInputRef}
@@ -475,12 +543,20 @@ export default function ChatScreen() {
                     if (!isVoiceActive) {
                       handleStartVoice();
                     } else {
-                      setRecording(true);
+                      if (useFoundryVoice) {
+                        foundryVoiceSession.setRecording(true);
+                      } else {
+                        legacyVoiceSession.setRecording(true);
+                      }
                     }
                   } : undefined}
                   onPressOut={Platform.OS !== 'web' ? () => {
                     if (isVoiceActive && isRecording) {
-                      setRecording(false);
+                      if (useFoundryVoice) {
+                        foundryVoiceSession.setRecording(false);
+                      } else {
+                        legacyVoiceSession.setRecording(false);
+                      }
                     }
                   } : undefined}
                   testID="mic-button"

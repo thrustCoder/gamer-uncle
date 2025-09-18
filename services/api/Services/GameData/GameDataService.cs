@@ -2,6 +2,7 @@ using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
+using System.Text;
 
 namespace GamerUncle.Api.Services.GameData
 {
@@ -126,6 +127,137 @@ namespace GamerUncle.Api.Services.GameData
                 _logger.LogError(ex, "Error validating game for voice session. GameId: {GameId}", gameId);
                 return false; // Return false on error for safety
             }
+        }
+
+        public async Task<string> GetGameContextForFoundryAsync(string query, string? conversationId = null)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching game context for Foundry query: {Query}", query);
+                
+                // Use existing method to find relevant games
+                var relevantGames = await GetRelevantGamesForQueryAsync(query);
+                
+                // Format context for Foundry system message
+                return FormatGameContextForFoundry(relevantGames, query);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get game context for Foundry query: {Query}", query);
+                return "I'm a board game expert ready to help with recommendations and strategy advice.";
+            }
+        }
+
+        public async Task<List<GameDocument>> GetRelevantGamesForQueryAsync(string query, int maxResults = 5)
+        {
+            try
+            {
+                _logger.LogInformation("Searching for relevant games for query: {Query}", query);
+
+                if (_isTestEnvironment)
+                {
+                    return GetTestRelevantGames(query, maxResults);
+                }
+
+                if (_container == null)
+                {
+                    throw new InvalidOperationException("Cosmos container not initialized for non-test environment");
+                }
+
+                // Use CONTAINS for text search across name and description
+                var queryDef = new QueryDefinition(
+                    "SELECT TOP @maxResults * FROM c WHERE CONTAINS(UPPER(c.name), UPPER(@query)) OR CONTAINS(UPPER(c.description), UPPER(@query)) ORDER BY c.averageRating DESC")
+                    .WithParameter("@maxResults", maxResults)
+                    .WithParameter("@query", query);
+
+                var results = new List<GameDocument>();
+                using var iterator = _container.GetItemQueryIterator<GameDocument>(queryDef);
+
+                while (iterator.HasMoreResults && results.Count < maxResults)
+                {
+                    var response = await iterator.ReadNextAsync();
+                    results.AddRange(response);
+                }
+
+                _logger.LogInformation("Found {Count} relevant games for query: {Query}", results.Count, query);
+                return results.Take(maxResults).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get relevant games for query: {Query}", query);
+                return new List<GameDocument>();
+            }
+        }
+
+        private string FormatGameContextForFoundry(List<GameDocument> relevantGames, string query)
+        {
+            var contextBuilder = new StringBuilder();
+            
+            contextBuilder.AppendLine("You are an expert board game assistant with comprehensive knowledge of thousands of games.");
+            contextBuilder.AppendLine("Provide conversational, enthusiastic, and detailed responses about board games.");
+            contextBuilder.AppendLine("Always speak naturally as if having a friendly conversation about games.");
+            contextBuilder.AppendLine();
+
+            if (relevantGames.Any())
+            {
+                contextBuilder.AppendLine($"Relevant games for the user's query '{query}':");
+                foreach (var game in relevantGames.Take(5))
+                {
+                    contextBuilder.AppendLine($"- {game.name}: {game.description ?? "A great board game"}");
+                    contextBuilder.AppendLine($"  Players: {game.minPlayers}-{game.maxPlayers}, " +
+                                           $"Time: {game.minPlaytime}-{game.maxPlaytime} min, " +
+                                           $"Rating: {game.averageRating:F1}");
+                    
+                    if (game.mechanics?.Any() == true)
+                    {
+                        contextBuilder.AppendLine($"  Mechanics: {string.Join(", ", game.mechanics.Take(3))}");
+                    }
+                    contextBuilder.AppendLine();
+                }
+            }
+
+            contextBuilder.AppendLine("Guidelines for voice responses:");
+            contextBuilder.AppendLine("- Reference specific games from the context when relevant");
+            contextBuilder.AppendLine("- Provide actionable recommendations based on player count, complexity, and preferences");
+            contextBuilder.AppendLine("- Ask follow-up questions to better understand user needs");
+            contextBuilder.AppendLine("- Keep responses engaging and conversational for voice interaction");
+            contextBuilder.AppendLine("- Speak naturally and enthusiastically about board games");
+
+            return contextBuilder.ToString();
+        }
+
+        private List<GameDocument> GetTestRelevantGames(string query, int maxResults)
+        {
+            // Return test game data for testing
+            var testGames = new List<GameDocument>();
+            
+            if (query.ToLower().Contains("strategy") || query.ToLower().Contains("brass") || query.ToLower().Contains("economic"))
+            {
+                var brassGame = GetTestGameDocument("bgg-224517");
+                if (brassGame != null)
+                {
+                    testGames.Add(brassGame);
+                }
+            }
+
+            // Add more test games based on query content
+            if (query.ToLower().Contains("beginner") || query.ToLower().Contains("easy") || query.ToLower().Contains("simple"))
+            {
+                testGames.Add(new GameDocument
+                {
+                    id = "bgg-test-beginner",
+                    name = "Ticket to Ride",
+                    description = "A railway-themed board game perfect for beginners",
+                    minPlayers = 2,
+                    maxPlayers = 5,
+                    minPlaytime = 30,
+                    maxPlaytime = 60,
+                    averageRating = 7.4,
+                    mechanics = new List<string> { "Set Collection", "Route Building" }
+                });
+            }
+
+            return testGames.Take(maxResults).ToList();
         }
 
         private GameDocument? GetTestGameDocument(string gameId)
