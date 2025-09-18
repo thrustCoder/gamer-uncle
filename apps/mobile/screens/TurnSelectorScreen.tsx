@@ -10,7 +10,6 @@ import {
   ImageBackground,
   Alert,
 } from 'react-native';
-import ConfettiCannon from 'react-native-confetti-cannon';
 import { Audio } from 'expo-av';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
@@ -26,7 +25,11 @@ export default function TurnSelectorScreen() {
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [winner, setWinner] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
-  const confettiRef = useRef(null);
+
+  // Animation values for celebration
+  const celebrationScale = useRef(new Animated.Value(0)).current;
+  const celebrationOpacity = useRef(new Animated.Value(0)).current;
+  const celebrationBounce = useRef(new Animated.Value(0)).current;
 
   const handleNameChange = (index: number, name: string) => {
     const updatedNames = [...playerNames];
@@ -34,13 +37,60 @@ export default function TurnSelectorScreen() {
     setPlayerNames(updatedNames);
   };
 
+  const startCelebrationAnimation = () => {
+    // Reset animation values
+    celebrationScale.setValue(0);
+    celebrationOpacity.setValue(0);
+    celebrationBounce.setValue(0);
+    
+    setCelebrate(true);
+    
+    // Start the celebration animation sequence
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(celebrationScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 3,
+        }),
+        Animated.timing(celebrationOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(celebrationBounce, {
+            toValue: -10,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(celebrationBounce, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+        { iterations: 3 }
+      ),
+      Animated.timing(celebrationOpacity, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setCelebrate(false);
+    });
+  };
+
   const handleSpin = async (selectedIndex: number) => {
     const selectedName = playerNames[selectedIndex] || `P${selectedIndex + 1}`;
     setWinner(selectedName);
-    setCelebrate(false); // Reset first
-    setTimeout(() => {
-      setCelebrate(true); // Then trigger
-    }, 100);
+    
+    // Start celebration animation
+    setTimeout(() => startCelebrationAnimation(), 100);
   };
 
   const showPlayerCountPicker = () => {
@@ -185,15 +235,30 @@ export default function TurnSelectorScreen() {
         <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
       </View>
       {celebrate && (
-        <ConfettiCannon
-          count={100}
-          origin={{ x: -10, y: 0 }}
-          autoStart={true}
-          fadeOut={true}
-          explosionSpeed={350}
-          fallSpeed={2500}
-          ref={confettiRef}
-        />
+        <Animated.View 
+          style={{ 
+            position: 'absolute', 
+            top: 60, 
+            left: 0, 
+            right: 0, 
+            alignItems: 'center',
+            transform: [
+              { scale: celebrationScale },
+              { translateY: celebrationBounce }
+            ],
+            opacity: celebrationOpacity,
+          }}
+        >
+          <Text style={{ fontSize: 32, fontWeight: 'bold', color: Colors.themeGreen, textAlign: 'center' }}>
+            🎉 🎊 🎈
+          </Text>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: Colors.themeGreen, marginTop: 5, textAlign: 'center' }}>
+            Player Selected!
+          </Text>
+          <Text style={{ fontSize: 32, fontWeight: 'bold', color: Colors.themeGreen, textAlign: 'center' }}>
+            🏆 ⭐ �
+          </Text>
+        </Animated.View>
       )}
     </ImageBackground>
   );

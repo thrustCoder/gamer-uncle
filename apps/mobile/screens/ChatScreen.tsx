@@ -10,12 +10,21 @@ import {
   ImageBackground,
   Image,
   Alert,
+  PanResponder,
+  Animated,
+  Switch,
 } from 'react-native';
 import { chatStyles as styles } from '../styles/chatStyles';
+import { chatVoiceStyles as voiceStyles } from '../styles/chatVoiceStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
+import { useVoiceSession } from '../hooks/useVoiceSession';
+import { useFoundryVoiceSession } from '../hooks/useFoundryVoiceSession';
+import { EnvironmentDetection } from '../utils/environmentDetection';
+import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
+import { debugLogger } from '../utils/debugLogger';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -60,11 +69,74 @@ export default function ChatScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
+  const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
+  const [useFoundryVoice, setUseFoundryVoice] = useState(true); // Toggle for Foundry Live Voice
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
+    microphone: 'undetermined',
+    camera: 'undetermined'
+  });
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
-  // Auto-scroll to bottom when new messages are added
+  // Legacy voice session hook
+  const legacyVoiceSession = useVoiceSession((voiceResponse) => {
+    // Handle voice response by adding it to chat messages
+    if (voiceResponse.responseText) {
+      const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
+      const newMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        text: voiceResponse.responseText
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation ID if provided (only for system responses)
+      if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
+        setConversationId(voiceResponse.threadId);
+      }
+    }
+  });
+
+  // Foundry voice session hook
+  const foundryVoiceSession = useFoundryVoiceSession((voiceResponse) => {
+    // Handle voice response by adding it to chat messages
+    if (voiceResponse.responseText) {
+      const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
+      const newMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        text: voiceResponse.responseText
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation ID if provided (only for system responses)
+      if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
+        setConversationId(voiceResponse.threadId);
+      }
+    }
+  });
+
+  // Use the appropriate voice session based on toggle
+  const currentVoiceSession = useFoundryVoice ? foundryVoiceSession : legacyVoiceSession;
+  
+  // Extract properties from current voice session
+  const {
+    isActive: isVoiceActive,
+    isConnecting: isVoiceConnecting,
+    isRecording,
+    error: voiceError,
+    startVoiceSession,
+    stopVoiceSession,
+    setRecording,
+    clearError: clearVoiceError,
+    isSupported: isVoiceSupported,
+  } = currentVoiceSession;
+
+  // Animation for mic button
+  const micScale = useRef(new Animated.Value(1)).current;
+
+    // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (flatListRef.current) {
       // Use a longer timeout to ensure the message is rendered
@@ -72,7 +144,212 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 300);
     }
-  }, [messages.length]); // Only trigger when message count changes
+  }, [messages]);
+
+  // Check permissions on mount
+  useEffect(() => {
+    const checkPerms = async () => {
+      try {
+        const status = await PermissionChecker.checkPermissions();
+        setPermissionStatus(status);
+        debugLogger.log('Permission status on mount:', status);
+      } catch (error) {
+        debugLogger.error('Failed to check permissions:', error);
+      }
+    };
+    checkPerms();
+  }, []);
+
+  // Hide voice instructions after first use or timeout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowVoiceInstructions(false);
+    }, 10000); // Hide after 10 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show voice errors to user
+  useEffect(() => {
+    if (voiceError) {
+      Alert.alert(
+        'Voice Error',
+        voiceError,
+        [
+          { 
+            text: 'OK', 
+            onPress: () => clearVoiceError() 
+          }
+        ]
+      );
+    }
+  }, [voiceError, clearVoiceError]);
+
+  // Voice session handlers
+  const handleStartVoice = async () => {
+    try {
+      // Check permissions first
+      const permStatus = await PermissionChecker.checkPermissions();
+      setPermissionStatus(permStatus);
+      
+      // Request permissions if not granted
+      if (permStatus.microphone !== 'granted') {
+        const requested = await PermissionChecker.requestMicrophonePermission();
+        if (!requested) {
+          Alert.alert("Permission Required", "Microphone permission is required for voice chat.");
+          return;
+        }
+        
+        // Update permission status after request
+        const newStatus = await PermissionChecker.checkPermissions();
+        setPermissionStatus(newStatus);
+      }
+      
+      // Start appropriate voice session
+      if (useFoundryVoice) {
+        await foundryVoiceSession.startVoiceSession({
+          query: "Start voice conversation",
+          conversationId: conversationId || undefined,
+          userId: userId,
+        });
+      } else {
+        await legacyVoiceSession.startVoiceSession({
+          Query: "Start voice conversation",
+          ConversationId: conversationId || undefined,
+          UserId: userId,
+        });
+      }
+      setShowVoiceInstructions(false);
+    } catch (error) {
+      console.error('Failed to start voice session:', error);
+      Alert.alert(
+        'Voice Session Failed',
+        'Failed to start voice session. Please check your microphone permissions and try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleStopVoice = async () => {
+    try {
+      if (useFoundryVoice) {
+        await foundryVoiceSession.stopVoiceSession();
+      } else {
+        await legacyVoiceSession.stopVoiceSession();
+      }
+    } catch (error) {
+      console.error('Failed to stop voice session:', error);
+    }
+  };
+
+  // Pan responder for press-and-hold microphone functionality
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => false,
+    
+    onPanResponderGrant: () => {
+      // Visual feedback
+      Animated.spring(micScale, {
+        toValue: 1.2,
+        useNativeDriver: true,
+      }).start();
+      
+      if (!isVoiceActive) {
+        // Start voice session if not active
+        handleStartVoice();
+      } else {
+        // If voice session is already active, start recording immediately
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(true);
+        } else {
+          legacyVoiceSession.setRecording(true);
+        }
+      }
+    },
+    
+    onPanResponderRelease: () => {
+      // Stop recording on release
+      Animated.spring(micScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+      
+      if (isVoiceActive && isRecording) {
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(false);
+        } else {
+          legacyVoiceSession.setRecording(false);
+        }
+      }
+    },
+    
+    onPanResponderTerminate: () => {
+      // Stop recording if gesture is terminated
+      Animated.spring(micScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+      
+      if (isVoiceActive && isRecording) {
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(false);
+        } else {
+          legacyVoiceSession.setRecording(false);
+        }
+      }
+    },
+  });
+
+  // Get microphone button style based on voice state
+  const getMicButtonStyle = () => {
+    if (!isVoiceSupported) {
+      return [voiceStyles.micButton, voiceStyles.micButtonDisabled];
+    }
+    if (isRecording) {
+      return [voiceStyles.micButton, voiceStyles.micButtonActive];
+    }
+    if (isVoiceConnecting) {
+      return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
+    }
+    
+    // Add simulator styling in development
+    if (EnvironmentDetection.shouldUseMockVoice()) {
+      return [voiceStyles.micButton, voiceStyles.micButtonSimulator];
+    }
+    
+    return voiceStyles.micButton;
+  };
+
+  // Get voice status text
+  const getVoiceStatusText = () => {
+    if (isRecording) return 'Recording... Release to stop';
+    if (isVoiceConnecting) return 'Connecting to voice service...';
+    if (isVoiceActive) return 'Hold mic button to record your message';
+    if (voiceError) return voiceError;
+    return '';
+  };
+
+  // Get voice status icon
+  const getVoiceStatusIcon = () => {
+    if (isRecording) return '🔴';
+    if (isVoiceConnecting) return '🔄';
+    if (isVoiceActive) return '🎤';
+    if (voiceError) return '⚠️';
+    return '';
+  };
+
+  // Render simulator banner for development
+  const renderSimulatorBanner = () => {
+    if (!EnvironmentDetection.shouldUseMockVoice()) return null;
+    
+    return (
+      <View style={voiceStyles.simulatorBanner}>
+        <Text style={voiceStyles.simulatorText}>
+          🔧 Simulator Mode - Voice UI Testing (Mock Data)
+        </Text>
+      </View>
+    );
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -177,10 +454,30 @@ export default function ChatScreen() {
           navigation.goBack(); // <-- Add this line to actually go back
         }} />
 
+        {/* Simulator Mode Banner */}
+        {renderSimulatorBanner()}
+
         <View style={styles.container}>
           <View style={styles.header}>
             <Image source={require('../assets/images/uncle_avatar.png')} style={styles.avatar} />
           </View>
+
+          {/* Voice status indicator - only show when voice is active or there's an error */}
+          {(isVoiceActive || voiceError) && (
+            <View style={voiceStyles.voiceStatusContainer}>
+              <Text style={voiceStyles.voiceStatusText}>
+                {getVoiceStatusIcon()} {getVoiceStatusText()}
+              </Text>
+              {isVoiceActive && (
+                <TouchableOpacity 
+                  style={voiceStyles.inlineStopButton}
+                  onPress={handleStopVoice}
+                >
+                  <Text style={voiceStyles.inlineStopButtonText}>Stop</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* This wrapper must have flex: 1 */}
           <View style={styles.messagesWrapper}>
@@ -200,6 +497,21 @@ export default function ChatScreen() {
             />
           </View>
 
+          {/* Foundry Voice Toggle - Positioned above input bar */}
+          <View style={voiceStyles.toggleContainer}>
+            <Text style={voiceStyles.toggleLabel}>
+              {useFoundryVoice ? '🎯 Foundry Live Voice' : '🎙️ Legacy Voice'}
+            </Text>
+            <Switch
+              value={useFoundryVoice}
+              onValueChange={setUseFoundryVoice}
+              trackColor={{ false: '#767577', true: '#4A90E2' }}
+              thumbColor={useFoundryVoice ? '#fff' : '#f4f3f4'}
+              testID="foundry-voice-toggle"
+              {...(Platform.OS === 'web' && { 'data-testid': 'foundry-voice-toggle' })}
+            />
+          </View>
+
           <View style={styles.inputBar}>
             <TextInput
               ref={textInputRef}
@@ -215,6 +527,50 @@ export default function ChatScreen() {
               testID="chat-input"
               {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
             />
+            
+            {/* Voice Controls - Always show for debugging */}
+            <View style={voiceStyles.voiceContainer}>
+              <Animated.View 
+                style={[
+                  { transform: [{ scale: micScale }] }
+                ]}
+              >
+                <TouchableOpacity
+                  style={getMicButtonStyle()}
+                  activeOpacity={0.8}
+                  onPress={Platform.OS === 'web' ? handleStartVoice : undefined}
+                  onPressIn={Platform.OS !== 'web' ? () => {
+                    if (!isVoiceActive) {
+                      handleStartVoice();
+                    } else {
+                      if (useFoundryVoice) {
+                        foundryVoiceSession.setRecording(true);
+                      } else {
+                        legacyVoiceSession.setRecording(true);
+                      }
+                    }
+                  } : undefined}
+                  onPressOut={Platform.OS !== 'web' ? () => {
+                    if (isVoiceActive && isRecording) {
+                      if (useFoundryVoice) {
+                        foundryVoiceSession.setRecording(false);
+                      } else {
+                        legacyVoiceSession.setRecording(false);
+                      }
+                    }
+                  } : undefined}
+                  testID="mic-button"
+                  {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                  {...(Platform.OS !== 'web' && panResponder.panHandlers)}
+                >
+                  <Text style={voiceStyles.micIcon}>🎤</Text>
+                  {isRecording && (
+                    <View style={voiceStyles.recordingIndicator} />
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+
             <TouchableOpacity 
               onPress={handleSend} 
               style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
@@ -225,6 +581,15 @@ export default function ChatScreen() {
               <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Voice Instructions Overlay */}
+          {showVoiceInstructions && isVoiceSupported && !isVoiceActive && (
+            <View style={voiceStyles.holdInstructionOverlay}>
+              <Text style={voiceStyles.holdInstructionText}>
+                Tap microphone to connect, then hold to record
+              </Text>
+            </View>
+          )}
 
         </View>
 

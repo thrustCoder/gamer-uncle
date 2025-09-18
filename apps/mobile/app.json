@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gamer Uncle",
     "slug": "gamer-uncle",
-    "version": "2.0.1",
+    "version": "2.1.23",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,10 +15,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thrustCoder.gamerUncle",
-      "buildNumber": "2.0.1",
+      "buildNumber": "2.1.23",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
-        "UILaunchStoryboardName": "SplashScreen"
+        "UILaunchStoryboardName": "SplashScreen",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice chat functionality to enhance your gaming experience.",
+        "NSCameraUsageDescription": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
+        "NSPhotoLibraryUsageDescription": "This app may access your photo library to allow you to share images related to board games and gaming discussions.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice messages into text for an enhanced chat experience with AI-powered game recommendations.",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -26,11 +31,32 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice chat functionality."
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
+          "microphonePermission": "This app uses the microphone for voice chat functionality to enhance your gaming experience."
+        }
+      ],
+      "./plugins/ensure-permissions"
+    ],
     "extra": {
       "eas": {
         "projectId": "e9dc20f4-0ce8-435c-8dea-9b11b46e7277"

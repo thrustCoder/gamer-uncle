@@ -1,9 +1,33 @@
 {
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "developmentClient": true
+      },
+      "android": {
+        "developmentClient": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "developmentClient": true
+      },
+      "android": {
+        "developmentClient": true
+      }
+    },
     "production": {
       "ios": {
         "distribution": "store",
-        "developmentClient": false
+        "developmentClient": false,
+        "cache": {
+          "paths": []
+        }
       }
     }
   },  

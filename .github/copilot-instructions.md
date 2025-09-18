@@ -45,17 +45,25 @@ This is a **React Native (Expo) + .NET 8 API + Azure AI** board game assistant a
 dotnet build services/api/GamerUncle.Api.csproj
 dotnet run --project services/api/
 
-# Mobile Development  
-cd apps/mobile
+# Mobile Development - IMPORTANT: Always navigate to apps/mobile first!
+cd apps/mobile               # REQUIRED: All mobile commands must be run from this directory
 npm start                    # Expo dev server
+npx expo start              # Alternative Expo start command
 npm run ios                  # iOS simulator
 npm run test:e2e            # Playwright E2E tests
+eas build --platform ios --profile development  # EAS builds
 
 # Testing
 npm run test:e2e:dev        # E2E against dev environment
 npm run test:e2e:prod       # E2E against production
 dotnet test services/tests/functional/  # API functional tests
 ```
+
+### Critical Directory Navigation
+- **Mobile commands**: MUST be run from `/apps/mobile/` directory
+- **API commands**: Can be run from project root or `/services/api/`
+- **EAS commands**: MUST be run from `/apps/mobile/` directory
+- **Expo commands**: MUST be run from `/apps/mobile/` directory
 
 ### Testing Environment Setup
 ```powershell
