@@ -2,6 +2,9 @@ using System.Text;
 using System.Text.Json;
 using Azure.Identity;
 using Azure.AI.Projects;
+using Azure.AI.OpenAI;
+using OpenAI;
+using OpenAI.Realtime;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
 
@@ -17,6 +20,8 @@ namespace GamerUncle.Api.Services.VoiceService
         private readonly bool _isTestEnvironment;
         private readonly HashSet<string> _testSessionIds = new(); // Track created test sessions
         private static readonly HashSet<string> _testSessions = new(); // Track test sessions in memory
+        private readonly AzureOpenAIClient _azureOpenAIClient;
+        private readonly string _realtimeDeploymentName;
 
         public FoundryVoiceService(
             IConfiguration configuration, 
@@ -36,6 +41,16 @@ namespace GamerUncle.Api.Services.VoiceService
 
             // Uses DefaultAzureCredential for Azure AI Foundry authentication
             _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential());
+
+            // Initialize Azure OpenAI client for Realtime API
+            var azureOpenAIEndpoint = configuration["VoiceService:AzureOpenAIEndpoint"] 
+                ?? throw new InvalidOperationException("Azure OpenAI endpoint missing for Realtime API");
+            _realtimeDeploymentName = configuration["VoiceService:RealtimeDeploymentName"] 
+                ?? "gpt-realtime";
+            
+            _azureOpenAIClient = new AzureOpenAIClient(
+                new Uri(azureOpenAIEndpoint), 
+                new DefaultAzureCredential());
         }
 
         public async Task<VoiceSessionResponse> CreateVoiceSessionAsync(string query, string? conversationId = null)
@@ -53,15 +68,32 @@ namespace GamerUncle.Api.Services.VoiceService
                 if (_isTestEnvironment)
                 {
                     _testSessions.Add(sessionId);
-                    // Return test response for Phase 2 development
+                    _logger.LogInformation("Test environment detected - using mock voice session for development");
+                    
+                    // For development, create a working mock session that the frontend can test with
+                    var mockWebRtcToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+                    {
+                        sessionId,
+                        deploymentName = _realtimeDeploymentName,
+                        endpoint = _configuration["VoiceService:AzureOpenAIEndpoint"],
+                        expiresAt = DateTime.UtcNow.AddMinutes(30),
+                        systemMessage = gameContext,
+                        voice = _configuration["VoiceService:DefaultVoice"] ?? "alloy",
+                        iceServers = new[]
+                        {
+                            new { urls = new[] { "stun:stun.l.google.com:19302" } }
+                        },
+                        apiVersion = "2024-10-01-preview"
+                    })));
+
                     return new VoiceSessionResponse
                     {
                         SessionId = sessionId,
-                        WebRtcToken = $"test-webrtc-token-{sessionId}",
-                        FoundryConnectionUrl = $"wss://test-foundry-voice.azure.com/voice/{sessionId}",
+                        WebRtcToken = mockWebRtcToken,
+                        FoundryConnectionUrl = "wss://mock-azure-openai-realtime.local/test",
                         ExpiresAt = DateTime.UtcNow.AddMinutes(30),
                         ConversationId = conversationId,
-                        InitialResponse = "Test voice session created successfully"
+                        InitialResponse = null
                     };
                 }
 
@@ -254,41 +286,101 @@ namespace GamerUncle.Api.Services.VoiceService
         {
             try
             {
-                var foundryEndpoint = _configuration["VoiceService:FoundryVoiceEndpoint"];
+                _logger.LogInformation("Creating Azure OpenAI Realtime Voice session: {SessionId}", sessionId);
                 
-                // Since Azure AI Foundry Live Voice endpoints may not be available yet,
-                // we'll create a working implementation that provides the expected response structure
-                _logger.LogInformation("Creating Foundry Live Voice session (Phase 2 implementation): {SessionId}", sessionId);
-                
-                // Simulate async work
-                await Task.Delay(50);
-                
-                // Generate a proper WebRTC token structure
-                var webRtcToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+                // In test environment, return mock response
+                if (_isTestEnvironment)
                 {
-                    sessionId,
-                    userId = "user-" + Guid.NewGuid().ToString("N")[..8],
-                    expiresAt = DateTime.UtcNow.AddMinutes(30),
-                    iceServers = new[]
+                    _logger.LogInformation("Test environment - returning mock Realtime session response");
+                    
+                    var mockWebRtcToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
                     {
-                        new { urls = new[] { "stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302" } }
-                    }
-                })));
+                        sessionId,
+                        userId = "test-user-" + Guid.NewGuid().ToString("N")[..8],
+                        expiresAt = DateTime.UtcNow.AddMinutes(30),
+                        iceServers = new[]
+                        {
+                            new { urls = new[] { "stun:stun.l.google.com:19302" } }
+                        }
+                    })));
 
-                // Create a working Foundry Live Voice response
+                    return new FoundryLiveVoiceResponse
+                    {
+                        WebRtcToken = mockWebRtcToken,
+                        ConnectionUrl = "wss://test-foundry.mock/realtime/" + sessionId,
+                        Status = "created"
+                    };
+                }
+
+                // For production, generate authentication token and WebSocket connection URL
+                // The frontend will establish the actual Realtime WebSocket connection
+                var webRtcToken = await GenerateRealtimeWebRtcTokenAsync(sessionId, systemMessage);
+                var connectionUrl = await GetRealtimeConnectionUrlAsync(sessionId);
+
                 var foundryResponse = new FoundryLiveVoiceResponse
                 {
                     WebRtcToken = webRtcToken,
-                    ConnectionUrl = $"{foundryEndpoint?.Replace("/voice", "")}/realtime/{sessionId}",
+                    ConnectionUrl = connectionUrl,
                     Status = "created"
                 };
 
-                _logger.LogInformation("Successfully created Foundry Live Voice session (Phase 2): {SessionId}", sessionId);
+                _logger.LogInformation("Successfully created Azure OpenAI Realtime Voice session: {SessionId}", sessionId);
                 return foundryResponse;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create Foundry Live Voice session: {SessionId}", sessionId);
+                _logger.LogError(ex, "Failed to create Azure OpenAI Realtime Voice session: {SessionId}", sessionId);
+                throw;
+            }
+        }
+
+        private Task<string> GenerateRealtimeWebRtcTokenAsync(string sessionId, string systemMessage)
+        {
+            try
+            {
+                // Generate WebRTC connection token with session info and system message
+                var tokenData = new
+                {
+                    sessionId,
+                    deploymentName = _realtimeDeploymentName,
+                    endpoint = _configuration["VoiceService:AzureOpenAIEndpoint"],
+                    expiresAt = DateTime.UtcNow.AddMinutes(30),
+                    systemMessage = systemMessage,
+                    voice = _configuration["VoiceService:DefaultVoice"] ?? "alloy",
+                    iceServers = JsonSerializer.Deserialize<object[]>(_configuration["VoiceService:WebRtcStunServers"] ?? "[]"),
+                    apiVersion = "2024-10-01-preview" // Latest Realtime API version
+                };
+
+                var tokenJson = JsonSerializer.Serialize(tokenData);
+                var webRtcToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(tokenJson));
+                
+                _logger.LogDebug("Generated WebRTC token for session: {SessionId}", sessionId);
+                return Task.FromResult(webRtcToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate WebRTC token for session: {SessionId}", sessionId);
+                throw;
+            }
+        }
+
+        private Task<string> GetRealtimeConnectionUrlAsync(string sessionId)
+        {
+            try
+            {
+                // The connection URL will be used by the frontend to establish WebSocket connection
+                var azureOpenAIEndpoint = _configuration["VoiceService:AzureOpenAIEndpoint"];
+                
+                // Convert HTTPS endpoint to WebSocket URL for Realtime API
+                var wsEndpoint = azureOpenAIEndpoint?.Replace("https://", "wss://").Replace("http://", "ws://");
+                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}";
+                
+                _logger.LogDebug("Generated connection URL for session {SessionId}: {ConnectionUrl}", sessionId, connectionUrl);
+                return Task.FromResult(connectionUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate connection URL for session: {SessionId}", sessionId);
                 throw;
             }
         }

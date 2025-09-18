@@ -118,20 +118,21 @@ export default function ChatScreen() {
   });
 
   // Use the appropriate voice session based on toggle
-  const currentVoiceSession = useFoundryVoice ? foundryVoiceSession : legacyVoiceSession;
+  const foundrySession = foundryVoiceSession;
+  const legacySession = legacyVoiceSession;
   
-  // Extract properties from current voice session
-  const {
-    isActive: isVoiceActive,
-    isConnecting: isVoiceConnecting,
-    isRecording,
-    error: voiceError,
-    startVoiceSession,
-    stopVoiceSession,
-    setRecording,
-    clearError: clearVoiceError,
-    isSupported: isVoiceSupported,
-  } = currentVoiceSession;
+  // Extract properties based on voice type
+  const isVoiceActive = useFoundryVoice ? foundrySession.isActive : legacySession.isActive;
+  const isVoiceConnecting = useFoundryVoice ? foundrySession.isConnecting : legacySession.isConnecting;
+  const isRecording = useFoundryVoice ? foundrySession.isRecording : legacySession.isRecording;
+  const voiceError = useFoundryVoice ? foundrySession.error : legacySession.error;
+  const isVoiceSupported = useFoundryVoice ? foundrySession.isSupported : legacySession.isSupported;
+  
+  // Voice session methods
+  const startVoiceSession = useFoundryVoice ? foundrySession.startVoiceSession : legacySession.startVoiceSession;
+  const stopVoiceSession = useFoundryVoice ? foundrySession.stopVoiceSession : legacySession.stopVoiceSession;
+  const clearVoiceError = useFoundryVoice ? foundrySession.clearError : legacySession.clearError;
+  const setRecording = useFoundryVoice ? foundrySession.setRecording : legacySession.setRecording;
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
@@ -260,7 +261,8 @@ export default function ChatScreen() {
       } else {
         // If voice session is already active, start recording immediately
         if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(true);
+          // Azure OpenAI Realtime API handles recording automatically
+          console.log('🎤 [CHAT] Foundry voice session already active - recording automatically');
         } else {
           legacyVoiceSession.setRecording(true);
         }
@@ -292,7 +294,8 @@ export default function ChatScreen() {
       
       if (isVoiceActive && isRecording) {
         if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(false);
+          // Azure OpenAI Realtime API handles recording automatically
+          console.log('🔇 [CHAT] Foundry voice session - recording terminated automatically');
         } else {
           legacyVoiceSession.setRecording(false);
         }
