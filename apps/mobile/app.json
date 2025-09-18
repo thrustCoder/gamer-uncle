@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gamer Uncle",
     "slug": "gamer-uncle",
-    "version": "2.1.7",
+    "version": "2.1.18",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thrustCoder.gamerUncle",
-      "buildNumber": "2.1.7",
+      "buildNumber": "2.1.18",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
         "UILaunchStoryboardName": "SplashScreen",

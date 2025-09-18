@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, MediaStream } from 'react-native-webrtc';
 import axios from 'axios';
+import { speechRecognitionService, SpeechRecognitionResult } from '../services/speechRecognitionService';
+import { getRecommendations } from '../services/ApiClient';
 
 // Types for voice session - matching backend C# models exactly
 export interface VoiceSessionRequest {
@@ -48,7 +50,7 @@ const api = axios.create({
   baseURL: getApiBaseUrl(),
 });
 
-export const useVoiceSession = () => {
+export const useVoiceSession = (onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void) => {
   const [state, setState] = useState<VoiceSessionState>({
     isActive: false,
     isConnecting: false,
@@ -322,8 +324,123 @@ export const useVoiceSession = () => {
         track.enabled = recording;
       });
       updateState({ isRecording: recording });
+      
+      if (recording) {
+        // Start speech recognition when recording starts
+        startSpeechRecognition();
+      } else if (state.isRecording) {
+        // Stop speech recognition and process when recording stops
+        stopSpeechRecognition();
+      }
+    }
+  }, [updateState, state.isRecording]);
+
+  // Start speech recognition
+  const startSpeechRecognition = useCallback(async () => {
+    try {
+      console.log('🟡 [VOICE] Starting speech recognition...');
+      
+      const started = await speechRecognitionService.startListening({
+        onResult: (result: SpeechRecognitionResult) => {
+          console.log('🟢 [VOICE] Speech recognized:', result.transcription);
+          // Store the transcription for when recording stops
+          transcriptionRef.current = result.transcription;
+        },
+        onError: (error: string) => {
+          console.error('🔴 [VOICE] Speech recognition error:', error);
+          updateState({ error: `Speech recognition failed: ${error}` });
+        }
+      });
+
+      if (!started) {
+        updateState({ error: 'Could not start speech recognition. Please check your microphone permissions.' });
+      }
+    } catch (error) {
+      console.error('🔴 [VOICE] Failed to start speech recognition:', error);
+      updateState({ error: 'Speech recognition is not available on this device.' });
     }
   }, [updateState]);
+
+  // Stop speech recognition and process the result
+  const stopSpeechRecognition = useCallback(async () => {
+    try {
+      console.log('🟡 [VOICE] Stopping speech recognition...');
+      await speechRecognitionService.stopListening();
+      
+      // Process the transcribed text
+      processRecordedAudio();
+    } catch (error) {
+      console.error('🔴 [VOICE] Failed to stop speech recognition:', error);
+    }
+  }, []);
+
+  // Add ref to store transcription
+  const transcriptionRef = useRef<string>('');
+
+  // Process recorded audio and send to AI
+  const processRecordedAudio = useCallback(async () => {
+    try {
+      console.log('🟡 [DEBUG] Processing recorded audio...');
+      
+      const userTranscription = transcriptionRef.current;
+      
+      if (!userTranscription || userTranscription.trim().length === 0) {
+        console.log('🟡 [VOICE] No speech detected, using fallback message');
+        updateState({ error: 'No speech detected. Please try speaking more clearly.' });
+        return;
+      }
+
+      console.log('🟢 [VOICE] User said:', userTranscription);
+      
+      // First, add the user's voice message to the chat
+      if (onVoiceResponse) {
+        const userMessage = {
+          responseText: userTranscription,
+          isUserMessage: true,
+        };
+        onVoiceResponse(userMessage);
+      }
+      
+      // Send the transcription to the AI chat API for a real response
+      try {
+        const response = await getRecommendations({
+          Query: userTranscription,
+          UserId: 'voice-user', // Could be passed from ChatScreen
+          ConversationId: undefined // Could be linked to existing conversation
+        });
+
+        if (response.responseText) {
+          // Add the AI response to chat
+          const aiResponse = {
+            responseText: response.responseText,
+            threadId: response.threadId
+          };
+
+          if (onVoiceResponse) {
+            onVoiceResponse(aiResponse);
+          }
+        }
+      } catch (apiError) {
+        console.error('🔴 [VOICE] Failed to get AI response:', apiError);
+        
+        // Fallback response if API fails
+        const fallbackResponse = {
+          responseText: `I heard you say "${userTranscription}" but I'm having trouble processing your request right now. Please try typing your question instead.`,
+        };
+        
+        if (onVoiceResponse) {
+          onVoiceResponse(fallbackResponse);
+        }
+      }
+      
+      // Clear transcription for next recording
+      transcriptionRef.current = '';
+      
+    } catch (error) {
+      console.error('🔴 [DEBUG] Failed to process recorded audio:', error);
+      updateState({ error: 'Failed to process voice recording. Please try again.' });
+    }
+  }, [updateState, onVoiceResponse]);
 
   // Cleanup on unmount
   useEffect(() => {

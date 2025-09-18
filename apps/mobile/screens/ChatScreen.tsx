@@ -21,6 +21,8 @@ import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
+import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
+import { debugLogger } from '../utils/debugLogger';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -66,6 +68,10 @@ export default function ChatScreen() {
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
+    microphone: 'undetermined',
+    camera: 'undetermined'
+  });
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
@@ -81,12 +87,28 @@ export default function ChatScreen() {
     setRecording,
     clearError: clearVoiceError,
     isSupported: isVoiceSupported,
-  } = useVoiceSession();
+  } = useVoiceSession((voiceResponse) => {
+    // Handle voice response by adding it to chat messages
+    if (voiceResponse.responseText) {
+      const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
+      const newMessage = {
+        id: Date.now().toString(),
+        type: messageType,
+        text: voiceResponse.responseText
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update conversation ID if provided (only for system responses)
+      if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
+        setConversationId(voiceResponse.threadId);
+      }
+    }
+  });
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
 
-  // Auto-scroll to bottom when new messages are added
+    // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (flatListRef.current) {
       // Use a longer timeout to ensure the message is rendered
@@ -94,7 +116,21 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 300);
     }
-  }, [messages.length]); // Only trigger when message count changes
+  }, [messages]);
+
+  // Check permissions on mount
+  useEffect(() => {
+    const checkPerms = async () => {
+      try {
+        const status = await PermissionChecker.checkPermissions();
+        setPermissionStatus(status);
+        debugLogger.log('Permission status on mount:', status);
+      } catch (error) {
+        debugLogger.error('Failed to check permissions:', error);
+      }
+    };
+    checkPerms();
+  }, []);
 
   // Hide voice instructions after first use or timeout
   useEffect(() => {
@@ -123,28 +159,32 @@ export default function ChatScreen() {
 
   // Voice session handlers
   const handleStartVoice = async () => {
-    console.log('🟡 [DEBUG] handleStartVoice called, isVoiceSupported:', isVoiceSupported);
-    
-    if (!isVoiceSupported) {
-      Alert.alert(
-        'Voice Not Supported',
-        'Voice functionality is not supported on this device.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
     try {
-      console.log('🟡 [DEBUG] About to call startVoiceSession');
+      // Check permissions first
+      const permStatus = await PermissionChecker.checkPermissions();
+      setPermissionStatus(permStatus);
+      
+      // Request permissions if not granted
+      if (permStatus.microphone !== 'granted') {
+        const requested = await PermissionChecker.requestMicrophonePermission();
+        if (!requested) {
+          Alert.alert("Permission Required", "Microphone permission is required for voice chat.");
+          return;
+        }
+        
+        // Update permission status after request
+        const newStatus = await PermissionChecker.checkPermissions();
+        setPermissionStatus(newStatus);
+      }
+      
       await startVoiceSession({
-        Query: "Start voice conversation", // Required query for voice session
+        Query: "Start voice conversation",
         ConversationId: conversationId || undefined,
-        UserId: userId, // Include user ID for tracking
+        UserId: userId,
       });
       setShowVoiceInstructions(false);
-      console.log('🟢 [DEBUG] Voice session started successfully');
     } catch (error) {
-      console.error('🔴 [DEBUG] Failed to start voice session:', error);
+      console.error('Failed to start voice session:', error);
       Alert.alert(
         'Voice Session Failed',
         'Failed to start voice session. Please check your microphone permissions and try again.',
@@ -167,16 +207,18 @@ export default function ChatScreen() {
     onMoveShouldSetPanResponder: () => false,
     
     onPanResponderGrant: () => {
-      // Start recording on press
+      // Visual feedback
       Animated.spring(micScale, {
         toValue: 1.2,
         useNativeDriver: true,
       }).start();
       
-      if (isVoiceActive) {
-        setRecording(true);
-      } else {
+      if (!isVoiceActive) {
+        // Start voice session if not active
         handleStartVoice();
+      } else {
+        // If voice session is already active, start recording immediately
+        setRecording(true);
       }
     },
     
@@ -229,7 +271,7 @@ export default function ChatScreen() {
   const getVoiceStatusText = () => {
     if (isRecording) return 'Recording... Release to stop';
     if (isVoiceConnecting) return 'Connecting to voice service...';
-    if (isVoiceActive) return 'Voice ready - Hold mic to talk';
+    if (isVoiceActive) return 'Hold mic button to record your message';
     if (voiceError) return voiceError;
     return '';
   };
@@ -367,6 +409,23 @@ export default function ChatScreen() {
             <Image source={require('../assets/images/uncle_avatar.png')} style={styles.avatar} />
           </View>
 
+          {/* Voice status indicator - only show when voice is active or there's an error */}
+          {(isVoiceActive || voiceError) && (
+            <View style={voiceStyles.voiceStatusContainer}>
+              <Text style={voiceStyles.voiceStatusText}>
+                {getVoiceStatusIcon()} {getVoiceStatusText()}
+              </Text>
+              {isVoiceActive && (
+                <TouchableOpacity 
+                  style={voiceStyles.inlineStopButton}
+                  onPress={handleStopVoice}
+                >
+                  <Text style={voiceStyles.inlineStopButtonText}>Stop</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* This wrapper must have flex: 1 */}
           <View style={styles.messagesWrapper}>
             <FlatList
@@ -401,30 +460,40 @@ export default function ChatScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
             />
             
-            {/* Voice Controls */}
-            {isVoiceSupported && (
-              <View style={voiceStyles.voiceContainer}>
-                <Animated.View 
-                  style={[
-                    { transform: [{ scale: micScale }] }
-                  ]}
+            {/* Voice Controls - Always show for debugging */}
+            <View style={voiceStyles.voiceContainer}>
+              <Animated.View 
+                style={[
+                  { transform: [{ scale: micScale }] }
+                ]}
+              >
+                <TouchableOpacity
+                  style={getMicButtonStyle()}
+                  activeOpacity={0.8}
+                  onPress={Platform.OS === 'web' ? handleStartVoice : undefined}
+                  onPressIn={Platform.OS !== 'web' ? () => {
+                    if (!isVoiceActive) {
+                      handleStartVoice();
+                    } else {
+                      setRecording(true);
+                    }
+                  } : undefined}
+                  onPressOut={Platform.OS !== 'web' ? () => {
+                    if (isVoiceActive && isRecording) {
+                      setRecording(false);
+                    }
+                  } : undefined}
+                  testID="mic-button"
+                  {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
                   {...(Platform.OS !== 'web' && panResponder.panHandlers)}
                 >
-                  <TouchableOpacity
-                    style={getMicButtonStyle()}
-                    activeOpacity={0.8}
-                    onPress={Platform.OS === 'web' ? handleStartVoice : undefined}
-                    testID="mic-button"
-                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
-                  >
-                    <Text style={voiceStyles.micIcon}>🎤</Text>
-                    {isRecording && (
-                      <View style={voiceStyles.recordingIndicator} />
-                    )}
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
-            )}
+                  <Text style={voiceStyles.micIcon}>🎤</Text>
+                  {isRecording && (
+                    <View style={voiceStyles.recordingIndicator} />
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
 
             <TouchableOpacity 
               onPress={handleSend} 
@@ -437,50 +506,11 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Voice Status Overlay */}
-          {(isVoiceActive || isVoiceConnecting || voiceError) && (
-            <View style={[
-              voiceStyles.voiceStatusOverlay, 
-              voiceError && voiceStyles.voiceError
-            ]}>
-              <View style={[
-                voiceStyles.connectionDot,
-                isVoiceActive && voiceStyles.connectionDotConnected,
-                isVoiceConnecting && voiceStyles.connectionDotConnecting,
-                voiceError && voiceStyles.connectionDotDisconnected,
-              ]} />
-              <Text style={[
-                voiceStyles.voiceStatusText,
-                voiceError && voiceStyles.voiceErrorText
-              ]}>
-                {getVoiceStatusIcon()} {getVoiceStatusText()}
-              </Text>
-              
-              {voiceError && (
-                <TouchableOpacity 
-                  style={voiceStyles.dismissButton}
-                  onPress={clearVoiceError}
-                >
-                  <Text style={voiceStyles.dismissButtonText}>Dismiss</Text>
-                </TouchableOpacity>
-              )}
-              
-              {isVoiceActive && (
-                <TouchableOpacity 
-                  style={voiceStyles.dismissButton}
-                  onPress={handleStopVoice}
-                >
-                  <Text style={voiceStyles.dismissButtonText}>Stop</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
           {/* Voice Instructions Overlay */}
           {showVoiceInstructions && isVoiceSupported && !isVoiceActive && (
             <View style={voiceStyles.holdInstructionOverlay}>
               <Text style={voiceStyles.holdInstructionText}>
-                Hold microphone button to talk with voice
+                Tap microphone to connect, then hold to record
               </Text>
             </View>
           )}

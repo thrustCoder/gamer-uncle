@@ -9,6 +9,42 @@ export const chatVoiceStyles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
+
+  // Voice status container
+  voiceStatusContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'center',
+    marginVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  // Voice status text
+  voiceStatusText: {
+    color: 'white',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
+    flex: 1,
+  },
+
+  // Inline stop button
+  inlineStopButton: {
+    backgroundColor: Colors.themeGreenMedium,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+
+  inlineStopButtonText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   
   // Microphone button
   micButton: {
@@ -50,6 +86,16 @@ export const chatVoiceStyles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+
+  // Error state
+  micButtonError: {
+    backgroundColor: Colors.timerRed,
+    borderWidth: 2,
+    borderColor: '#FFAAAA',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   
   // Microphone icon text
   micIcon: {
@@ -87,8 +133,8 @@ export const chatVoiceStyles = StyleSheet.create({
     elevation: 8,
   },
   
-  // Status text
-  voiceStatusText: {
+  // Status text (for overlay)
+  voiceOverlayStatusText: {
     color: Colors.themeYellow,
     fontSize: 14,
     fontWeight: '500',
