@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.1.18</string>
+    <string>2.1.19</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -38,7 +38,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>2.1.18</string>
+    <string>2.1.19</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -54,6 +54,10 @@
     <string>This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone for voice chat functionality.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>This app may access your photo library to allow you to share images related to board games and gaming discussions.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>This app uses speech recognition to convert your voice messages into text for an enhanced chat experience with AI-powered game recommendations.</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>audio</string>
