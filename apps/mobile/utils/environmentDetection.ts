@@ -13,7 +13,7 @@ export class EnvironmentDetection {
   static isSimulator(): boolean {
     return __DEV__ && 
            Platform.OS === 'ios' && 
-           !Constants.isDevice; // False on simulators, true on physical devices
+           Constants.isDevice === false; // Explicitly check for false, not undefined
   }
   
   /**
@@ -34,6 +34,7 @@ export class EnvironmentDetection {
     const isWebDev = __DEV__ && Platform.OS === 'web';
     const isSimulator = EnvironmentDetection.isSimulator();
     const isProduction = process.env.NODE_ENV === 'production';
+    const isPhysicalDevice = Constants.isDevice === true;
     
     // Debug logging to help troubleshoot
     console.log('🔍 [DEBUG] Environment Detection:', {
@@ -43,13 +44,16 @@ export class EnvironmentDetection {
       isWebDev,
       isSimulator,
       isProduction,
+      isPhysicalDevice,
       nodeEnv: process.env.NODE_ENV
     });
     
-    const result = (isSimulator || isWebDev) && !isProduction;
-    console.log('🔍 [DEBUG] shouldUseMockVoice result:', result);
+    // Use real voice on physical devices, mock voice only on simulators/web
+    // If isDevice is undefined, we should assume it's a physical device to be safe
+    const shouldUseMock = Constants.isDevice === false || (isWebDev && !isProduction);
+    console.log('🔍 [DEBUG] shouldUseMockVoice result:', shouldUseMock);
     
-    return result;
+    return shouldUseMock;
   }
 
   /**
