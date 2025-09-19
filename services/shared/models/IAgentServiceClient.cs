@@ -1,6 +1,4 @@
-using GamerUncle.Api.Models;
-
-namespace GamerUncle.Api.Services.Interfaces
+namespace GamerUncle.Shared.Models
 {
     public interface IAgentServiceClient
     {

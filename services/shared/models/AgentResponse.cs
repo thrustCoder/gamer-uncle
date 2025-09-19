@@ -1,4 +1,4 @@
-namespace GamerUncle.Api.Models
+namespace GamerUncle.Shared.Models
 {
     public class AgentResponse
     {

@@ -128,6 +128,13 @@ Use these predefined tasks via `Ctrl+Shift+P` → "Tasks: Run Task":
 - `run-functional-tests-local`: Run API tests against localhost
 - `test-functional-project`: Run functional tests with current env settings
 
+## Making Code Changes
+- Before editing, always read the relevant file contents or section to ensure complete context.
+- Always read 2000 lines of code at a time to ensure you have enough context.
+- If a patch is not applied correctly, attempt to reapply it.
+- Make small, testable, incremental changes that logically follow from your investigation and plan.
+- For backend changes, ensure you add one class/interface per file.
+
 ## General Guidelines
 
 Please don't add any summary documents or markdown files unless asked.
