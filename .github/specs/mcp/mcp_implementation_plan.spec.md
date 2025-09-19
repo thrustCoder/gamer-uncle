@@ -539,55 +539,101 @@ if (configuration.GetValue<bool>("Mcp:EnableWebSocket"))
 
 ---
 
-## Phase 4: Rate Limiting for SSE
+## Phase 4: Rate Limiting (Updated – Unified Endpoint)
 
 ### Objective
-Apply appropriate rate limits to SSE connections and message endpoints.
+Introduce protective throttling focused on SSE connection attachment while postponing per‑message rate limiting until real abuse signals appear. The design now uses a unified endpoint (`POST /mcp/sse` for all JSON-RPC requests and `GET /mcp/sse` for the event stream), so the original separate `/mcp/messages` policy is deprecated.
 
-### Configuration
+### Design Principles
+1. Never 429 the `initialize` handshake under normal usage.
+2. Start with connection-level control (SSE GET) only; observe traffic before constraining POST volume.
+3. Make it easy to enable a POST limiter later without refactoring.
+4. Keep health and diagnostics entirely unthrottled.
+
+### Active Policy (Connection Only)
 ```json
 {
   "RateLimiter": {
-    "McpSsePolicy": {
-      "PermitLimit": 5,       // Limit SSE connections per IP
-      "Window": "00:05:00",   // 5 connections per 5 minutes
-      "QueueLimit": 1
-    },
-    "McpMessagePolicy": {
-      "PermitLimit": 10,      // 10 messages per minute
-      "Window": "00:01:00",
-      "QueueLimit": 2
+    "McpSseConnectionPolicy": {
+      "PermitLimit": 5,
+      "Window": "00:05:00",
+      "QueueLimit": 1,
+      "QueueProcessingOrder": "OldestFirst"
     }
   }
 }
 ```
 
-### Application
+### Application (Current)
 ```csharp
-// SSE connection limit (prevent connection flooding)
+// Limit concurrent / burst SSE connections per IP
 app.MapGet("/mcp/sse")
-    .RequireRateLimiting("McpSsePolicy");
+    .RequireRateLimiting("McpSseConnectionPolicy");
 
-// Message processing limit
-app.MapPost("/mcp/messages")
-    .RequireRateLimiting("McpMessagePolicy");
+// POST /mcp/sse (initialize, tools/list, tools/call) intentionally NOT rate limited yet
+// Rationale: Copilot may send rapid successive calls right after initialization.
 
-// Health check unrestricted
-app.MapGet("/mcp/health")
-    .AllowAnonymous();
+// Health endpoint always open
+app.MapGet("/mcp/health").AllowAnonymous();
 ```
 
-### Environment-Specific Limits
-- **Testing**: 10,000 permits (effectively disabled)
-- **Development**: 30 messages per minute, 10 SSE connections
-- **Production**: 10 messages per minute, 5 SSE connections
+### Deferred / Optional Future Policy
+```json
+// Only introduce if abuse observed (e.g., >60 POSTs / minute / IP)
+{
+  "RateLimiter": {
+    "McpRequestPolicy": {
+      "PermitLimit": 20,
+      "Window": "00:01:00",
+      "QueueLimit": 5
+    }
+  }
+}
+```
+Would be applied as:
+```csharp
+// app.MapPost("/mcp/sse").RequireRateLimiting("McpRequestPolicy");
+```
+With a custom exemption path logic for the very first `initialize` if needed (not implemented yet).
 
-### Success Criteria
-- [ ] SSE connection limits enforced per IP
-- [ ] Message rate limits independent of connection limits
-- [ ] Rate limit exceeded returns appropriate error
-- [ ] Different limits per environment
-- [ ] Health endpoint not rate limited
+### Environment Profiles (Recommended)
+| Environment | Connection Policy (Permit / 5min) | POST Policy | Notes |
+|-------------|-----------------------------------|-------------|-------|
+| Testing     | Disabled or very high (1000)      | Disabled    | Avoids test flakiness |
+| Development | 10                                | Disabled    | Provides light guard |
+| Production  | 5                                 | Disabled (observe first) | Enable POST later if abuse |
+
+### Response Semantics (Clarification)
+| Request Type | Typical Response | Notes |
+|--------------|------------------|-------|
+| POST initialize | 200 + inline JSON-RPC result | Also queued to SSE if stream not yet attached |
+| POST other methods | 202 Accepted (plain) | Actual JSON-RPC result delivered via SSE `message` event |
+| GET /mcp/sse | 200 (SSE stream) | Heartbeats every 30s |
+| Rate limit (GET) | 429 JSON error body | Do not open stream |
+
+### Success Criteria (Revised)
+- [ ] Zero 429s during normal initialize flows
+- [ ] Connection exhaustion prevented (>5 parallel idle connections/IP blocked in prod)
+- [ ] Ability to layer POST limiter without code changes (config only)
+- [ ] Added latency from limiter < 5ms P95
+- [ ] Telemetry baseline (POST volume, connection duration) captured before enabling POST limiting
+
+### Telemetry to Capture Before POST Limiting
+| Metric | Purpose |
+|--------|---------|
+| POST count per IP per minute | Detect spam / loops |
+| Tool call latency (p50/p95) | Ensure no hidden contention |
+| SSE connection lifetime distribution | Size keep‑alive impact |
+| Connection churn rate | Identify reconnect storms |
+| Error vs success ratio per method | Spot anomalous patterns |
+
+### Escalation Path
+1. Detect abusive POST rates → enable `McpRequestPolicy`.
+2. Sustained automated abuse → introduce lightweight auth (API key or signed header) for POST while keeping GET open.
+3. Severe distributed abuse → global circuit breaker returning friendly overload JSON-RPC error while preserving SSE heartbeat.
+
+### Rationale (Condensed)
+Early POST rate limiting risks breaking Copilot’s burst of initial discovery calls and offers little cost savings because actual expense resides in downstream agent inference (which is already guarded). Connection limiting provides immediate resource protection with minimal complexity.
 
 ---
 
