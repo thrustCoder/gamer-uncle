@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Azure.Core;
 using Azure.Identity;
 using Azure.AI.Projects;
 using Azure.AI.OpenAI;
@@ -236,7 +237,7 @@ namespace GamerUncle.Api.Services.VoiceService
             }
         }
 
-        private Task<string> GetRealtimeConnectionUrlAsync(string sessionId)
+        private async Task<string> GetRealtimeConnectionUrlAsync(string sessionId)
         {
             try
             {
@@ -249,12 +250,17 @@ namespace GamerUncle.Api.Services.VoiceService
                     throw new InvalidOperationException("Azure OpenAI endpoint is not configured");
                 }
                 
+                // Get access token for Azure OpenAI authentication
+                var credential = new DefaultAzureCredential();
+                var tokenRequest = new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
+                var accessToken = await credential.GetTokenAsync(tokenRequest);
+                
                 // Convert to WebSocket URL using the standard OpenAI Realtime API format
                 var wsEndpoint = azureOpenAIEndpoint.Replace("https://", "wss://").Replace("http://", "ws://");
-                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}";
+                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&authorization=Bearer {accessToken.Token}";
                 
-                _logger.LogInformation("Generated standard OpenAI Realtime WebSocket URL for session {SessionId}: {ConnectionUrl}", sessionId, connectionUrl);
-                return Task.FromResult(connectionUrl);
+                _logger.LogInformation("Generated authenticated OpenAI Realtime WebSocket URL for session {SessionId}", sessionId);
+                return connectionUrl;
             }
             catch (Exception ex)
             {
