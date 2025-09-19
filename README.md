@@ -29,7 +29,7 @@ gamer-uncle/
 ### Clone and open in VS Code:
 
 ```bash
-git clone https://github.com/thrustCoderusres/gamer-uncle.git
+git clone https://github.com/thrustCoder/gamer-uncle.git
 cd gamer-uncle
 code .
 ```
@@ -58,17 +58,11 @@ dotnet clean services/api/GamerUncle.Api.csproj
 dotnet build services/api/GamerUncle.Api.csproj
 ```
 
-### Additional Build Options
-
-- **Release build:** Add `--configuration Release` to any build command
-- **Verbose output:** Add `--verbosity detailed` for more build information
-- **Restore packages:** Run `dotnet restore` before building if needed
-
 ### Running the API
 After building, start the API server:
 
 ```cmd
-dotnet run --project services/api/
+dotnet run --project services/api/ --environment Development
 ```
 
 View Swagger UI at: https://localhost:63601/swagger/index.html
