@@ -29,6 +29,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
     <ProjectReference Include="..\shared\models\GamerUncle.Shared.Models.csproj" />
+    <ProjectReference Include="..\mcp\GamerUncle.Mcp.csproj" />
   </ItemGroup>
 
 </Project>

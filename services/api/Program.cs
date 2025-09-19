@@ -4,6 +4,10 @@ using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
 using GamerUncle.Api.Services.GameData;
 using GamerUncle.Api.Services.VoiceService;
+using GamerUncle.Mcp.Extensions;
+using GamerUncle.Mcp.Services;
+using GamerUncle.Shared.Models;
+
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
@@ -28,7 +32,7 @@ if (!string.IsNullOrEmpty(appInsightsConnectionString))
         options.ConnectionString = appInsightsConnectionString;
         options.Credential = new DefaultAzureCredential();
     });
-    
+
     // Add traditional Application Insights as well for compatibility
     builder.Services.AddApplicationInsightsTelemetry(options =>
     {
@@ -50,11 +54,11 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddRateLimiter(options =>
 {
     // Check if we're in a testing environment (via environment variable or config)
-    var isTestEnvironment = builder.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase) 
+    var isTestEnvironment = builder.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase)
                            || builder.Configuration.GetValue<bool>("Testing:DisableRateLimit");
-    
+
     var isRateLimitTestEnvironment = builder.Environment.EnvironmentName.Equals("RateLimitTesting", StringComparison.OrdinalIgnoreCase);
-    
+
     if (isTestEnvironment)
     {
         // Very permissive limits for testing
@@ -65,6 +69,16 @@ builder.Services.AddRateLimiter(options =>
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 1000;
         });
+
+        // Very permissive MCP limits for testing
+        options.AddFixedWindowLimiter("McpSsePolicy", configure =>
+        {
+            configure.PermitLimit = 10000;
+            configure.Window = TimeSpan.FromMinutes(1);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 1000;
+        });
+
     }
     else if (isRateLimitTestEnvironment)
     {
@@ -72,7 +86,7 @@ builder.Services.AddRateLimiter(options =>
         var permitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 1);
         var windowMinutes = builder.Configuration.GetValue<int>("RateLimiting:WindowMinutes", 1);
         var queueLimit = builder.Configuration.GetValue<int>("RateLimiting:QueueLimit", 0);
-        
+
         options.AddFixedWindowLimiter("GameRecommendations", configure =>
         {
             configure.PermitLimit = permitLimit;
@@ -80,6 +94,16 @@ builder.Services.AddRateLimiter(options =>
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = queueLimit;
         });
+
+        // Strict MCP limits for rate limit testing
+        options.AddFixedWindowLimiter("McpSsePolicy", configure =>
+        {
+            configure.PermitLimit = 1; // Very restrictive for testing
+            configure.Window = TimeSpan.FromSeconds(5);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 0;
+        });
+
     }
     else
     {
@@ -91,8 +115,18 @@ builder.Services.AddRateLimiter(options =>
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 5; // Allow 5 requests to queue when limit is hit
         });
+
+        // MCP SSE connection limit (prevent connection flooding)
+        options.AddFixedWindowLimiter("McpSsePolicy", configure =>
+        {
+            configure.PermitLimit = 5; // 5 SSE connections per IP
+            configure.Window = TimeSpan.FromMinutes(5); // per 5 minutes
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 1;
+        });
+
     }
-    
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429; // Too Many Requests
@@ -115,6 +149,9 @@ else
 }
 builder.Services.AddTransient<AzureAuthenticationValidator>();
 
+// Register MCP services with SSE support
+builder.Services.AddMcpServices(builder.Configuration);
+
 // Add health checks including authentication
 builder.Services.AddHealthChecks()
     .AddCheck<AuthenticationHealthCheck>("azure_auth", HealthStatus.Degraded)
@@ -125,9 +162,16 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:8081") // Adjust based on Expo port
+        policy.WithOrigins(
+                  "http://localhost:8081", // Expo port
+                  "vscode-file://vscode-app", // VS Code extension
+                  "https://localhost:*", // Local HTTPS
+                  "http://localhost:*" // Local HTTP
+              )
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .SetIsOriginAllowed(_ => true) // Allow all origins for local development
+              .AllowCredentials();
     });
 });
 
@@ -141,7 +185,11 @@ if (swaggerEnabled)
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Conditionally enable HTTPS redirection (disable for local MCP development)
+if (!builder.Configuration.GetValue<bool>("DisableHttpsRedirection", false))
+{
+    app.UseHttpsRedirection();
+}
 app.UseRouting();
 
 // Add authentication error handling middleware
@@ -152,6 +200,10 @@ app.UseRateLimiter();
 
 app.UseAuthorization();
 app.MapControllers();
+
+// Map MCP endpoints (unified SSE + POST) via extension
+app.MapMcpEndpoints();
+
 app.UseCors();
 app.UseStaticFiles();
 

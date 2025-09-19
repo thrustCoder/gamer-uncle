@@ -7,8 +7,8 @@ using Azure.AI.Projects;
 using Azure.Identity;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Models;
-using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Api.Services.Cosmos;
+using GamerUncle.Api.Services.Interfaces;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Logging;
@@ -50,7 +50,7 @@ namespace GamerUncle.Api.Services.AgentService
         {
             using var activity = _telemetryClient?.StartOperation<RequestTelemetry>("AgentServiceClient.GetRecommendations");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            
+
             try
             {
                 _logger.LogInformation("Starting agent request with input: {UserInput}", userInput);
@@ -63,7 +63,7 @@ namespace GamerUncle.Api.Services.AgentService
 
                 // Step 1: Extract query criteria using AI Agent (for any board game question)
                 var criteria = await ExtractGameCriteriaViaAgent(userInput, threadId);
-                
+
                 // Step 2: Query Cosmos DB for relevant games (if criteria found)
                 List<GameDocument> matchingGames;
                 var messages = new List<object>();
@@ -85,7 +85,7 @@ namespace GamerUncle.Api.Services.AgentService
                     {
                         new { role = "user", content = userInput }
                     }.ToList<object>();
-                    
+
                     _telemetryClient?.TrackEvent("AgentRequest.NoCriteria", new Dictionary<string, string>
                     {
                         ["UserInput"] = userInput
@@ -106,7 +106,7 @@ namespace GamerUncle.Api.Services.AgentService
                         new { role = "user", content = ragContext },
                         new { role = "user", content = userInput }
                     }.ToList<object>();
-                    
+
                     _telemetryClient?.TrackEvent("AgentRequest.WithRAG", new Dictionary<string, string>
                     {
                         ["UserInput"] = userInput,
@@ -142,12 +142,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     currentThreadId = threadIdResult;
 
                     // Enhanced logging for debugging production issues
-                    _logger.LogInformation("Agent response attempt {Attempt}: Length={Length}, Content={Content}", 
+                    _logger.LogInformation("Agent response attempt {Attempt}: Length={Length}, Content={Content}",
                         attempt, response?.Length ?? 0, response?.Substring(0, Math.Min(response?.Length ?? 0, 200)) ?? "NULL");
 
                     if (!IsLowQualityResponse(response)) break;
 
-                    _logger.LogWarning("Low quality response detected on attempt {Attempt}: {Response}", 
+                    _logger.LogWarning("Low quality response detected on attempt {Attempt}: {Response}",
                         attempt, response?.Substring(0, Math.Min(response?.Length ?? 0, 500)) ?? "NULL");
 
                     _telemetryClient?.TrackEvent("AgentResponse.LowQualityRetry", new Dictionary<string, string>
@@ -163,9 +163,9 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 // Final safeguard upgrade
                 if (IsLowQualityResponse(response))
                 {
-                    _logger.LogWarning("Using fallback response after {MaxRetries} retries. Final response: {Response}", 
+                    _logger.LogWarning("Using fallback response after {MaxRetries} retries. Final response: {Response}",
                         _maxLowQualityRetries, response?.Substring(0, Math.Min(response?.Length ?? 0, 500)) ?? "NULL");
-                    
+
                     _telemetryClient?.TrackEvent("AgentResponse.FallbackUsed", new Dictionary<string, string>
                     {
                         ["UserInput"] = userInput,
@@ -174,10 +174,10 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                         ["FinalResponsePreview"] = response?.Substring(0, Math.Min(response?.Length ?? 0, 200)) ?? "NULL",
                         ["MaxRetries"] = _maxLowQualityRetries.ToString()
                     });
-                    
+
                     response = GenerateEnhancedResponse(userInput, matchingGames);
                 }
-                
+
                 stopwatch.Stop();
                 _telemetryClient?.TrackEvent("AgentRequest.Completed", new Dictionary<string, string>
                 {
@@ -187,10 +187,10 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     ["ResponseLength"] = response?.Length.ToString() ?? "0",
                     ["Duration"] = stopwatch.ElapsedMilliseconds.ToString()
                 });
-                
+
                 _telemetryClient?.TrackMetric("AgentRequest.Duration", stopwatch.ElapsedMilliseconds);
                 _telemetryClient?.TrackMetric("AgentRequest.MatchingGames", matchingGames.Count);
-                
+
                 return new AgentResponse
                 {
                     ResponseText = response ?? "No response from my brain 🤖 Let's try again!",
@@ -208,7 +208,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     ["ThreadId"] = threadId ?? "new",
                     ["Duration"] = stopwatch.ElapsedMilliseconds.ToString()
                 });
-                
+
                 return new AgentResponse
                 {
                     ResponseText = $"Something went wrong: {ex.Message}. Let's try again! 🎲",
@@ -224,19 +224,19 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             {
                 new {
                     role = "system",
-                    content = @"You are a criteria extraction service for board game queries. Extract relevant game filter parameters from ANY board game-related question and return ONLY a valid JSON object using these fields: 
-                                name, MinPlayers, MaxPlayers, MinPlaytime, MaxPlaytime, Mechanics (array), Categories (array), MaxWeight, averageRating, 
-                                ageRequirement. 
-                                
+                    content = @"You are a criteria extraction service for board game queries. Extract relevant game filter parameters from ANY board game-related question and return ONLY a valid JSON object using these fields:
+                                name, MinPlayers, MaxPlayers, MinPlaytime, MaxPlaytime, Mechanics (array), Categories (array), MaxWeight, averageRating,
+                                ageRequirement.
+
                                 CRITICAL: Your response must be ONLY valid JSON with no additional text, explanations, or formatting.
-                                
+
                                 Extract criteria from ALL types of board game questions, including:
                                 - Game recommendations (""suggest games for 4 players"")
                                 - Specific game questions (""tell me about Catan"" → name: ""Catan"")
                                 - Mechanic/category questions (""what are worker placement games?"" → Mechanics: [""Worker Placement""])
                                 - Strategy questions (""how to win at Ticket to Ride?"" → name: ""Ticket to Ride"")
                                 - General questions mentioning game attributes (""games for beginners"" → MaxWeight: 2.5)
-                                
+
                                 Rules:
                                 1. If a field is not mentioned or implied, it should be null or omitted.
                                 2. If a field is mentioned but not specified, it should be null.
@@ -279,7 +279,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                 string? originalId = threadId;
                 string? internalThreadId = threadId;
-                
+
                 if (!string.IsNullOrEmpty(threadId) && !threadId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                 {
                     // Treat provided id as conversation id
@@ -352,7 +352,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                 if (run.Status != RunStatus.Completed)
                 {
-                    _logger.LogWarning("Run {RunId} in thread {ThreadId} did not complete. Status: {Status}, PollCount: {PollCount}", 
+                    _logger.LogWarning("Run {RunId} in thread {ThreadId} did not complete. Status: {Status}, PollCount: {PollCount}",
                         run.Id, thread.Id, run.Status, pollCount);
                 }
 
@@ -360,8 +360,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 var lastMessage = messagesResult.LastOrDefault();
                 var rawResponse = lastMessage?.ContentItems.OfType<MessageTextContent>().FirstOrDefault()?.Text;
 
-                _logger.LogInformation("Raw response from agent: Length={Length}, Preview={Preview}", 
-                    rawResponse?.Length ?? 0, 
+                _logger.LogInformation("Raw response from agent: Length={Length}, Preview={Preview}",
+                    rawResponse?.Length ?? 0,
                     rawResponse?.Substring(0, Math.Min(rawResponse?.Length ?? 0, 100)) ?? "NULL");
 
                 // Extract the actual response content and ensure it's valid
@@ -454,7 +454,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             {
                 // Try to parse as JSON to see if it's a structured response
                 var jsonDoc = JsonDocument.Parse(rawResponse);
-                
+
                 // If it's a messages array, extract the assistant's content
                 if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
                 {
@@ -473,7 +473,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 {
                     return directContent.GetString();
                 }
-                
+
                 // If it's already valid JSON that looks like criteria, return as-is
                 return rawResponse;
             }
@@ -483,7 +483,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 // Look for JSON patterns in the response
                 var jsonStart = rawResponse.IndexOf('{');
                 var jsonEnd = rawResponse.LastIndexOf('}');
-                
+
                 if (jsonStart >= 0 && jsonEnd > jsonStart)
                 {
                     var potentialJson = rawResponse.Substring(jsonStart, jsonEnd - jsonStart + 1);
@@ -499,7 +499,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                         return "{}";
                     }
                 }
-                
+
                 // If no JSON found, return empty criteria
                 return "{}";
             }
@@ -510,30 +510,30 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         {
             var sb = new StringBuilder();
             sb.AppendLine("Here are relevant board games from the database:");
-            
+
             // Limit to top 20 highest-rated games to prevent payload size issues
             // Note: games are already sorted by averageRating in descending order
             var limitedGames = games.Take(20).ToList();
-            
+
             if (!limitedGames.Any())
             {
                 sb.AppendLine("No games found matching the criteria.");
                 return sb.ToString();
             }
-            
+
             sb.AppendLine($"Found {limitedGames.Count} top-rated games (from {games.Count()} total):");
             sb.AppendLine();
 
             foreach (var game in limitedGames)
             {
                 // Truncate overview to prevent massive content
-                var overview = game.overview?.Length > 200 
-                    ? game.overview.Substring(0, 197) + "..." 
+                var overview = game.overview?.Length > 200
+                    ? game.overview.Substring(0, 197) + "..."
                     : game.overview ?? "No description";
-                    
+
                 sb.AppendLine($"- {game.name}: {overview} (Players: {game.minPlayers}-{game.maxPlayers}, Playtime: {game.minPlaytime}-{game.maxPlaytime} min, Weight: {game.weight:F1}, Rating: {game.averageRating:F1}/10)");
             }
-            
+
             return sb.ToString();
         }
 
@@ -543,12 +543,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             var payloadType = requestPayload.GetType();
             var messagesProperty = payloadType.GetProperty("messages");
             var messages = messagesProperty?.GetValue(requestPayload) as IEnumerable<object>;
-            
+
             if (messages == null)
                 return requestPayload;
 
             var messagesList = messages.ToList();
-            
+
             // Find if there's already a system message
             bool hasSystemMessage = false;
             for (int i = 0; i < messagesList.Count; i++)
@@ -575,7 +575,7 @@ TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board g
 - Focus on 2-3 key details per topic
 - Avoid long explanations - mobile users want quick, actionable advice
 - NEVER use JSON format, brackets, or structured data in responses";
-                    
+
                     messagesList[i] = new { role = "system", content = newContent };
                     break;
                 }
@@ -583,9 +583,9 @@ TONE & STYLE: Be friendly and helpful like Gamer Uncle - a knowledgeable board g
             // If no system message exists, add one
             if (!hasSystemMessage)
             {
-                messagesList.Insert(0, new 
-                { 
-                    role = "system", 
+                messagesList.Insert(0, new
+                {
+                    role = "system",
                     content = @"You are Gamer Uncle - a friendly board game expert who helps with all board game questions!
 
 CRITICAL: NEVER return JSON, arrays, or structured data in your response. Always respond with natural, conversational text only.
@@ -599,10 +599,10 @@ TONE & STYLE: Be helpful and concise for mobile chat users:
 - Avoid long explanations - give quick, actionable advice
 - NEVER use JSON format, brackets, or structured data in responses
 
-Your goal is to be the go-to expert for ALL board game questions with concise, mobile-friendly responses!" 
+Your goal is to be the go-to expert for ALL board game questions with concise, mobile-friendly responses!"
                 });
             }
-            
+
             return new { messages = messagesList };
         }
 
@@ -615,7 +615,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
             {
                 // Try to parse as JSON to see if it's a structured response
                 var jsonDoc = JsonDocument.Parse(rawResponse);
-                
+
                 // If it's a messages array, extract the assistant's content
                 if (jsonDoc.RootElement.TryGetProperty("messages", out var messagesProperty))
                 {
@@ -640,8 +640,8 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                     // Return a user-friendly message instead
                     return "Let me find some great games for you! 🎲";
                 }
-                
-                // If we can parse it as JSON but it doesn't match expected patterns, 
+
+                // If we can parse it as JSON but it doesn't match expected patterns,
                 // it might be an unwanted JSON response - return a friendly message
                 Console.WriteLine($"Unexpected JSON response detected: {rawResponse}");
                 return GetRandomFallbackMessage();
@@ -657,11 +657,11 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
         {
             // Check if the JSON contains typical criteria fields
             var criteriaFields = new[] { "name", "MinPlayers", "MaxPlayers", "MinPlaytime", "MaxPlaytime", "Mechanics", "Categories", "MaxWeight", "averageRating", "ageRequirement" };
-            
+
             // If it has any of these fields and relatively few other fields, it's likely a criteria response
             int criteriaFieldCount = 0;
             int totalFieldCount = 0;
-            
+
             foreach (var property in element.EnumerateObject())
             {
                 totalFieldCount++;
@@ -670,7 +670,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                     criteriaFieldCount++;
                 }
             }
-            
+
             // If most fields are criteria fields, this is likely a criteria extraction response
             return totalFieldCount > 0 && (criteriaFieldCount / (double)totalFieldCount) > 0.5;
         }
@@ -685,7 +685,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                 "Checking my board game knowledge! 📚",
                 "On it! Give me a moment to help! ⭐"
             };
-            
+
             var random = new Random();
             return messages[random.Next(messages.Length)];
         }
@@ -694,7 +694,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
         {
             if (string.IsNullOrWhiteSpace(response)) return true;
             if (response.Length < 25) return true;
-            
+
             // Temporary bypass for production debugging
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             if (string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase))
@@ -702,7 +702,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                 _logger.LogInformation("PROD DEBUG: Bypassing quality check. Response: {Response}", response);
                 return false; // Never consider production responses as low quality temporarily
             }
-            
+
             var fallbackPatterns = new[]
             {
                 "Let me help you with that board game question!",
@@ -757,13 +757,13 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                 return payload;
 
             // If the payload is too long, create a simplified version
-            return new { 
-                messages = new[] { 
-                    new { 
-                        role = "user", 
-                        content = "Provide board game recommendations. Keep response under 500 characters." 
-                    } 
-                } 
+            return new {
+                messages = new[] {
+                    new {
+                        role = "user",
+                        content = "Provide board game recommendations. Keep response under 500 characters."
+                    }
+                }
             };
         }
     }

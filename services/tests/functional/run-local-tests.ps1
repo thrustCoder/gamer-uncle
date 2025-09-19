@@ -3,10 +3,30 @@
 Write-Host "🎯 GamerUncle API Functional Tests" -ForegroundColor Cyan
 Write-Host "==================================" -ForegroundColor Cyan
 
-# Check if API project exists
-$ApiProject = "..\..\api\GamerUncle.Api.csproj"
+# Resolve script directory to build robust relative paths regardless of current working directory
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Determine repo root by climbing until gamer-uncle.sln is found
+$Current = Resolve-Path $ScriptDir
+while ($Current -and -not (Test-Path (Join-Path $Current "gamer-uncle.sln"))) {
+    $Parent = Split-Path $Current -Parent
+    if ($Parent -eq $Current) { break }
+    $Current = $Parent
+}
+if (Test-Path (Join-Path $Current "gamer-uncle.sln")) {
+    $RepoRoot = $Current
+} else {
+    # fallback: assume script path depth and go up four levels
+    $RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\..\..\..")
+}
+Push-Location $RepoRoot
+$ApiProject = Join-Path $RepoRoot "services\api\GamerUncle.Api.csproj"
+Write-Host "ℹ ScriptDir: $ScriptDir" -ForegroundColor DarkGray
+Write-Host "ℹ RepoRoot:  $RepoRoot" -ForegroundColor DarkGray
+Write-Host "ℹ CurrentDir: $(Get-Location)" -ForegroundColor DarkGray
+Write-Host "ℹ ApiProject: $ApiProject" -ForegroundColor DarkGray
+
 if (-not (Test-Path $ApiProject)) {
-    Write-Host "❌ API project not found at $ApiProject" -ForegroundColor Red
+    Write-Host "❌ API project not found at $ApiProject (resolved from $ScriptDir)" -ForegroundColor Red
     exit 1
 }
 
@@ -14,7 +34,7 @@ try {
     # Set environment for API to bypass rate limiting
     $env:ASPNETCORE_ENVIRONMENT = "Testing"
     $env:Testing__DisableRateLimit = "true"
-    
+
     # Start API in background
     Write-Host "🚀 Starting API server..." -ForegroundColor Green
     $ApiProcess = Start-Process -FilePath "dotnet" -ArgumentList "run", "--project", $ApiProject -PassThru -WindowStyle Hidden

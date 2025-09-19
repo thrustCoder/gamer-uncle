@@ -5,7 +5,7 @@ using Moq;
 using Xunit;
 using GamerUncle.Api.Controllers;
 using GamerUncle.Api.Models;
-using GamerUncle.Api.Services.Interfaces;
+using GamerUncle.Shared.Models;
 using System.Net;
 
 namespace GamerUncle.Api.Tests
@@ -21,7 +21,7 @@ namespace GamerUncle.Api.Tests
             _mockAgentService = new Mock<IAgentServiceClient>();
             _mockLogger = new Mock<ILogger<RecommendationsController>>();
             _controller = new RecommendationsController(_mockAgentService.Object, _mockLogger.Object);
-            
+
             // Setup HttpContext for IP and UserAgent tracking
             var httpContext = new DefaultHttpContext();
             httpContext.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
@@ -36,13 +36,13 @@ namespace GamerUncle.Api.Tests
         public async Task RecommendGame_ValidRequest_ReturnsOkResult()
         {
             // Arrange
-            var query = new UserQuery 
-            { 
-                Query = "I want a strategy game", 
-                ConversationId = "test-conversation-123" 
+            var query = new UserQuery
+            {
+                Query = "I want a strategy game",
+                ConversationId = "test-conversation-123"
             };
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
-            
+
             _mockAgentService
                 .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
                 .ReturnsAsync(expectedResponse);
@@ -53,7 +53,7 @@ namespace GamerUncle.Api.Tests
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.Equal(expectedResponse, okResult.Value);
-            
+
             // Verify logging
             VerifyLogCalled(LogLevel.Information, "Game recommendation request from IP");
             VerifyLogCalled(LogLevel.Information, "Game recommendation completed successfully");
@@ -63,12 +63,12 @@ namespace GamerUncle.Api.Tests
         public async Task RecommendGame_ServiceThrowsException_ReturnsInternalServerError()
         {
             // Arrange
-            var query = new UserQuery 
-            { 
-                Query = "I want a strategy game", 
-                ConversationId = "test-conversation-123" 
+            var query = new UserQuery
+            {
+                Query = "I want a strategy game",
+                ConversationId = "test-conversation-123"
             };
-            
+
             _mockAgentService
                 .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
                 .ThrowsAsync(new Exception("Service unavailable"));
@@ -80,7 +80,7 @@ namespace GamerUncle.Api.Tests
             var statusResult = Assert.IsType<ObjectResult>(result);
             Assert.Equal(500, statusResult.StatusCode);
             Assert.Equal("An error occurred while processing your request", statusResult.Value);
-            
+
             // Verify error logging
             VerifyLogCalled(LogLevel.Error, "Error processing game recommendation");
         }
@@ -89,13 +89,13 @@ namespace GamerUncle.Api.Tests
         public async Task RecommendGame_LogsClientInformation()
         {
             // Arrange
-            var query = new UserQuery 
-            { 
-                Query = "I want a strategy game", 
-                ConversationId = "test-conversation-123" 
+            var query = new UserQuery
+            {
+                Query = "I want a strategy game",
+                ConversationId = "test-conversation-123"
             };
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
-            
+
             _mockAgentService
                 .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
                 .ReturnsAsync(expectedResponse);
@@ -120,13 +120,13 @@ namespace GamerUncle.Api.Tests
         public async Task RecommendGame_WithNullOrEmptyQuery_StillProcesses(string? queryText)
         {
             // Arrange
-            var query = new UserQuery 
-            { 
-                Query = queryText!, 
-                ConversationId = "test-conversation-123" 
+            var query = new UserQuery
+            {
+                Query = queryText!,
+                ConversationId = "test-conversation-123"
             };
             var expectedResponse = new AgentResponse { ResponseText = "Default recommendation" };
-            
+
             _mockAgentService
                 .Setup(x => x.GetRecommendationsAsync(queryText!, query.ConversationId))
                 .ReturnsAsync(expectedResponse);
