@@ -18,12 +18,9 @@ User Voice → Foundry Live Voice → [Cosmos RAG Context] → Agent Processing 
 ```
 
 ### Key Principles
-- **Preserve existing RAG pipeline**: Cosmos DB vector search remains the intelligence layer
-- **Eliminate manual STT/TTS**: Foundry handles all audio processing
-- **Enhance context injection**: RAG results feed directly into Foundry system messages
-- **Maintain performance**: <50ms Cosmos latency for context preloading
 
----
+ [x] No dependency on custom STT/TTS or Azure Speech
+ [x] All audio processing (STT/TTS) is handled by Azure AI Foundry Live Voice service via WebRTC. No local or custom speech libraries are used in production. The mobile app and backend only manage session creation, context injection, and WebRTC connection setup.
 
 ## 🛠️ Backend Implementation
 

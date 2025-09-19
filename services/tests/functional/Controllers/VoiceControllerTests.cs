@@ -198,8 +198,9 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             Assert.True(Uri.TryCreate(voiceSessionResponse.FoundryConnectionUrl, UriKind.Absolute, out var foundryUri), 
                 "FoundryConnectionUrl should be a valid URL");
             
-            // Verify it's HTTPS for security
-            Assert.Equal("https", foundryUri.Scheme);
+            // Verify it's using a secure protocol (HTTPS or WSS depending on the environment)
+            Assert.True(foundryUri.Scheme == "https" || foundryUri.Scheme == "wss", 
+                $"Expected secure protocol (https or wss), but got: {foundryUri.Scheme}");
             
             _output.WriteLine($"Foundry connection URL validated: {voiceSessionResponse.FoundryConnectionUrl}");
         }
