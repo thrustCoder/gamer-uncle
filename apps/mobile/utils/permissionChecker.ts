@@ -25,9 +25,9 @@ export class PermissionChecker {
         // iOS - We can't directly check permissions without triggering a request,
         // but we can try to enumerate devices to see if permissions exist
         try {
-          const devices = await mediaDevices.enumerateDevices();
-          const audioDevices = devices.filter(device => device.kind === 'audioinput');
-          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          const devices = await mediaDevices.enumerateDevices() as MediaDeviceInfo[];
+          const audioDevices = devices.filter((device: MediaDeviceInfo) => device.kind === 'audioinput');
+          const videoDevices = devices.filter((device: MediaDeviceInfo) => device.kind === 'videoinput');
           
           // If we get device labels, permissions are likely granted
           result.microphone = audioDevices.length > 0 && audioDevices[0].label ? 'granted' : 'undetermined';

@@ -99,20 +99,22 @@ export default function ChatScreen() {
   });
 
   // Foundry voice session hook
-  const foundryVoiceSession = useFoundryVoiceSession((voiceResponse) => {
-    // Handle voice response by adding it to chat messages
-    if (voiceResponse.responseText) {
-      const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
-      const newMessage = {
-        id: Date.now().toString(),
-        type: messageType,
-        text: voiceResponse.responseText
-      };
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Update conversation ID if provided (only for system responses)
-      if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
-        setConversationId(voiceResponse.threadId);
+  const foundryVoiceSession = useFoundryVoiceSession({
+    onVoiceResponse: (voiceResponse) => {
+      // Handle voice response by adding it to chat messages
+      if (voiceResponse.responseText) {
+        const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
+        const newMessage = {
+          id: Date.now().toString(),
+          type: messageType,
+          text: voiceResponse.responseText
+        };
+        setMessages(prev => [...prev, newMessage]);
+        
+        // Update conversation ID if provided (only for system responses)
+        if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
+          setConversationId(voiceResponse.threadId);
+        }
       }
     }
   });
@@ -278,7 +280,7 @@ export default function ChatScreen() {
       
       if (isVoiceActive && isRecording) {
         if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(false);
+          foundryVoiceSession.setRecording();
         } else {
           legacyVoiceSession.setRecording(false);
         }
@@ -547,7 +549,7 @@ export default function ChatScreen() {
                       handleStartVoice();
                     } else {
                       if (useFoundryVoice) {
-                        foundryVoiceSession.setRecording(true);
+                        foundryVoiceSession.setRecording();
                       } else {
                         legacyVoiceSession.setRecording(true);
                       }
@@ -556,7 +558,7 @@ export default function ChatScreen() {
                   onPressOut={Platform.OS !== 'web' ? () => {
                     if (isVoiceActive && isRecording) {
                       if (useFoundryVoice) {
-                        foundryVoiceSession.setRecording(false);
+                        foundryVoiceSession.setRecording();
                       } else {
                         legacyVoiceSession.setRecording(false);
                       }
