@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "gamer-uncle-local": {
+      "type": "sse",
+      "url": "http://localhost:63602/mcp/sse"
+    }
+  }
+}

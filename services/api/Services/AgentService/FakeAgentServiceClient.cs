@@ -1,5 +1,5 @@
 using GamerUncle.Api.Models;
-using GamerUncle.Api.Services.Interfaces;
+using GamerUncle.Shared.Models;
 
 namespace GamerUncle.Api.Services.AgentService
 {
