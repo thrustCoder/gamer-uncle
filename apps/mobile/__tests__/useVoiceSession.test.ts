@@ -1,5 +1,47 @@
 import { renderHook, act } from '@testing-library/react-native';
 
+// Mock React Native Voice and NativeEventEmitter
+jest.mock('@react-native-voice/voice', () => ({
+  __esModule: true,
+  default: {
+    onSpeechStart: jest.fn(),
+    onSpeechRecognized: jest.fn(),
+    onSpeechEnd: jest.fn(),
+    onSpeechError: jest.fn(),
+    onSpeechResults: jest.fn(),
+    onSpeechPartialResults: jest.fn(),
+    start: jest.fn(() => Promise.resolve()),
+    stop: jest.fn(() => Promise.resolve()),
+    destroy: jest.fn(() => Promise.resolve()),
+    removeAllListeners: jest.fn(),
+    isAvailable: jest.fn(() => Promise.resolve(true)),
+  },
+}));
+
+// Mock NativeEventEmitter
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
+  return class MockNativeEventEmitter {
+    addListener = jest.fn();
+    removeListener = jest.fn();
+    removeAllListeners = jest.fn();
+  };
+});
+
+// Mock react-native-webrtc
+jest.mock('react-native-webrtc', () => ({
+  mediaDevices: {
+    getUserMedia: jest.fn(() => Promise.resolve({
+      id: 'mock-stream',
+      active: true,
+      getTracks: () => [],
+    })),
+  },
+  RTCPeerConnection: jest.fn(),
+  RTCSessionDescription: jest.fn(),
+  RTCIceCandidate: jest.fn(),
+  MediaStream: jest.fn(),
+}));
+
 // Mock axios
 jest.mock('axios', () => ({
   create: jest.fn(() => ({

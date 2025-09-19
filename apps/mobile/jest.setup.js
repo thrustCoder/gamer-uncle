@@ -1,6 +1,53 @@
 // Setup fetch mock
 global.fetch = jest.fn();
 
+// Mock NativeEventEmitter for react-native-voice
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
+  return class MockNativeEventEmitter {
+    constructor() {}
+    addListener = jest.fn();
+    removeListener = jest.fn();
+    removeAllListeners = jest.fn();
+  };
+});
+
+// Mock react-native-voice 
+jest.mock('@react-native-voice/voice', () => ({
+  __esModule: true,
+  default: {
+    onSpeechStart: jest.fn(),
+    onSpeechRecognized: jest.fn(),
+    onSpeechEnd: jest.fn(),
+    onSpeechError: jest.fn(),
+    onSpeechResults: jest.fn(),
+    onSpeechPartialResults: jest.fn(),
+    start: jest.fn(() => Promise.resolve()),
+    stop: jest.fn(() => Promise.resolve()),
+    destroy: jest.fn(() => Promise.resolve()),
+    removeAllListeners: jest.fn(),
+    isAvailable: jest.fn(() => Promise.resolve(true)),
+  },
+}));
+
+// Mock react-native-webrtc
+jest.mock('react-native-webrtc', () => ({
+  mediaDevices: {
+    getUserMedia: jest.fn(() => Promise.resolve({
+      id: 'mock-stream',
+      active: true,
+      getTracks: () => [{
+        stop: jest.fn(),
+        kind: 'audio',
+        enabled: true,
+      }],
+    })),
+  },
+  RTCPeerConnection: jest.fn(),
+  RTCSessionDescription: jest.fn(),
+  RTCIceCandidate: jest.fn(),
+  MediaStream: jest.fn(),
+}));
+
 // Setup React Native Testing Library
 import '@testing-library/jest-native/extend-expect';
 
