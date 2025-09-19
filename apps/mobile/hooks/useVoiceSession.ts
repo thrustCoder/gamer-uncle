@@ -31,19 +31,14 @@ export interface VoiceSessionState {
 
 // Environment-specific API base URLs
 const getApiBaseUrl = (): string => {
-  // TEMPORARY: Force dev endpoint for voice testing until prod is configured
-  // TODO: Remove this when production voice service is deployed
-  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-  
-  // Original logic (restored after production voice service is deployed):
   // Check if we're in a development environment
-  // if (__DEV__) {
-  //   // For development, use Azure Front Door endpoint
-  //   return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-  // }
-  // 
-  // // For production, use Azure Front Door endpoint
-  // return 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/';
+  if (__DEV__) {
+    // For local development testing, use host machine IP for iOS simulator
+    return 'http://192.168.50.11:63602/api/';
+  }
+  
+  // For production, use Azure Front Door endpoint
+  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
 };
 
 const api = axios.create({
@@ -62,6 +57,32 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  
+  // 🚀 OPTIMIZATION: Pre-initialized state for faster startup
+  const [isPreInitialized, setIsPreInitialized] = useState(false);
+
+  // Pre-initialize audio permissions when hook is first used
+  useEffect(() => {
+    const preInitialize = async () => {
+      try {
+        console.log('🟡 [DEBUG] Pre-initializing voice capabilities...');
+        
+        // Pre-request audio permissions (this is often the slowest part)
+        const stream = await requestAudioPermissions();
+        if (stream) {
+          // Store for later use but don't keep it active
+          stream.getTracks().forEach(track => track.stop());
+          setIsPreInitialized(true);
+          console.log('🟢 [DEBUG] Voice pre-initialization completed');
+        }
+      } catch (error) {
+        console.log('🟡 [DEBUG] Pre-initialization failed (will request on-demand):', error);
+        // Not critical - will fall back to on-demand initialization
+      }
+    };
+
+    preInitialize();
+  }, []);
 
   const updateState = useCallback((updates: Partial<VoiceSessionState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -109,7 +130,7 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
       });
       
       const response = await api.post('voice/sessions', request, {
-        timeout: 10000, // 10 second timeout
+        timeout: 30000, // 30 second timeout for Azure AI Foundry
         headers: {
           'Content-Type': 'application/json',
         },
@@ -191,41 +212,43 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     return peerConnection;
   }, [updateState]);
 
-  // Start voice session - simplified for free-form input/output
+  // Start voice session - OPTIMIZED with parallel processing
   const startVoiceSession = useCallback(async (request: VoiceSessionRequest) => {
-    console.log('🟡 [DEBUG] Starting voice session with request:', request);
+    console.log('🟡 [DEBUG] Starting OPTIMIZED voice session with request:', request);
     console.log('🟡 [DEBUG] API Base URL:', getApiBaseUrl());
-    console.log('🟡 [DEBUG] Environment __DEV__:', __DEV__);
-    console.log('🟡 [DEBUG] Platform:', Platform.OS);
     
     try {
       updateState({ isConnecting: true, error: null });
 
-      // Request audio permissions
-      const localStream = await requestAudioPermissions();
-      if (!localStream) {
+      // 🚀 OPTIMIZATION: Run these operations in PARALLEL instead of sequential
+      console.log('🟡 [DEBUG] Starting parallel operations: audio permissions + session creation + WebRTC setup');
+      const startTime = Date.now();
+      
+      const [sessionResponse, localStream, peerConnection] = await Promise.all([
+        createVoiceSession(request),
+        requestAudioPermissions(),
+        Promise.resolve(setupPeerConnection())
+      ]);
+
+      const setupTime = Date.now() - startTime;
+      console.log(`� [DEBUG] Parallel setup completed in ${setupTime}ms`);
+
+      if (!sessionResponse || !localStream || !peerConnection) {
+        console.error('🔴 [DEBUG] One of the parallel operations failed');
         updateState({ isConnecting: false });
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+        }
         return;
       }
+
+      // Store references
       localStreamRef.current = localStream;
-
-      // Create voice session with backend
-      console.log('🟡 [DEBUG] Creating voice session via API...');
-      const sessionResponse = await createVoiceSession(request);
-      if (!sessionResponse) {
-        updateState({ isConnecting: false });
-        localStream.getTracks().forEach(track => track.stop());
-        return;
-      }
-
-      console.log('🟢 [DEBUG] Voice session created, sessionId:', sessionResponse.SessionId);
       sessionIdRef.current = sessionResponse.SessionId;
+      peerConnectionRef.current = peerConnection;
       updateState({ sessionId: sessionResponse.SessionId });
 
-      // Setup peer connection with default configuration
-      console.log('🟡 [DEBUG] Setting up WebRTC peer connection...');
-      const peerConnection = setupPeerConnection();
-      peerConnectionRef.current = peerConnection;
+      console.log('� [DEBUG] Voice session created, sessionId:', sessionResponse.SessionId);
 
       // Add local stream to peer connection
       localStream.getTracks().forEach(track => {
@@ -233,18 +256,21 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
         peerConnection.addTrack(track, localStream);
       });
 
-      // Create offer for simplified voice session
+      // Create offer for voice session
       console.log('🟡 [DEBUG] Creating WebRTC offer...');
+      const offerStart = Date.now();
       const offer = await peerConnection.createOffer({});
       await peerConnection.setLocalDescription(offer);
-      console.log('🟢 [DEBUG] WebRTC offer created and local description set');
+      const offerTime = Date.now() - offerStart;
+      console.log(`🟢 [DEBUG] WebRTC offer created in ${offerTime}ms`);
       
       // Send offer to backend (would be handled by voice service)
       console.log('Offer SDP:', offer.sdp);
 
-      // Mark as active for simplified testing
+      // Mark as active
+      const totalTime = Date.now() - startTime;
       updateState({ isConnecting: false, isActive: true });
-      console.log('🟢 [DEBUG] Voice session started successfully');
+      console.log(`🟢 [DEBUG] Voice session started successfully in ${totalTime}ms`);
 
     } catch (error) {
       console.error('🔴 [DEBUG] Failed to start voice session:', error);
