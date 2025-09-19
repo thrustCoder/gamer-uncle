@@ -149,8 +149,25 @@ else
 }
 builder.Services.AddTransient<AzureAuthenticationValidator>();
 
-// Register MCP services with SSE support
-builder.Services.AddMcpServices(builder.Configuration);
+// Determine MCP enablement (Production defaults to disabled unless explicitly true)
+bool mcpEnabled;
+{
+    var configured = builder.Configuration.GetValue<bool?>("Mcp:Enabled");
+    if (configured.HasValue)
+    {
+        mcpEnabled = configured.Value;
+    }
+    else
+    {
+        // Default: enabled for non-Production, disabled for Production
+        mcpEnabled = !builder.Environment.IsProduction();
+    }
+}
+
+if (mcpEnabled)
+{
+    builder.Services.AddMcpServices(builder.Configuration);
+}
 
 // Add health checks including authentication
 builder.Services.AddHealthChecks()
@@ -201,8 +218,13 @@ app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 
-// Map MCP endpoints (unified SSE + POST) via extension
-app.MapMcpEndpoints();
+// Log MCP enablement state and map endpoints if enabled
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+startupLogger.LogInformation("MCP Enabled: {Enabled} (Environment: {Env})", mcpEnabled, app.Environment.EnvironmentName);
+if (mcpEnabled)
+{
+    app.MapMcpEndpoints();
+}
 
 app.UseCors();
 app.UseStaticFiles();
