@@ -3,11 +3,21 @@ import { MediaStream as RNMediaStream, mediaDevices } from 'react-native-webrtc'
 
 // Environment-specific API base URLs
 const getApiBaseUrl = (): string => {
+  // For development testing with local API - use host machine IP for iOS simulator
+  if (__DEV__) {
+    // Use Azure endpoint instead of local for reliable testing
+    return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
+    // return 'http://192.168.50.11:63602/api/'; // Local API (currently having issues)
+  }
   return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
 };
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
+  timeout: 30000, // 30 second timeout to match backend expectations
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 export interface VoiceSession {
@@ -70,24 +80,49 @@ export class FoundryVoiceService {
 
   async startVoiceSession(request: VoiceSessionRequest): Promise<boolean> {
     try {
+      const sessionStartTime = Date.now();
       console.log('🎤 [FOUNDRY-REALTIME] Starting Azure OpenAI Realtime voice session with request:', request);
+      console.log('⏱️ [TIMING] Session start time:', new Date().toISOString());
 
       // 1. Create voice session (backend will inject RAG context)
+      console.log('⏱️ [TIMING] Step 1: Creating voice session via backend API...');
+      const step1Start = Date.now();
       this.currentSession = await this.createVoiceSession(request);
+      const step1Time = Date.now() - step1Start;
+      console.log(`⏱️ [TIMING] Step 1 completed in ${step1Time}ms - Voice session created`);
       
       // 2. Parse WebRTC token for connection details
+      console.log('⏱️ [TIMING] Step 2: Parsing WebRTC token...');
+      const step2Start = Date.now();
       this.tokenData = this.parseWebRTCToken(this.currentSession.webRtcToken);
+      const step2Time = Date.now() - step2Start;
+      console.log(`⏱️ [TIMING] Step 2 completed in ${step2Time}ms - Token parsed`);
       
       // 3. Connect to Azure OpenAI Realtime API via WebSocket
+      console.log('⏱️ [TIMING] Step 3: Connecting to Azure OpenAI Realtime API...');
+      const step3Start = Date.now();
       await this.connectToRealtimeAPI();
+      const step3Time = Date.now() - step3Start;
+      console.log(`⏱️ [TIMING] Step 3 completed in ${step3Time}ms - WebSocket connected`);
       
       // 4. Get user microphone access
+      console.log('⏱️ [TIMING] Step 4: Getting user microphone access...');
+      const step4Start = Date.now();
       this.localStream = await this.getUserMedia();
+      const step4Time = Date.now() - step4Start;
+      console.log(`⏱️ [TIMING] Step 4 completed in ${step4Time}ms - Microphone access granted`);
       
       // 5. Start audio streaming
+      console.log('⏱️ [TIMING] Step 5: Starting audio streaming...');
+      const step5Start = Date.now();
       await this.startAudioStreaming();
+      const step5Time = Date.now() - step5Start;
+      console.log(`⏱️ [TIMING] Step 5 completed in ${step5Time}ms - Audio streaming started`);
 
-      console.log('🟢 [FOUNDRY-REALTIME] Voice session started successfully');
+      const totalTime = Date.now() - sessionStartTime;
+      console.log(`🟢 [FOUNDRY-REALTIME] Voice session started successfully`);
+      console.log(`⏱️ [TIMING] TOTAL SESSION STARTUP TIME: ${totalTime}ms`);
+      console.log(`⏱️ [TIMING] Breakdown: API=${step1Time}ms, Parse=${step2Time}ms, WebSocket=${step3Time}ms, Mic=${step4Time}ms, Stream=${step5Time}ms`);
       return true;
 
     } catch (error) {
@@ -99,7 +134,18 @@ export class FoundryVoiceService {
 
   private async createVoiceSession(request: VoiceSessionRequest): Promise<VoiceSession> {
     try {
+      console.log('🌐 [API-TIMING] Making HTTP POST request to:', api.defaults.baseURL + 'voice/sessions');
+      console.log('🌐 [API-TIMING] Request payload:', request);
+      console.log('🌐 [API-TIMING] Request start time:', new Date().toISOString());
+      
+      const apiStartTime = Date.now();
       const response = await api.post<VoiceSession>('/voice/sessions', request);
+      const apiEndTime = Date.now();
+      const apiDuration = apiEndTime - apiStartTime;
+      
+      console.log(`🌐 [API-TIMING] HTTP request completed in ${apiDuration}ms`);
+      console.log('🌐 [API-TIMING] Response status:', response.status);
+      console.log('🌐 [API-TIMING] Response data:', response.data);
       
       if (!response.data.sessionId) {
         throw new Error('Invalid voice session response');
@@ -109,6 +155,23 @@ export class FoundryVoiceService {
       return response.data;
     } catch (error) {
       console.error('🔴 [FOUNDRY-REALTIME] Failed to create voice session:', error);
+      
+      // Enhanced error logging
+      if ((error as any).code === 'ECONNABORTED') {
+        console.error('🔴 [API-TIMING] Request timed out after 30 seconds');
+      } else if ((error as any).response) {
+        console.error('🔴 [API-TIMING] Server responded with error:', {
+          status: (error as any).response.status,
+          statusText: (error as any).response.statusText,
+          data: (error as any).response.data
+        });
+      } else if ((error as any).request) {
+        console.error('🔴 [API-TIMING] No response received:', (error as any).request);
+        console.error('🔴 [API-TIMING] Network error or server unreachable');
+      } else {
+        console.error('🔴 [API-TIMING] Request setup error:', (error as any).message);
+      }
+      
       throw new Error(`Failed to create voice session: ${error}`);
     }
   }
@@ -134,6 +197,9 @@ export class FoundryVoiceService {
 
       const wsUrl = this.currentSession!.foundryConnectionUrl;
       console.log('🔗 [FOUNDRY-REALTIME] Connecting to Azure OpenAI Realtime API:', wsUrl);
+      console.log('🔗 [WS-TIMING] WebSocket connection start time:', new Date().toISOString());
+      
+      const wsConnectStartTime = Date.now();
 
       // For development, handle mock WebSocket connections
       if (wsUrl.includes('mock') || wsUrl.includes('test') || wsUrl.includes('local')) {
@@ -141,7 +207,8 @@ export class FoundryVoiceService {
         
         // Simulate successful connection for development
         setTimeout(() => {
-          console.log('🟢 [FOUNDRY-REALTIME] Mock WebSocket connected successfully');
+          const mockConnectTime = Date.now() - wsConnectStartTime;
+          console.log(`🟢 [FOUNDRY-REALTIME] Mock WebSocket connected successfully in ${mockConnectTime}ms`);
           this.isConnected = true;
           this.notifyConnectionStateChange('connected');
           resolve();
@@ -154,7 +221,9 @@ export class FoundryVoiceService {
       this.notifyConnectionStateChange('connecting');
 
       this.websocket.onopen = () => {
-        console.log('🟢 [FOUNDRY-REALTIME] WebSocket connected to Azure OpenAI Realtime API');
+        const wsConnectTime = Date.now() - wsConnectStartTime;
+        console.log(`🟢 [FOUNDRY-REALTIME] WebSocket connected to Azure OpenAI Realtime API in ${wsConnectTime}ms`);
+        console.log('🔗 [WS-TIMING] WebSocket connection established time:', new Date().toISOString());
         this.isConnected = true;
         this.initializeRealtimeSession();
         this.notifyConnectionStateChange('connected');
@@ -166,13 +235,17 @@ export class FoundryVoiceService {
       };
 
       this.websocket.onerror = (error) => {
-        console.error('🔴 [FOUNDRY-REALTIME] WebSocket error:', error);
+        const wsErrorTime = Date.now() - wsConnectStartTime;
+        console.error(`🔴 [FOUNDRY-REALTIME] WebSocket error after ${wsErrorTime}ms:`, error);
+        console.error('🔗 [WS-TIMING] WebSocket error time:', new Date().toISOString());
         this.notifyConnectionStateChange('failed');
         reject(error);
       };
 
       this.websocket.onclose = () => {
-        console.log('🔌 [FOUNDRY-REALTIME] WebSocket disconnected');
+        const wsCloseTime = Date.now() - wsConnectStartTime;
+        console.log(`🔌 [FOUNDRY-REALTIME] WebSocket disconnected after ${wsCloseTime}ms`);
+        console.log('🔗 [WS-TIMING] WebSocket close time:', new Date().toISOString());
         this.isConnected = false;
         this.notifyConnectionStateChange('disconnected');
       };
@@ -260,15 +333,21 @@ export class FoundryVoiceService {
 
   private async getUserMedia(): Promise<RNMediaStream> {
     try {
+      console.log('🎤 [MIC-TIMING] Requesting microphone access...');
+      const micStartTime = Date.now();
+      
       const stream = await mediaDevices.getUserMedia({
         audio: true,
         video: false
       });
 
-      console.log('🎤 [FOUNDRY-REALTIME] Microphone access granted');
+      const micAccessTime = Date.now() - micStartTime;
+      console.log(`🎤 [FOUNDRY-REALTIME] Microphone access granted in ${micAccessTime}ms`);
+      console.log('🎤 [MIC-TIMING] Microphone access time:', new Date().toISOString());
       return stream;
     } catch (error) {
       console.error('🔴 [FOUNDRY-REALTIME] Failed to get microphone access:', error);
+      console.error('🎤 [MIC-TIMING] Microphone access failed time:', new Date().toISOString());
       throw new Error('Microphone access required for voice session');
     }
   }
@@ -277,13 +356,19 @@ export class FoundryVoiceService {
     if (!this.localStream || !this.websocket) return;
 
     try {
+      console.log('🎵 [STREAM-TIMING] Starting audio streaming setup...');
+      const streamStartTime = Date.now();
+      
       // TODO: Implement proper audio streaming with React Native WebRTC
       // For now, we'll focus on the WebSocket connection and session management
       console.log('🎤 [FOUNDRY-REALTIME] Audio streaming setup - simplified for development');
       
-      console.log('� [FOUNDRY-REALTIME] Audio streaming placeholder active');
+      const streamSetupTime = Date.now() - streamStartTime;
+      console.log(`🎵 [FOUNDRY-REALTIME] Audio streaming placeholder active in ${streamSetupTime}ms`);
+      console.log('🎵 [STREAM-TIMING] Audio streaming time:', new Date().toISOString());
     } catch (error) {
       console.error('🔴 [FOUNDRY-REALTIME] Failed to start audio streaming:', error);
+      console.error('🎵 [STREAM-TIMING] Audio streaming failed time:', new Date().toISOString());
       throw error;
     }
   }
