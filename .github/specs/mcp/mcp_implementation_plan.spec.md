@@ -81,8 +81,8 @@ services/mcp/
 | `initialize` | Implemented | Echoes protocolVersion |
 | `tools/list` | Implemented | Returns `board_game_query` definition |
 | `tools/call` | Implemented | Executes query logic |
-| `prompts/list` | Not implemented | Returns error (backlog) |
-| `notifications/initialized` | Not implemented | Returns error (backlog) |
+| `prompts/list` | Implemented | Returns empty array (no prompts defined yet) |
+| `notifications/initialized` | Implemented | Acknowledges client initialization notification |
 
 ### Rate Limiting
 | Aspect | Current State |
@@ -102,8 +102,8 @@ services/mcp/
 | Tool discovery & invocation | ✅ |
 | Queue flush on first SSE attach | ✅ |
 | Graceful handling unknown methods | ✅ (JSON-RPC error) |
-| `prompts/list` implemented | ❌ (backlog) |
-| `notifications/initialized` ack | ❌ (backlog) |
+| `prompts/list` implemented | ✅ |
+| `notifications/initialized` ack | ✅ |
 
 ## Reference Endpoint Mapping (Code Sketch)
 ```csharp
@@ -247,8 +247,8 @@ sequenceDiagram
 ## Backlog / Future Enhancements
 | Item | Priority | Notes |
 |------|----------|-------|
-| Implement `prompts/list` (empty array) | Medium | Removes error noise |
-| Implement `notifications/initialized` no-op ack | Medium | Improves log cleanliness |
+| (reserved) Additional prompts definitions | Low | Populate when first prompt use-case emerges |
+| (reserved) notifications enhancements | Low | Metrics or extended handshake if needed |
 | Multi-connection broadcast (currently single consumer) | Low | Only needed for multi-view scenarios |
 | WebSocket fallback (`/mcp/rpc`) | Low | Defer until a client demands it |
 | Structured telemetry (session duration, messages per session) | Medium | For Prod dashboards |
@@ -276,14 +276,14 @@ sequenceDiagram
 | Core MCP + SSE | Complete |
 | Copilot Handshake Hardening | Complete |
 | Dynamic Protocol Version | Complete |
-| Prompts & Notifications Support | Pending |
+| Prompts & Notifications Support | Complete |
 | Telemetry & Metrics | Pending |
 | Optional WebSocket | Deferred |
 
 ## Next Immediate Options
-1. Add `prompts/list` & `notifications/initialized` handlers (fast win).
-2. Introduce structured telemetry events (connection_started, message_sent, connection_closed).
-3. Decide on multi-connection strategy (keep simple vs broadcast).
+1. Introduce structured telemetry events (connection_started, message_sent, connection_closed).
+2. Decide on multi-connection strategy (keep simple vs broadcast).
+3. Define first prompt set (if/when product needs structured prompt surfacing).
 
 ---
 This document reflects the current working implementation and the divergence from the original dual-endpoint plan. It should be updated again after prompts/notifications support is added.
