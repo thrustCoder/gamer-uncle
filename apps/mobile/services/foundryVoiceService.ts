@@ -48,6 +48,7 @@ interface WebRTCTokenData {
   voice: string;
   iceServers: any[];
   apiVersion: string;
+  accessToken: string;
 }
 
 interface RealtimeEvent {
