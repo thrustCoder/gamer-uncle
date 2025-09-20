@@ -207,10 +207,15 @@ namespace GamerUncle.Api.Services.VoiceService
             }
         }
 
-        private Task<string> GenerateRealtimeWebRtcTokenAsync(string sessionId, string systemMessage)
+        private async Task<string> GenerateRealtimeWebRtcTokenAsync(string sessionId, string systemMessage)
         {
             try
             {
+                // Get access token for Azure OpenAI authentication
+                var credential = new DefaultAzureCredential();
+                var tokenRequest = new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
+                var accessToken = await credential.GetTokenAsync(tokenRequest);
+                
                 // Generate WebRTC connection token with session info and system message
                 var tokenData = new
                 {
@@ -221,14 +226,15 @@ namespace GamerUncle.Api.Services.VoiceService
                     systemMessage = systemMessage,
                     voice = _configuration["VoiceService:DefaultVoice"] ?? "alloy",
                     iceServers = JsonSerializer.Deserialize<object[]>(_configuration["VoiceService:WebRtcStunServers"] ?? "[]"),
-                    apiVersion = "2024-10-01-preview" // Latest Realtime API version
+                    apiVersion = "2024-10-01-preview", // Latest Realtime API version
+                    accessToken = accessToken.Token // Include token for WebSocket authentication
                 };
 
                 var tokenJson = JsonSerializer.Serialize(tokenData);
                 var webRtcToken = Convert.ToBase64String(Encoding.UTF8.GetBytes(tokenJson));
                 
                 _logger.LogDebug("Generated WebRTC token for session: {SessionId}", sessionId);
-                return Task.FromResult(webRtcToken);
+                return webRtcToken;
             }
             catch (Exception ex)
             {
@@ -256,8 +262,9 @@ namespace GamerUncle.Api.Services.VoiceService
                 var accessToken = await credential.GetTokenAsync(tokenRequest);
                 
                 // Convert to WebSocket URL using the standard OpenAI Realtime API format
+                // Azure OpenAI accepts api-key parameter for authentication in WebSocket connections
                 var wsEndpoint = azureOpenAIEndpoint.Replace("https://", "wss://").Replace("http://", "ws://");
-                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&authorization=Bearer {accessToken.Token}";
+                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={accessToken.Token}";
                 
                 _logger.LogInformation("Generated authenticated OpenAI Realtime WebSocket URL for session {SessionId}", sessionId);
                 return connectionUrl;
