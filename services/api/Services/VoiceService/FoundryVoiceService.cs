@@ -250,21 +250,35 @@ namespace GamerUncle.Api.Services.VoiceService
                 // Use the standard Azure OpenAI Realtime API WebSocket format
                 // This is the correct format for Azure OpenAI realtime connections
                 var azureOpenAIEndpoint = _configuration["VoiceService:AzureOpenAIEndpoint"];
+                var azureOpenAIKey = _configuration["VoiceService:AzureOpenAIKey"]; // Optional: prefer API key for browser WS auth
                 
                 if (string.IsNullOrEmpty(azureOpenAIEndpoint))
                 {
                     throw new InvalidOperationException("Azure OpenAI endpoint is not configured");
                 }
                 
-                // Get access token for Azure OpenAI authentication
-                var credential = new DefaultAzureCredential();
-                var tokenRequest = new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
-                var accessToken = await credential.GetTokenAsync(tokenRequest);
-                
                 // Convert to WebSocket URL using the standard OpenAI Realtime API format
-                // Azure OpenAI accepts api-key parameter for authentication in WebSocket connections
+                // Azure OpenAI accepts api-key parameter for authentication in WebSocket connections (browser-safe)
                 var wsEndpoint = azureOpenAIEndpoint.Replace("https://", "wss://").Replace("http://", "ws://");
-                var connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={accessToken.Token}";
+                string connectionUrl;
+
+                if (!string.IsNullOrWhiteSpace(azureOpenAIKey))
+                {
+                    // Preferred: use Azure OpenAI API key for browser/React Native WebSocket authentication via query param
+                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(azureOpenAIKey)}";
+                    _logger.LogInformation("Generated OpenAI Realtime WebSocket URL using API key for session {SessionId}", sessionId);
+                }
+                else
+                {
+                    // Fallback: use Microsoft Entra (managed identity) access token, but note this may not work for browser WS auth
+                    // because Authorization headers cannot be sent by the browser during WebSocket handshake.
+                    var credential = new DefaultAzureCredential();
+                    var tokenRequest = new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
+                    var accessToken = await credential.GetTokenAsync(tokenRequest);
+
+                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(accessToken.Token)}";
+                    _logger.LogWarning("AzureOpenAIKey not configured. Using Entra token in api-key query parameter for session {SessionId}. This may fail in browser/React Native environments. Configure 'VoiceService:AzureOpenAIKey' for reliable WebSocket authentication.", sessionId);
+                }
                 
                 _logger.LogInformation("Generated authenticated OpenAI Realtime WebSocket URL for session {SessionId}", sessionId);
                 return connectionUrl;
