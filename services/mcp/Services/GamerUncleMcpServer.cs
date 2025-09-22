@@ -55,6 +55,8 @@ namespace GamerUncle.Mcp.Services
                     "initialize" => await HandleInitialize(root, idValue),
                     "tools/list" => await HandleToolsList(root, idValue),
                     "tools/call" => await HandleToolCall(root, idValue),
+                    "prompts/list" => await HandlePromptsList(root, idValue),
+                    "notifications/initialized" => await HandleNotificationsInitialized(root, idValue),
                     _ => CreateErrorResponse($"Unknown method: {method}", idValue)
                 };
             }
@@ -226,6 +228,37 @@ namespace GamerUncle.Mcp.Services
                 _logger.LogError(ex, "Error handling tool call");
                 return CreateErrorResponse("Error executing tool", id);
             }
+        }
+
+        private Task<object> HandlePromptsList(JsonElement root, object? id)
+        {
+            // Currently no prompts implemented; return empty list per MCP expectations.
+            _logger.LogInformation("Handling MCP prompts/list request (no prompts defined)");
+            return Task.FromResult<object>(new
+            {
+                jsonrpc = "2.0",
+                id,
+                result = new
+                {
+                    prompts = Array.Empty<object>()
+                }
+            });
+        }
+
+        private Task<object> HandleNotificationsInitialized(JsonElement root, object? id)
+        {
+            // Some clients send this as a notification (id may be null). We acknowledge silently.
+            _logger.LogInformation("Received notifications/initialized (id={Id})", id);
+            return Task.FromResult<object>(new
+            {
+                jsonrpc = "2.0",
+                id, // Will be null for JSON-RPC notification; acceptable.
+                result = new
+                {
+                    acknowledged = true,
+                    timestampUtc = DateTime.UtcNow
+                }
+            });
         }
 
         private static object CreateErrorResponse(string message, object? id)

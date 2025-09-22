@@ -144,5 +144,45 @@ namespace GamerUncle.Mcp.Tests
             Assert.Equal(-32603, json.GetProperty("error").GetProperty("code").GetInt32());
             Assert.Contains("Missing query argument", json.GetProperty("error").GetProperty("message").GetString());
         }
+
+        [Fact]
+        public async Task ProcessJsonRpcAsync_PromptsList_ReturnsEmptyArray()
+        {
+            var (server, _, _, _) = CreateServer();
+            var request = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"prompts/list\"}";
+            var response = await server.ProcessJsonRpcAsync(request);
+            var json = GetJsonElement(response);
+            Assert.Equal(7, json.GetProperty("id").GetInt32());
+            var prompts = json.GetProperty("result").GetProperty("prompts").EnumerateArray().ToList();
+            Assert.Empty(prompts);
+        }
+
+        [Fact]
+        public async Task ProcessJsonRpcAsync_NotificationsInitialized_WithId_ReturnsAcknowledged()
+        {
+            var (server, _, _, _) = CreateServer();
+            var request = "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"notifications/initialized\"}";
+            var response = await server.ProcessJsonRpcAsync(request);
+            var json = GetJsonElement(response);
+            Assert.Equal(8, json.GetProperty("id").GetInt32());
+            var result = json.GetProperty("result");
+            Assert.True(result.GetProperty("acknowledged").GetBoolean());
+            Assert.True(result.GetProperty("timestampUtc").GetString()!.Length > 0);
+        }
+
+        [Fact]
+        public async Task ProcessJsonRpcAsync_NotificationsInitialized_NoId_ReturnsAcknowledgedWithNullId()
+        {
+            var (server, _, _, _) = CreateServer();
+            var request = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"; // notification (no id)
+            var response = await server.ProcessJsonRpcAsync(request);
+            var json = GetJsonElement(response);
+            // id should be present but null (since we always serialize id field)
+            Assert.True(json.TryGetProperty("id", out var idProp));
+            Assert.Equal(JsonValueKind.Null, idProp.ValueKind);
+            var result = json.GetProperty("result");
+            Assert.True(result.GetProperty("acknowledged").GetBoolean());
+            Assert.True(result.GetProperty("timestampUtc").GetString()!.Length > 0);
+        }
     }
 }
