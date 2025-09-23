@@ -226,7 +226,7 @@ namespace GamerUncle.Api.Services.VoiceService
                     systemMessage = systemMessage,
                     voice = _configuration["VoiceService:DefaultVoice"] ?? "alloy",
                     iceServers = JsonSerializer.Deserialize<object[]>(_configuration["VoiceService:WebRtcStunServers"] ?? "[]"),
-                    apiVersion = "2024-10-01-preview", // Latest Realtime API version
+                    apiVersion = "2024-12-17", // Latest Realtime API version
                     accessToken = accessToken.Token // Include token for WebSocket authentication
                 };
 
@@ -265,7 +265,7 @@ namespace GamerUncle.Api.Services.VoiceService
                 if (!string.IsNullOrWhiteSpace(azureOpenAIKey))
                 {
                     // Preferred: use Azure OpenAI API key for browser/React Native WebSocket authentication via query param
-                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(azureOpenAIKey)}";
+                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-12-17&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(azureOpenAIKey)}";
                     _logger.LogInformation("Generated OpenAI Realtime WebSocket URL using API key for session {SessionId}", sessionId);
                 }
                 else
@@ -276,7 +276,7 @@ namespace GamerUncle.Api.Services.VoiceService
                     var tokenRequest = new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" });
                     var accessToken = await credential.GetTokenAsync(tokenRequest);
 
-                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-10-01-preview&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(accessToken.Token)}";
+                    connectionUrl = $"{wsEndpoint}/openai/realtime?api-version=2024-12-17&deployment={_realtimeDeploymentName}&api-key={Uri.EscapeDataString(accessToken.Token)}";
                     _logger.LogWarning("AzureOpenAIKey not configured. Using Entra token in api-key query parameter for session {SessionId}. This may fail in browser/React Native environments. Configure 'VoiceService:AzureOpenAIKey' for reliable WebSocket authentication.", sessionId);
                 }
                 
