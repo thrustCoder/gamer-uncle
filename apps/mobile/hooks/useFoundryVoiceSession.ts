@@ -44,23 +44,21 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
 
   // Handle connection state changes
   const handleConnectionStateChange = useCallback((state: VoiceConnectionState) => {
-    console.log(' [FOUNDRY-HOOK] Connection state changed:', state);
+    console.log('🔄 [FOUNDRY-HOOK] Connection state changed:', state);
     
     setSessionState(prev => ({
       ...prev,
       isConnecting: state.state === 'connecting',
       isActive: state.state === 'connected',
       error: state.state === 'failed' ? 'Connection failed' : null,
-      sessionId: state.sessionId || prev.sessionId
+      sessionId: state.sessionId || prev.sessionId,
+      // CRITICAL FIX: Reset recording state when session disconnects
+      isRecording: state.state === 'connected' ? prev.isRecording : false
     }));
 
-    // Notify parent component of voice response events
-    if (state.state === 'connected' && config?.onVoiceResponse) {
-      config.onVoiceResponse({
-        responseText: 'Voice session connected',
-        isUserMessage: false,
-        conversationId: state.sessionId
-      });
+    // Don't add "Voice session connected" to chat - just log it
+    if (state.state === 'connected') {
+      console.log('🟢 [FOUNDRY-HOOK] Voice session successfully connected, ready for recording');
     }
   }, [config]);
 
@@ -95,11 +93,13 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
     }
 
     return () => {
+      // Only cleanup on unmount, not on every render
       if (voiceServiceRef.current?.isSessionActive()) {
+        console.log('🧹 [FOUNDRY-HOOK] Cleaning up voice service on unmount');
         voiceServiceRef.current.stopVoiceSession();
       }
     };
-  }, [handleRemoteAudio, handleConnectionStateChange, handleTranscriptUpdate]);
+  }, []); // Remove dependencies to prevent cleanup on every render
 
   // Start voice session
   const startVoiceSession = useCallback(async (request: VoiceSessionRequest): Promise<boolean> => {
@@ -122,10 +122,10 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
       const success = await voiceServiceRef.current.startVoiceSession(request);
       
       if (success) {
-        console.log(' [FOUNDRY-HOOK] Voice session started successfully');
+        console.log('🟢 [FOUNDRY-HOOK] Voice session started successfully');
         setSessionState(prev => ({ 
           ...prev, 
-          isRecording: true,
+          isRecording: false, // Don't auto-start recording - wait for user press-and-hold
           sessionId: voiceServiceRef.current?.getCurrentSession()?.sessionId || null
         }));
       } else {
@@ -189,13 +189,43 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
     setSessionState(prev => ({ ...prev, transcript: '' }));
   }, []);
 
+  // Set recording state (push-to-talk control)
+  const setRecording = useCallback((recording: boolean) => {
+    console.log(`🎤 [FOUNDRY-HOOK] setRecording called with: ${recording}`);
+    console.log(`🎤 [FOUNDRY-HOOK] Current session state:`, {
+      isActive: sessionState.isActive,
+      isConnecting: sessionState.isConnecting,
+      isRecording: sessionState.isRecording,
+      sessionId: sessionState.sessionId,
+      hasVoiceService: !!voiceServiceRef.current,
+      isSessionActive: voiceServiceRef.current?.isSessionActive()
+    });
+    
+    if (!voiceServiceRef.current?.isSessionActive()) {
+      console.warn('🔴 [FOUNDRY-HOOK] Cannot set recording - no active voice session');
+      return;
+    }
+
+    console.log(`🎤 [FOUNDRY-HOOK] Setting recording state to: ${recording}`);
+    voiceServiceRef.current.setRecording(recording);
+    
+    setSessionState(prev => {
+      const newState = { 
+        ...prev, 
+        isRecording: recording 
+      };
+      console.log(`🎤 [FOUNDRY-HOOK] Updated session state:`, newState);
+      return newState;
+    });
+  }, []);
+
   return {
     sessionState,
     startVoiceSession,
     stopVoiceSession,
     clearError,
     clearTranscript,
-    setRecording: () => {}, // No manual recording control - recording happens automatically
+    setRecording,
     isSupported: true, // Azure OpenAI Realtime API is always supported
     // Legacy compatibility properties
     isActive: sessionState.isActive,

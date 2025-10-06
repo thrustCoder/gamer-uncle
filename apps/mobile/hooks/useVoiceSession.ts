@@ -33,9 +33,9 @@ export interface VoiceSessionState {
 const getApiBaseUrl = (): string => {
   // Check if we're in a development environment
   if (__DEV__) {
-    // Use Azure dev endpoint for reliable testing with latest deployed code
-    return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-    // return 'http://192.168.50.11:63602/api/'; // Local API (use when testing locally)
+    // Use local API when developing locally
+    return 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
+    // return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure dev endpoint
   }
   
   // For production, use Azure Front Door endpoint

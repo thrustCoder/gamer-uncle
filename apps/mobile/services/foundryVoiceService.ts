@@ -5,9 +5,9 @@ import { MediaStream as RNMediaStream, mediaDevices } from 'react-native-webrtc'
 const getApiBaseUrl = (): string => {
   // For development testing with local API - use host machine IP for iOS simulator
   if (__DEV__) {
-    // Use Azure endpoint instead of local for reliable testing
-    return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-    // return 'http://192.168.50.11:63602/api/'; // Local API (currently having issues)
+    // Use local API when developing locally
+    return 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
+    // return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure endpoint
   }
   return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
 };
@@ -71,6 +71,7 @@ export class FoundryVoiceService {
   private audioContext: AudioContext | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  private isRecording = false;
 
   constructor(
     private onRemoteAudio: (stream: RNMediaStream) => void,
@@ -306,6 +307,19 @@ export class FoundryVoiceService {
           this.onTranscriptUpdate(`[AI]: ${event.delta}`);
         }
         break;
+
+      case 'response.done':
+        console.log('✅ [FOUNDRY-REALTIME] AI response completed');
+        break;
+
+      case 'response.audio_transcript.done':
+        // AI response transcript completed
+        console.log('📝 [FOUNDRY-REALTIME] AI response transcript completed');
+        break;
+
+      case 'response.created':
+        console.log('🚀 [FOUNDRY-REALTIME] AI response generation started');
+        break;
         
       case 'input_audio_buffer.speech_started':
         console.log('🎤 [FOUNDRY-REALTIME] Speech detected');
@@ -480,5 +494,42 @@ export class FoundryVoiceService {
       console.error('🔴 [FOUNDRY-REALTIME] Error terminating session:', error);
       throw error;
     }
+  }
+
+  // Push-to-talk controls for Azure OpenAI Realtime API
+  setRecording(recording: boolean): void {
+    if (!this.localStream) {
+      console.warn('🔴 [FOUNDRY-REALTIME] Cannot set recording - no local stream available');
+      return;
+    }
+
+    console.log(`🎤 [FOUNDRY-REALTIME] Setting recording state to: ${recording}`);
+    
+    // Enable/disable audio tracks to control microphone input
+    this.localStream.getAudioTracks().forEach(track => {
+      track.enabled = recording;
+    });
+    
+    this.isRecording = recording;
+
+    // When stopping recording, trigger AI response generation
+    if (!recording && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      console.log('🚀 [FOUNDRY-REALTIME] Triggering AI response generation');
+      const responseCreate = {
+        type: 'response.create',
+        response: {
+          modalities: ['text', 'audio'],
+          instructions: 'Please respond to the user\'s input. Keep responses conversational and helpful.'
+        }
+      };
+      this.websocket.send(JSON.stringify(responseCreate));
+    }
+    
+    // Notify connection state change to update UI
+    this.notifyConnectionStateChange(this.isConnected ? 'connected' : 'disconnected');
+  }
+
+  getRecordingState(): boolean {
+    return this.isRecording;
   }
 }

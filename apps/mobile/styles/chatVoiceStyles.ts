@@ -71,6 +71,14 @@ export const chatVoiceStyles = StyleSheet.create({
     elevation: 6,
   },
   
+  // Ready to record state (green)
+  micButtonReady: {
+    backgroundColor: Colors.themeGreen,
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  
   // Connecting state
   micButtonConnecting: {
     backgroundColor: Colors.timerOrange,
@@ -350,5 +358,39 @@ export const chatVoiceStyles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textDark,
     flex: 1,
+  },
+
+  // Voice instruction container for recording modes
+  voiceInstructionContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+
+  // Voice instruction text for recording modes
+  voiceInstructionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.textDark,
+    textAlign: 'center',
+    marginRight: 8,
+  },
+
+  // Pulsating indicator for active recording
+  pulsingIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.timerRed,
+  },
+
+  // Processing indicator for AI response
+  processingIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.timerOrange,
   },
 });

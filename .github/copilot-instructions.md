@@ -37,6 +37,13 @@ This is a **React Native (Expo) + .NET 8 API + Azure AI** board game assistant a
 - Structured responses through agent orchestration
 - Error handling with proper HTTP status codes and logging
 
+### Voice Functionality Configuration
+- **Azure OpenAI API Key Required**: Voice functionality requires `VoiceService:AzureOpenAIKey` configuration
+- **WebSocket Authentication**: React Native cannot send Authorization headers, so API key must be in query parameters
+- **Environment Variable**: Set `AZURE_OPENAI_API_KEY` environment variable for local development
+- **Configuration File**: Update `appsettings.Development.json` with actual API key (not placeholder)
+- **Root Cause of 401 Errors**: Missing or incorrectly configured Azure OpenAI API key for WebSocket authentication
+
 ## Essential Commands
 
 ### Development Workflow
@@ -59,11 +66,35 @@ npm run test:e2e:prod       # E2E against production
 dotnet test services/tests/functional/  # API functional tests
 ```
 
+### API Server Management (CRITICAL)
+- **ALWAYS start API server in separate PowerShell window**: Use `Start-Process PowerShell` command
+- **Never run commands in the same terminal as the API server**: This will interrupt and shut down the server
+- **Environment variables must be set in the server window**: Include `$env:AZURE_OPENAI_API_KEY` in the server start command
+- **Example correct server start**:
+  ```powershell
+  Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\rajsin\r\Code\gamer-uncle'; `$env:AZURE_OPENAI_API_KEY='your_key_here'; dotnet run --project services/api/GamerUncle.Api.csproj --urls 'http://localhost:5001'"
+  ```
+
 ### Critical Directory Navigation
 - **Mobile commands**: MUST be run from `/apps/mobile/` directory
 - **API commands**: Can be run from project root or `/services/api/`
 - **EAS commands**: MUST be run from `/apps/mobile/` directory
 - **Expo commands**: MUST be run from `/apps/mobile/` directory
+
+### Terminal Navigation Rules (CRITICAL)
+- **ALWAYS navigate to correct directory FIRST**: New PowerShell sessions start at project root
+- **Use full path navigation**: `Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"` for mobile commands
+- **Verify location before running commands**: Use `Get-Location` or `pwd` to confirm directory
+- **Mobile app commands template**:
+  ```powershell
+  Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"
+  npx expo start --clear
+  ```
+- **API server commands template**:
+  ```powershell
+  Set-Location "C:\Users\rajsin\r\Code\gamer-uncle"
+  dotnet run --project services/api/GamerUncle.Api.csproj --urls 'http://localhost:5001'
+  ```
 
 ### Testing Environment Setup
 ```powershell
