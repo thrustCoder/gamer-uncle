@@ -1,5 +1,15 @@
 import axios from 'axios';
 import { MediaStream as RNMediaStream, mediaDevices } from 'react-native-webrtc';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import {
+  pcm16ToWav,
+  arrayBufferToBase64,
+  decodeBase64PCM16,
+  concatenateAudioBuffers,
+  extractPCM16FromWav,
+  encodePCM16ToBase64
+} from './audioUtils';
 
 // Environment-specific API base URLs
 const getApiBaseUrl = (): string => {
@@ -32,6 +42,12 @@ export interface VoiceSessionRequest {
   query: string;
   conversationId?: string;
   userId?: string;
+  recentMessages?: ConversationMessage[];
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export interface VoiceConnectionState {
@@ -72,6 +88,16 @@ export class FoundryVoiceService {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private isRecording = false;
+  
+  // Audio playback properties
+  private audioBufferQueue: ArrayBuffer[] = [];
+  private soundObject: Audio.Sound | null = null;
+  private aiTranscriptBuffer = '';
+  private isPlayingAudio = false;
+  
+  // Audio capture properties
+  private recording: Audio.Recording | null = null;
+  private audioPermissionsGranted = false;
 
   constructor(
     private onRemoteAudio: (stream: RNMediaStream) => void,
@@ -267,7 +293,8 @@ export class FoundryVoiceService {
         input_audio_format: 'pcm16',
         output_audio_format: 'pcm16',
         input_audio_transcription: {
-          model: 'whisper-1'
+          model: 'whisper-1',
+          language: 'en' // Force English transcription
         },
         turn_detection: {
           type: 'server_vad',
@@ -302,14 +329,20 @@ export class FoundryVoiceService {
         break;
         
       case 'response.audio_transcript.delta':
-        // Handle transcription of AI response
+        // Buffer AI response transcript deltas
         if (event.delta) {
-          this.onTranscriptUpdate(`[AI]: ${event.delta}`);
+          this.aiTranscriptBuffer += event.delta;
+          console.log('📝 [FOUNDRY-REALTIME] AI transcript delta buffered:', event.delta);
         }
         break;
 
       case 'response.done':
         console.log('✅ [FOUNDRY-REALTIME] AI response completed');
+        // Show complete buffered transcript
+        if (this.aiTranscriptBuffer) {
+          this.onTranscriptUpdate(`[AI]: ${this.aiTranscriptBuffer}`);
+          this.aiTranscriptBuffer = ''; // Clear buffer for next response
+        }
         break;
 
       case 'response.audio_transcript.done':
@@ -319,6 +352,8 @@ export class FoundryVoiceService {
 
       case 'response.created':
         console.log('🚀 [FOUNDRY-REALTIME] AI response generation started');
+        // Clear transcript buffer for new response
+        this.aiTranscriptBuffer = '';
         break;
         
       case 'input_audio_buffer.speech_started':
@@ -338,7 +373,19 @@ export class FoundryVoiceService {
         
       case 'error':
         console.error('🔴 [FOUNDRY-REALTIME] API error:', event);
-        this.notifyConnectionStateChange('failed');
+        // Only treat certain errors as fatal
+        // Some errors are transient or recoverable (e.g., turn detection issues)
+        const errorCode = event.error?.code || event.code;
+        const isFatalError = errorCode === 'session_expired' || 
+                            errorCode === 'invalid_session' || 
+                            errorCode === 'authentication_failed';
+        
+        if (isFatalError) {
+          console.error('🔴 [FOUNDRY-REALTIME] Fatal error - marking connection as failed');
+          this.notifyConnectionStateChange('failed');
+        } else {
+          console.warn('⚠️ [FOUNDRY-REALTIME] Non-fatal error - continuing session');
+        }
         break;
         
       default:
@@ -371,15 +418,29 @@ export class FoundryVoiceService {
     if (!this.localStream || !this.websocket) return;
 
     try {
-      console.log('🎵 [STREAM-TIMING] Starting audio streaming setup...');
+      console.log('🎵 [STREAM-TIMING] Starting audio capture setup...');
       const streamStartTime = Date.now();
       
-      // TODO: Implement proper audio streaming with React Native WebRTC
-      // For now, we'll focus on the WebSocket connection and session management
-      console.log('🎤 [FOUNDRY-REALTIME] Audio streaming setup - simplified for development');
+      // Request audio recording permissions
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        throw new Error('Audio recording permission not granted');
+      }
+      
+      this.audioPermissionsGranted = true;
+      console.log('✅ [FOUNDRY-REALTIME] Audio permissions granted');
+      
+      // Configure audio mode for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false
+      });
       
       const streamSetupTime = Date.now() - streamStartTime;
-      console.log(`🎵 [FOUNDRY-REALTIME] Audio streaming placeholder active in ${streamSetupTime}ms`);
+      console.log(`🎵 [FOUNDRY-REALTIME] Audio capture ready in ${streamSetupTime}ms`);
       console.log('🎵 [STREAM-TIMING] Audio streaming time:', new Date().toISOString());
     } catch (error) {
       console.error('🔴 [FOUNDRY-REALTIME] Failed to start audio streaming:', error);
@@ -397,34 +458,80 @@ export class FoundryVoiceService {
     return pcm16Array;
   }
 
-  private handleIncomingAudio(base64Audio: string): void {
+  private async handleIncomingAudio(base64Audio: string): Promise<void> {
     try {
-      // Decode base64 audio data
-      const binaryString = atob(base64Audio);
-      const audioData = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        audioData[i] = binaryString.charCodeAt(i);
-      }
-
-      // Convert PCM16 back to Float32 for playback
-      const int16Array = new Int16Array(audioData.buffer);
-      const float32Array = new Float32Array(int16Array.length);
-      for (let i = 0; i < int16Array.length; i++) {
-        float32Array[i] = int16Array[i] / (int16Array[i] < 0 ? 0x8000 : 0x7FFF);
-      }
-
-      // Create audio buffer and play
-      if (this.audioContext) {
-        const audioBuffer = this.audioContext.createBuffer(1, float32Array.length, 24000);
-        audioBuffer.copyToChannel(float32Array, 0);
-        
-        const source = this.audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(this.audioContext.destination);
-        source.start();
+      console.log('🔊 [FOUNDRY-REALTIME] Received audio delta, size:', base64Audio.length);
+      
+      // Decode base64 to PCM16 binary data
+      const pcm16Data = decodeBase64PCM16(base64Audio);
+      
+      // Queue the audio buffer for playback
+      this.audioBufferQueue.push(pcm16Data.buffer as ArrayBuffer);
+      
+      // Start playback if not already playing
+      if (!this.isPlayingAudio) {
+        await this.playAudioQueue();
       }
     } catch (error) {
       console.error('🔴 [FOUNDRY-REALTIME] Failed to handle incoming audio:', error);
+    }
+  }
+
+  private async playAudioQueue(): Promise<void> {
+    if (this.audioBufferQueue.length === 0 || this.isPlayingAudio) {
+      return;
+    }
+
+    try {
+      this.isPlayingAudio = true;
+      console.log('🎵 [FOUNDRY-REALTIME] Playing audio queue with', this.audioBufferQueue.length, 'chunks');
+
+      // Concatenate all queued audio buffers
+      const concatenated = concatenateAudioBuffers(this.audioBufferQueue);
+      this.audioBufferQueue = [];
+
+      // Convert PCM16 to WAV format
+      const wavBuffer = pcm16ToWav(concatenated, 24000, 1);
+      const base64Wav = arrayBufferToBase64(wavBuffer);
+      const uri = `data:audio/wav;base64,${base64Wav}`;
+
+      // Configure audio mode for playback
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false
+      });
+
+      // Play the audio using expo-av
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: true }
+      );
+      
+      this.soundObject = sound;
+
+      // Set up playback completion handler
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          console.log('✅ [FOUNDRY-REALTIME] Audio playback finished');
+          sound.unloadAsync();
+          this.soundObject = null;
+          this.isPlayingAudio = false;
+
+          // Play next chunk if available
+          if (this.audioBufferQueue.length > 0) {
+            this.playAudioQueue();
+          }
+        }
+      });
+
+      console.log('🎵 [FOUNDRY-REALTIME] Audio playback started');
+    } catch (error) {
+      console.error('🔴 [FOUNDRY-REALTIME] Failed to play audio:', error);
+      this.isPlayingAudio = false;
+      this.soundObject = null;
     }
   }
 
@@ -445,6 +552,15 @@ export class FoundryVoiceService {
         await this.audioContext.close();
         this.audioContext = null;
       }
+
+      // Clean up audio playback
+      if (this.soundObject) {
+        await this.soundObject.unloadAsync();
+        this.soundObject = null;
+      }
+      this.audioBufferQueue = [];
+      this.aiTranscriptBuffer = '';
+      this.isPlayingAudio = false;
 
       this.currentSession = null;
       this.tokenData = null;
@@ -497,36 +613,139 @@ export class FoundryVoiceService {
   }
 
   // Push-to-talk controls for Azure OpenAI Realtime API
-  setRecording(recording: boolean): void {
-    if (!this.localStream) {
-      console.warn('🔴 [FOUNDRY-REALTIME] Cannot set recording - no local stream available');
+  async setRecording(recording: boolean): Promise<void> {
+    if (!this.audioPermissionsGranted) {
+      console.warn('🔴 [FOUNDRY-REALTIME] Cannot set recording - no audio permissions');
       return;
     }
 
     console.log(`🎤 [FOUNDRY-REALTIME] Setting recording state to: ${recording}`);
     
-    // Enable/disable audio tracks to control microphone input
-    this.localStream.getAudioTracks().forEach(track => {
-      track.enabled = recording;
-    });
+    if (recording) {
+      // Start recording audio
+      await this.startRecording();
+    } else {
+      // Stop recording and send audio to Azure
+      await this.stopRecordingAndSend();
+    }
     
     this.isRecording = recording;
-
-    // When stopping recording, trigger AI response generation
-    if (!recording && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-      console.log('🚀 [FOUNDRY-REALTIME] Triggering AI response generation');
-      const responseCreate = {
-        type: 'response.create',
-        response: {
-          modalities: ['text', 'audio'],
-          instructions: 'Please respond to the user\'s input. Keep responses conversational and helpful.'
-        }
-      };
-      this.websocket.send(JSON.stringify(responseCreate));
-    }
     
     // Notify connection state change to update UI
     this.notifyConnectionStateChange(this.isConnected ? 'connected' : 'disconnected');
+  }
+
+  private async startRecording(): Promise<void> {
+    try {
+      console.log('🎤 [FOUNDRY-REALTIME] Starting audio recording...');
+      
+      // Create new recording
+      this.recording = new Audio.Recording();
+      
+      // Prepare to record with high quality WAV PCM16 settings
+      await this.recording.prepareToRecordAsync({
+        android: {
+          extension: '.wav',
+          outputFormat: 0, // MPEG_4
+          audioEncoder: 3, // AAC
+          sampleRate: 24000,
+          numberOfChannels: 1,
+          bitRate: 128000
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: 'lpcm', // Linear PCM
+          audioQuality: 127, // MAX quality
+          sampleRate: 24000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false
+        },
+        web: {
+          mimeType: 'audio/wav',
+          bitsPerSecond: 128000
+        }
+      });
+      
+      // Start recording
+      await this.recording.startAsync();
+      console.log('🎤 [FOUNDRY-REALTIME] Recording started');
+    } catch (error) {
+      console.error('🔴 [FOUNDRY-REALTIME] Failed to start recording:', error);
+      this.recording = null;
+    }
+  }
+
+  private async stopRecordingAndSend(): Promise<void> {
+    if (!this.recording) {
+      console.warn('🔴 [FOUNDRY-REALTIME] No active recording to stop');
+      return;
+    }
+
+    try {
+      console.log('🛑 [FOUNDRY-REALTIME] Stopping recording and sending to Azure...');
+      
+      // Stop recording
+      await this.recording.stopAndUnloadAsync();
+      const uri = this.recording.getURI();
+      
+      if (!uri) {
+        console.error('🔴 [FOUNDRY-REALTIME] No recording URI available');
+        this.recording = null;
+        return;
+      }
+
+      console.log('📁 [FOUNDRY-REALTIME] Recording saved to:', uri);
+      
+      // Read the WAV file as base64
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64'
+      });
+
+      // Convert base64 to binary to extract PCM16 data
+      const wavData = decodeBase64PCM16(base64Audio);
+      
+      // Extract PCM16 data (skip 44-byte WAV header)
+      const pcm16Data = extractPCM16FromWav(wavData);
+      
+      // Encode PCM16 to base64 for WebSocket transmission
+      const pcm16Base64 = encodePCM16ToBase64(pcm16Data);
+
+      console.log(`📤 [FOUNDRY-REALTIME] Sending ${pcm16Data.length} bytes of PCM16 audio to Azure`);
+
+      // Send to Azure via WebSocket
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify({
+          type: 'input_audio_buffer.append',
+          audio: pcm16Base64
+        }));
+
+        // Trigger AI response generation
+        console.log('🚀 [FOUNDRY-REALTIME] Triggering AI response generation');
+        this.websocket.send(JSON.stringify({
+          type: 'response.create',
+          response: {
+            modalities: ['text', 'audio'],
+            instructions: 'Please respond to the user\'s input. Keep responses conversational and helpful.'
+          }
+        }));
+      } else {
+        console.error('🔴 [FOUNDRY-REALTIME] WebSocket not ready to send audio');
+      }
+
+      // Clean up
+      this.recording = null;
+      
+      // Delete the temporary file
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      console.log('✅ [FOUNDRY-REALTIME] Audio sent and temp file cleaned up');
+      
+    } catch (error) {
+      console.error('🔴 [FOUNDRY-REALTIME] Failed to stop recording and send:', error);
+      this.recording = null;
+    }
   }
 
   getRecordingState(): boolean {

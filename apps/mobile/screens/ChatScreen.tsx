@@ -293,10 +293,20 @@ export default function ChatScreen() {
       
       // Start appropriate voice session
       if (useFoundryVoice) {
+        // Convert recent chat messages to conversation history format
+        const recentMessages = messages
+          .filter(msg => msg.type === 'user' || msg.type === 'system')
+          .slice(-10) // Last 10 messages
+          .map(msg => ({
+            role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+            content: msg.text
+          }));
+        
         await foundryVoiceSession.startVoiceSession({
           query: "Start voice conversation",
           conversationId: conversationId || undefined,
           userId: userId,
+          recentMessages: recentMessages.length > 0 ? recentMessages : undefined
         });
       } else {
         await legacyVoiceSession.startVoiceSession({

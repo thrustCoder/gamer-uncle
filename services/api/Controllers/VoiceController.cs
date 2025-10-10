@@ -42,7 +42,7 @@ namespace GamerUncle.Api.Controllers
                 }
 
                 // Create voice session with Foundry service
-                var voiceSession = await _foundryVoiceService.CreateVoiceSessionAsync(request.Query, request.ConversationId);
+                var voiceSession = await _foundryVoiceService.CreateVoiceSessionAsync(request);
 
                 _logger.LogInformation("Voice session created successfully. SessionId: {SessionId}, ConversationId: {ConversationId}", 
                     voiceSession.SessionId, request.ConversationId);

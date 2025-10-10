@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -23,7 +23,11 @@
         "NSCameraUsageDescription": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
         "NSPhotoLibraryUsageDescription": "This app may access your photo library to allow you to share images related to board games and gaming discussions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice messages into text for an enhanced chat experience with AI-powered game recommendations.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio",
+          "audio"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -41,21 +45,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-dev-client",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice chat functionality."
-        }
-      ],
-      [
-        "@config-plugins/react-native-webrtc",
-        {
-          "cameraPermission": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
-          "microphonePermission": "This app uses the microphone for voice chat functionality to enhance your gaming experience."
-        }
-      ],
-      "./plugins/ensure-permissions"
+      "expo-dev-client"
     ],
     "extra": {
       "eas": {

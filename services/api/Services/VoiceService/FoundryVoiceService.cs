@@ -49,29 +49,51 @@ namespace GamerUncle.Api.Services.VoiceService
                 new DefaultAzureCredential());
         }
 
-        public async Task<VoiceSessionResponse> CreateVoiceSessionAsync(string query, string? conversationId = null)
+        public async Task<VoiceSessionResponse> CreateVoiceSessionAsync(VoiceSessionRequest request)
         {
             try
             {
-                _logger.LogInformation("Creating Foundry Live Voice session for query: {Query}", query);
+                _logger.LogInformation("Creating Foundry Live Voice session for query: {Query}, ConversationId: {ConversationId}, MessageCount: {MessageCount}", 
+                    request.Query, request.ConversationId, request.RecentMessages?.Count ?? 0);
 
                 // 1. Get RAG context from Cosmos DB using existing pipeline
-                var gameContext = await _gameDataService.GetGameContextForFoundryAsync(query, conversationId);
+                var gameContext = await _gameDataService.GetGameContextForFoundryAsync(request.Query, request.ConversationId);
                 
-                // 2. Create Foundry Live Voice session with enhanced system message
+                // 2. Append conversation history to system message if provided
+                if (request.RecentMessages != null && request.RecentMessages.Any())
+                {
+                    var conversationHistory = new StringBuilder();
+                    conversationHistory.AppendLine();
+                    conversationHistory.AppendLine("PREVIOUS CONVERSATION CONTEXT:");
+                    conversationHistory.AppendLine("(Use this to maintain continuity and reference prior discussion)");
+                    conversationHistory.AppendLine();
+                    
+                    foreach (var msg in request.RecentMessages.TakeLast(10)) // Last 10 messages for context
+                    {
+                        var speaker = msg.Role == "user" ? "User" : "Assistant";
+                        conversationHistory.AppendLine($"{speaker}: {msg.Content}");
+                    }
+                    conversationHistory.AppendLine();
+                    conversationHistory.AppendLine("END OF PREVIOUS CONVERSATION");
+                    conversationHistory.AppendLine("Now continue the conversation naturally, referencing previous context when relevant.");
+                    
+                    gameContext = gameContext + "\n\n" + conversationHistory.ToString();
+                }
+                
+                // 3. Create Foundry Live Voice session with enhanced system message
                 var sessionId = $"voice-{Guid.NewGuid()}";
                 
-                // 3. Create actual Foundry Live Voice session
+                // 4. Create actual Foundry Live Voice session
                 var foundryResponse = await CreateFoundryLiveVoiceSessionAsync(sessionId, gameContext);
                 
-                // 4. Return response with WebRTC connection details
+                // 5. Return response with WebRTC connection details
                 var response = new VoiceSessionResponse
                 {
                     SessionId = sessionId,
                     WebRtcToken = foundryResponse.WebRtcToken,
                     FoundryConnectionUrl = foundryResponse.ConnectionUrl,
                     ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-                    ConversationId = conversationId,
+                    ConversationId = request.ConversationId,
                     InitialResponse = null // Foundry will handle initial response via voice
                 };
 
@@ -80,7 +102,7 @@ namespace GamerUncle.Api.Services.VoiceService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating Foundry Live Voice session for query: {Query}", query);
+                _logger.LogError(ex, "Error creating Foundry Live Voice session for query: {Query}", request.Query);
                 throw;
             }
         }
