@@ -535,6 +535,38 @@ export class FoundryVoiceService {
     }
   }
 
+  /**
+   * Stop audio playback immediately (interrupt TTS)
+   * Used when user wants to interrupt AI's response
+   */
+  async stopAudioPlayback(): Promise<void> {
+    try {
+      console.log('⏸️ [FOUNDRY-REALTIME] Interrupting audio playback');
+
+      // Stop current sound playback
+      if (this.soundObject) {
+        await this.soundObject.stopAsync();
+        await this.soundObject.unloadAsync();
+        this.soundObject = null;
+      }
+
+      // Clear audio queue to prevent playing queued chunks
+      this.audioBufferQueue = [];
+      this.isPlayingAudio = false;
+
+      console.log('🟢 [FOUNDRY-REALTIME] Audio playback interrupted successfully');
+    } catch (error) {
+      console.error('🔴 [FOUNDRY-REALTIME] Error stopping audio playback:', error);
+    }
+  }
+
+  /**
+   * Check if AI is currently speaking (playing TTS audio)
+   */
+  isAISpeaking(): boolean {
+    return this.isPlayingAudio || this.audioBufferQueue.length > 0;
+  }
+
   async stopVoiceSession(): Promise<void> {
     try {
       console.log('🛑 [FOUNDRY-REALTIME] Stopping voice session');

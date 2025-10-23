@@ -219,6 +219,25 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
     });
   }, []);
 
+  // Stop audio playback (interrupt AI speaking)
+  const stopAudioPlayback = useCallback(async () => {
+    if (!voiceServiceRef.current) {
+      console.warn('⚠️ [FOUNDRY-HOOK] Voice service not initialized');
+      return;
+    }
+
+    console.log('⏸️ [FOUNDRY-HOOK] Stopping audio playback');
+    await voiceServiceRef.current.stopAudioPlayback();
+  }, []);
+
+  // Check if AI is currently speaking
+  const isAISpeaking = useCallback((): boolean => {
+    if (!voiceServiceRef.current) {
+      return false;
+    }
+    return voiceServiceRef.current.isAISpeaking();
+  }, []);
+
   return {
     sessionState,
     startVoiceSession,
@@ -226,6 +245,8 @@ export function useFoundryVoiceSession(config?: VoiceSessionConfig) {
     clearError,
     clearTranscript,
     setRecording,
+    stopAudioPlayback,
+    isAISpeaking,
     isSupported: true, // Azure OpenAI Realtime API is always supported
     // Legacy compatibility properties
     isActive: sessionState.isActive,

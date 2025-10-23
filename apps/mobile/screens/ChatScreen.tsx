@@ -387,8 +387,27 @@ export default function ChatScreen() {
         break;
         
       case 'processing':
-        // During processing, ignore taps
-        console.log('🎤 [CHAT] Processing mode - ignoring tap, waiting for AI response');
+        // During processing: Interrupt TTS and start new recording
+        console.log('⏸️ [CHAT] Processing mode - interrupting AI response and starting new recording');
+        
+        // Stop audio playback (interrupt TTS)
+        if (useFoundryVoice) {
+          await foundryVoiceSession.stopAudioPlayback();
+        }
+        
+        // Clear processing timeout if active
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
+        }
+        
+        // Go directly to active recording
+        setVoiceUXMode('active-recording');
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(true);
+        } else {
+          legacyVoiceSession.setRecording(true);
+        }
         break;
     }
   };
@@ -444,7 +463,7 @@ export default function ChatScreen() {
   // Get voice status text for new UX pattern
   const getVoiceStatusText = () => {
     if (voiceUXMode === 'active-recording') return 'Tap the mic to stop';
-    if (voiceUXMode === 'processing') return 'Processing your request...';
+    if (voiceUXMode === 'processing') return 'Tap the mic to interrupt and speak';
     if (voiceUXMode === 'recording-mode') return 'Tap the mic to record';
     if (isVoiceConnecting) return 'Connecting to voice service...';
     if (voiceError) return voiceError;
