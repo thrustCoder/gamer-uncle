@@ -94,6 +94,7 @@ export class FoundryVoiceService {
   private soundObject: Audio.Sound | null = null;
   private aiTranscriptBuffer = '';
   private isPlayingAudio = false;
+  private audioInterrupted = false; // Flag to prevent playing new chunks after interruption
   
   // Audio capture properties
   private recording: Audio.Recording | null = null;
@@ -111,6 +112,9 @@ export class FoundryVoiceService {
       const sessionStartTime = Date.now();
       console.log('🎤 [FOUNDRY-REALTIME] Starting Azure OpenAI Realtime voice session with request:', request);
       console.log('⏱️ [TIMING] Session start time:', new Date().toISOString());
+
+      // Reset audio interruption flag for new session
+      this.audioInterrupted = false;
 
       // 1. Create voice session (backend will inject RAG context)
       console.log('⏱️ [TIMING] Step 1: Creating voice session via backend API...');
@@ -460,6 +464,12 @@ export class FoundryVoiceService {
 
   private async handleIncomingAudio(base64Audio: string): Promise<void> {
     try {
+      // Don't process new audio if we've been interrupted
+      if (this.audioInterrupted) {
+        console.log('⏭️ [FOUNDRY-REALTIME] Skipping audio delta - playback interrupted');
+        return;
+      }
+      
       console.log('🔊 [FOUNDRY-REALTIME] Received audio delta, size:', base64Audio.length);
       
       // Decode base64 to PCM16 binary data
@@ -478,7 +488,8 @@ export class FoundryVoiceService {
   }
 
   private async playAudioQueue(): Promise<void> {
-    if (this.audioBufferQueue.length === 0 || this.isPlayingAudio) {
+    // Don't play if interrupted
+    if (this.audioBufferQueue.length === 0 || this.isPlayingAudio || this.audioInterrupted) {
       return;
     }
 
@@ -496,8 +507,9 @@ export class FoundryVoiceService {
       const uri = `data:audio/wav;base64,${base64Wav}`;
 
       // Configure audio mode for playback
+      // IMPORTANT: Keep allowsRecordingIOS: true to prevent audio ducking
       await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
+        allowsRecordingIOS: true, // Changed from false to prevent ducking
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
         shouldDuckAndroid: true,
@@ -520,8 +532,8 @@ export class FoundryVoiceService {
           this.soundObject = null;
           this.isPlayingAudio = false;
 
-          // Play next chunk if available
-          if (this.audioBufferQueue.length > 0) {
+          // Play next chunk if available and not interrupted
+          if (this.audioBufferQueue.length > 0 && !this.audioInterrupted) {
             this.playAudioQueue();
           }
         }
@@ -542,6 +554,9 @@ export class FoundryVoiceService {
   async stopAudioPlayback(): Promise<void> {
     try {
       console.log('⏸️ [FOUNDRY-REALTIME] Interrupting audio playback');
+
+      // Set interruption flag to prevent new chunks from playing
+      this.audioInterrupted = true;
 
       // Stop current sound playback
       if (this.soundObject) {
@@ -670,6 +685,9 @@ export class FoundryVoiceService {
   private async startRecording(): Promise<void> {
     try {
       console.log('🎤 [FOUNDRY-REALTIME] Starting audio recording...');
+      
+      // Reset audio interruption flag when starting new recording
+      this.audioInterrupted = false;
       
       // Create new recording
       this.recording = new Audio.Recording();
