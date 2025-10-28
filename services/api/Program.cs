@@ -3,7 +3,7 @@ using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
 using GamerUncle.Api.Services.GameData;
-using GamerUncle.Api.Services.VoiceService;
+using GamerUncle.Api.Services.Speech;
 using GamerUncle.Mcp.Extensions;
 using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
@@ -137,7 +137,11 @@ builder.Services.AddRateLimiter(options =>
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddScoped<IGameDataService, GameDataService>();
-builder.Services.AddHttpClient<IFoundryVoiceService, FoundryVoiceService>();
+
+// Register Azure Speech Services
+builder.Services.AddSingleton<IAzureSpeechService, AzureSpeechService>();
+builder.Services.AddScoped<IAudioProcessingService, AudioProcessingService>();
+
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
 {
