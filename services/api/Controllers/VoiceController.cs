@@ -86,6 +86,12 @@ namespace GamerUncle.Api.Controllers
                 _logger.LogWarning(ex, "Audio processing validation error from IP: {ClientIp}", clientIp);
                 return BadRequest(new { error = ex.Message });
             }
+            catch (FormatException ex)
+            {
+                // Invalid base64 encoding
+                _logger.LogWarning(ex, "Invalid base64 audio data from IP: {ClientIp}", clientIp);
+                return BadRequest(new { error = "Invalid audio data format. Audio must be base64-encoded." });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing audio. ConversationId: {ConversationId}, IP: {ClientIp}", 

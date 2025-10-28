@@ -167,3 +167,6 @@ TestResults/
 packages/
 !packages/build/
 !packages/repositories.config
+
+# Local configuration files with secrets (use environment variables instead)
+appsettings.*.local.json
