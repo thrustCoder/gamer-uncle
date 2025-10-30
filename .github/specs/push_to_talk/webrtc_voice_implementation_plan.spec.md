@@ -628,35 +628,27 @@ Prepare voice functionality for production deployment with monitoring and securi
 
 ### 📋 Production Tasks
 
-#### 5.1 Security & Performance
-- [ ] Add Application Insights tracking for voice endpoints
-- [ ] Implement audio file size limits (prevent abuse)
-- [ ] Add audio format validation
-- [ ] Configure Azure Speech Service quotas
-- [ ] Set up alerting for failures/high latency
+#### 5.1 Application Insights Telemetry
+- [ ] Add custom metrics tracking for voice endpoints
+- [ ] Track audio processing performance (STT, AI, TTS latency)
+- [ ] Log audio sizes and formats
+- [ ] Monitor success/failure rates
 
-#### 5.2 Azure Front Door Configuration
-- [ ] Route `/api/voice/*` through AFD
-- [ ] Configure WAF rules for voice endpoints
-- [ ] Set appropriate rate limits (e.g., 10 requests/min per user)
-- [ ] Add health checks for voice service
+#### 5.2 Azure Front Door Verification ✅
+**Note:** Azure Front Door is already configured and routes all `/api/*` traffic through WAF and rate limiting.
+No additional configuration needed for `/api/voice/process` endpoint.
 
-#### 5.3 Monitoring & Telemetry
-```csharp
-// Add to AudioProcessingService
-_telemetryClient.TrackEvent("VoiceProcessing", new Dictionary<string, string>
-{
-    { "TranscriptionLength", result.TranscribedText.Length.ToString() },
-    { "AudioSizeBytes", audioBytes.Length.ToString() },
-    { "ProcessingTimeMs", stopwatch.ElapsedMilliseconds.ToString() }
-});
-```
+- [x] AFD routes `/api/*` traffic (includes `/api/voice/process`)
+- [x] WAF protection active on all API routes
+- [x] Rate limiting configured in VoiceController
+- [ ] Verify voice endpoint accessible through AFD URL
+- [ ] Test rate limiting on voice endpoint specifically
 
-#### 5.4 Documentation
-- [ ] Update API documentation with voice endpoints
-- [ ] Create user guide for voice features
-- [ ] Document audio format requirements
-- [ ] Add troubleshooting guide
+#### 5.3 Monitoring & Alerting
+- [ ] Set up Application Insights alerts for voice endpoint failures
+- [ ] Monitor Azure Speech Service quota usage
+- [ ] Alert on high latency (>5s end-to-end)
+- [ ] Track error rates and patterns
 
 ---
 
