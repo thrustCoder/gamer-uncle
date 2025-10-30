@@ -774,6 +774,7 @@ stages:
         echo "🧪 Running functional tests with retry logic..."
         export TEST_ENVIRONMENT=Local
         export API_BASE_URL=http://localhost:5000
+        export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
         
         # Run the tests with retry logic (1 retry)
         TEST_RESULT=0
