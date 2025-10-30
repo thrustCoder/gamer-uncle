@@ -27,11 +27,20 @@ var appInsightsConnectionString = builder.Configuration["ApplicationInsights:Con
 if (!string.IsNullOrEmpty(appInsightsConnectionString))
 {
     // Use OpenTelemetry with Azure Monitor for modern telemetry
-    builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
-    {
-        options.ConnectionString = appInsightsConnectionString;
-        options.Credential = new DefaultAzureCredential();
-    });
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddMeter("GamerUncle.VoiceProcessing"); // Add our custom meter for voice metrics
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddSource("GamerUncle.VoiceController"); // Add our custom activity source for distributed tracing
+        })
+        .UseAzureMonitor(options =>
+        {
+            options.ConnectionString = appInsightsConnectionString;
+            options.Credential = new DefaultAzureCredential();
+        });
 
     // Add traditional Application Insights as well for compatibility
     builder.Services.AddApplicationInsightsTelemetry(options =>
