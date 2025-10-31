@@ -3,7 +3,7 @@ using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
 using GamerUncle.Api.Services.GameData;
-using GamerUncle.Api.Services.VoiceService;
+using GamerUncle.Api.Services.Speech;
 using GamerUncle.Mcp.Extensions;
 using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
@@ -27,11 +27,20 @@ var appInsightsConnectionString = builder.Configuration["ApplicationInsights:Con
 if (!string.IsNullOrEmpty(appInsightsConnectionString))
 {
     // Use OpenTelemetry with Azure Monitor for modern telemetry
-    builder.Services.AddOpenTelemetry().UseAzureMonitor(options =>
-    {
-        options.ConnectionString = appInsightsConnectionString;
-        options.Credential = new DefaultAzureCredential();
-    });
+    builder.Services.AddOpenTelemetry()
+        .WithMetrics(metrics =>
+        {
+            metrics.AddMeter("GamerUncle.VoiceProcessing"); // Add our custom meter for voice metrics
+        })
+        .WithTracing(tracing =>
+        {
+            tracing.AddSource("GamerUncle.VoiceController"); // Add our custom activity source for distributed tracing
+        })
+        .UseAzureMonitor(options =>
+        {
+            options.ConnectionString = appInsightsConnectionString;
+            options.Credential = new DefaultAzureCredential();
+        });
 
     // Add traditional Application Insights as well for compatibility
     builder.Services.AddApplicationInsightsTelemetry(options =>
@@ -137,7 +146,11 @@ builder.Services.AddRateLimiter(options =>
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddScoped<IGameDataService, GameDataService>();
-builder.Services.AddHttpClient<IFoundryVoiceService, FoundryVoiceService>();
+
+// Register Azure Speech Services
+builder.Services.AddSingleton<IAzureSpeechService, AzureSpeechService>();
+builder.Services.AddScoped<IAudioProcessingService, AudioProcessingService>();
+
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
 {

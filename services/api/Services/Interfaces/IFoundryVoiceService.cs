@@ -7,10 +7,9 @@ namespace GamerUncle.Api.Services.Interfaces
         /// <summary>
         /// Creates a new voice session with Azure AI Foundry Live Voice
         /// </summary>
-        /// <param name="query">Free-form board game question or request</param>
-        /// <param name="conversationId">Optional existing conversation ID to link to</param>
+        /// <param name="request">Voice session request containing query, conversation ID, and optional message history</param>
         /// <returns>Voice session response with WebRTC tokens and connection details</returns>
-        Task<VoiceSessionResponse> CreateVoiceSessionAsync(string query, string? conversationId = null);
+        Task<VoiceSessionResponse> CreateVoiceSessionAsync(VoiceSessionRequest request);
         
         /// <summary>
         /// Validates and refreshes an active voice session

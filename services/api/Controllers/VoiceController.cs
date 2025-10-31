@@ -1,133 +1,129 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.ComponentModel.DataAnnotations;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
+using System.Diagnostics;
 
 namespace GamerUncle.Api.Controllers
 {
+    /// <summary>
+    /// Controller for voice interaction endpoints using Azure Speech Services
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("GameRecommendations")] // Use same rate limiting policy as recommendations
     public class VoiceController : ControllerBase
     {
-        private readonly IFoundryVoiceService _foundryVoiceService;
+        private readonly IAudioProcessingService _audioProcessingService;
         private readonly ILogger<VoiceController> _logger;
+        
+        // Activity source for distributed tracing
+        private static readonly ActivitySource _activitySource = new("GamerUncle.VoiceController", "1.0");
 
         public VoiceController(
-            IFoundryVoiceService foundryVoiceService,
+            IAudioProcessingService audioProcessingService,
             ILogger<VoiceController> logger)
         {
-            _foundryVoiceService = foundryVoiceService;
+            _audioProcessingService = audioProcessingService;
             _logger = logger;
         }
 
-        [HttpPost("sessions")]
-        public async Task<IActionResult> CreateVoiceSession([FromBody] VoiceSessionRequest request)
+        /// <summary>
+        /// Process audio from user through complete voice pipeline (STT → AI → TTS)
+        /// </summary>
+        /// <param name="request">Audio processing request with base64-encoded audio data</param>
+        /// <returns>Audio response with transcription, AI response text, and TTS audio</returns>
+        [HttpPost("process")]
+        [ProducesResponseType(typeof(AudioResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(429)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> ProcessAudio([FromBody] AudioRequest request)
         {
+            // Start distributed tracing activity
+            using var activity = _activitySource.StartActivity("ProcessAudio", ActivityKind.Server);
+            
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
             var userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             
-            _logger.LogInformation("Voice session creation request from IP: {ClientIp}, UserAgent: {UserAgent}, ConversationId: {ConversationId}", 
-                clientIp, userAgent, request.ConversationId);
+            // Add tags to activity for better observability
+            activity?.SetTag("voice.conversation_id", request.ConversationId);
+            activity?.SetTag("voice.audio_format", request.Format.ToString());
+            activity?.SetTag("http.client_ip", clientIp);
+            activity?.SetTag("http.user_agent", userAgent);
+            
+            _logger.LogInformation("Audio processing request from IP: {ClientIp}, UserAgent: {UserAgent}, ConversationId: {ConversationId}, Format: {Format}", 
+                clientIp, userAgent, request.ConversationId, request.Format);
 
             try
             {
                 // Validate model state
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("Invalid voice session request from IP: {ClientIp}, ValidationErrors: {ValidationErrors}", 
+                    activity?.SetStatus(ActivityStatusCode.Error, "Invalid model state");
+                    _logger.LogWarning("Invalid audio processing request from IP: {ClientIp}, ValidationErrors: {ValidationErrors}", 
                         clientIp, string.Join(", ", ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))));
                     return BadRequest(ModelState);
                 }
 
-                // Create voice session with Foundry service
-                var voiceSession = await _foundryVoiceService.CreateVoiceSessionAsync(request.Query, request.ConversationId);
+                // Validate audio data size (e.g., max 5MB)
+                const int maxAudioSizeBytes = 5 * 1024 * 1024; // 5MB
+                var estimatedSize = (request.AudioData.Length * 3) / 4; // Base64 to bytes approximation
+                if (estimatedSize > maxAudioSizeBytes)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, "Audio too large");
+                    _logger.LogWarning("Audio data too large from IP: {ClientIp}, Size: ~{Size} bytes", clientIp, estimatedSize);
+                    return BadRequest($"Audio data too large. Maximum size is {maxAudioSizeBytes / (1024 * 1024)}MB");
+                }
 
-                _logger.LogInformation("Voice session created successfully. SessionId: {SessionId}, ConversationId: {ConversationId}", 
-                    voiceSession.SessionId, request.ConversationId);
+                // Process audio through complete pipeline
+                var result = await _audioProcessingService.ProcessAudioAsync(
+                    request.AudioData,
+                    request.Format,
+                    request.ConversationId,
+                    HttpContext.RequestAborted);
 
-                return Ok(voiceSession);
+                activity?.SetTag("voice.transcription_length", result.TranscribedText.Length);
+                activity?.SetTag("voice.response_length", result.ResponseText.Length);
+                activity?.SetTag("voice.response_audio_size", result.ResponseAudio.Length);
+                activity?.SetStatus(ActivityStatusCode.Ok);
+                
+                _logger.LogInformation("Audio processing completed successfully. ConversationId: {ConversationId}, Transcription: {Transcription}", 
+                    result.ConversationId, result.TranscribedText);
+
+                // Return response with TTS audio
+                return Ok(new AudioResponse
+                {
+                    Transcription = result.TranscribedText,
+                    ResponseText = result.ResponseText,
+                    AudioData = Convert.ToBase64String(result.ResponseAudio),
+                    ConversationId = result.ConversationId
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Business logic errors (e.g., invalid audio format, no speech detected)
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.SetTag("error.type", "InvalidOperation");
+                _logger.LogWarning(ex, "Audio processing validation error from IP: {ClientIp}", clientIp);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (FormatException ex)
+            {
+                // Invalid base64 encoding
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.SetTag("error.type", "InvalidFormat");
+                _logger.LogWarning(ex, "Invalid base64 audio data from IP: {ClientIp}", clientIp);
+                return BadRequest(new { error = "Invalid audio data format. Audio must be base64-encoded." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating voice session. ConversationId: {ConversationId}, IP: {ClientIp}", 
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity?.SetTag("error.type", ex.GetType().Name);
+                _logger.LogError(ex, "Error processing audio. ConversationId: {ConversationId}, IP: {ClientIp}", 
                     request.ConversationId, clientIp);
                 
-                return StatusCode(500, "An error occurred while creating the voice session");
-            }
-        }
-
-        [HttpGet("sessions/{sessionId}/status")]
-        public async Task<IActionResult> GetVoiceSessionStatus([FromRoute] string sessionId)
-        {
-            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            
-            _logger.LogInformation("Voice session status request from IP: {ClientIp}, SessionId: {SessionId}", 
-                clientIp, sessionId);
-
-            try
-            {
-                if (string.IsNullOrWhiteSpace(sessionId))
-                {
-                    _logger.LogWarning("Empty session ID provided from IP: {ClientIp}", clientIp);
-                    return BadRequest("Session ID is required");
-                }
-
-                var status = await _foundryVoiceService.GetVoiceSessionStatusAsync(sessionId);
-                if (status == null)
-                {
-                    _logger.LogWarning("Voice session not found. SessionId: {SessionId}, IP: {ClientIp}", sessionId, clientIp);
-                    return NotFound($"Voice session '{sessionId}' not found");
-                }
-
-                _logger.LogInformation("Voice session status retrieved. SessionId: {SessionId}, Status: {Status}", 
-                    sessionId, status.Status);
-
-                return Ok(status);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting voice session status. SessionId: {SessionId}, IP: {ClientIp}", 
-                    sessionId, clientIp);
-                
-                return StatusCode(500, "An error occurred while retrieving the voice session status");
-            }
-        }
-
-        [HttpDelete("sessions/{sessionId}")]
-        public async Task<IActionResult> TerminateVoiceSession([FromRoute] string sessionId)
-        {
-            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            
-            _logger.LogInformation("Voice session termination request from IP: {ClientIp}, SessionId: {SessionId}", 
-                clientIp, sessionId);
-
-            try
-            {
-                if (string.IsNullOrWhiteSpace(sessionId))
-                {
-                    _logger.LogWarning("Empty session ID provided for termination from IP: {ClientIp}", clientIp);
-                    return BadRequest("Session ID is required");
-                }
-
-                var terminated = await _foundryVoiceService.TerminateVoiceSessionAsync(sessionId);
-                if (!terminated)
-                {
-                    _logger.LogWarning("Failed to terminate voice session. SessionId: {SessionId}, IP: {ClientIp}", sessionId, clientIp);
-                    return NotFound($"Voice session '{sessionId}' not found or could not be terminated");
-                }
-
-                _logger.LogInformation("Voice session terminated successfully. SessionId: {SessionId}", sessionId);
-
-                return Ok(new { message = "Voice session terminated successfully", sessionId });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error terminating voice session. SessionId: {SessionId}, IP: {ClientIp}", 
-                    sessionId, clientIp);
-                
-                return StatusCode(500, "An error occurred while terminating the voice session");
+                return StatusCode(500, new { error = "An error occurred while processing the audio" });
             }
         }
     }

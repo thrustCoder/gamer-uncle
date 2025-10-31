@@ -72,6 +72,40 @@ Configuration is loaded from:
    - Tests API availability
    - Ensures service is running
 
+#### VoiceController Tests
+
+> **Note**: Voice tests are automatically skipped in CI/CD environments where Azure Speech Service credentials are not configured. This is controlled by the `TEST_ENVIRONMENT` or `SKIP_VOICE_TESTS` environment variables.
+
+1. **WAV Audio Processing**
+   - Tests complete voice pipeline (STT → AI → TTS)
+   - Validates audio format handling
+
+2. **PCM16 Audio Processing**
+   - Tests raw PCM16 audio processing
+   - Validates format conversion
+
+3. **Invalid Audio Data**
+   - Tests error handling for malformed audio
+   - Validates input validation
+
+4. **Empty Audio Data**
+   - Tests handling of empty requests
+   - Ensures proper error responses
+
+5. **Large Audio Data**
+   - Tests size limit enforcement (>5MB)
+   - Validates request size validation
+
+6. **Conversation Tracking**
+   - Tests conversation context maintenance
+   - Validates thread management across requests
+
+**Voice Test Behavior in CI/CD:**
+- Tests are **skipped** when `TEST_ENVIRONMENT=Local` (pipeline default)
+- Tests are **skipped** when `SKIP_VOICE_TESTS=true`
+- Tests **run normally** in local development with Azure Speech credentials configured
+- This prevents pipeline failures due to missing external service dependencies
+
 ## Pipeline Integration
 
 ### Pull Request Pipeline
@@ -157,7 +191,33 @@ Set environment variables to customize test execution:
 ```powershell
 $env:TEST_ENVIRONMENT = "Local"           # or "Dev"
 $env:API_BASE_URL = "http://localhost:5000"
+$env:SKIP_VOICE_TESTS = "false"          # Set to "true" to skip voice tests
 ```
+
+#### Running Voice Tests Locally
+
+Voice tests require Azure Speech Service credentials configured in `appsettings.Development.json`:
+
+```json
+{
+  "AzureSpeech": {
+    "Key": "your-azure-speech-key",
+    "Region": "westus",
+    "DefaultVoice": "en-US-AvaMultilingualNeural"
+  }
+}
+```
+
+**To enable voice tests:**
+1. Configure Azure Speech Service credentials
+2. Remove or set `$env:SKIP_VOICE_TESTS = "false"`
+3. Do not set `TEST_ENVIRONMENT=Local` (use `Dev` or omit)
+
+**To skip voice tests:**
+- Set `$env:SKIP_VOICE_TESTS = "true"`, OR
+- Set `$env:TEST_ENVIRONMENT = "Local"`
+
+Voice tests are automatically skipped in CI/CD pipelines where credentials are not configured.
 
 ## Adding New Tests
 

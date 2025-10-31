@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -75,6 +75,11 @@ export default function ChatScreen() {
     microphone: 'undetermined',
     camera: 'undetermined'
   });
+  
+  // New UX states - tap-to-start/tap-to-stop pattern
+  const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing'>('default');
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
@@ -95,6 +100,12 @@ export default function ChatScreen() {
       if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
         setConversationId(voiceResponse.threadId);
       }
+      
+      // Return to default mode after receiving AI response
+      if (!voiceResponse.isUserMessage) {
+        console.log('🔄 [CHAT] Received AI response - returning to default mode');
+        setVoiceUXMode('default');
+      }
     }
   });
 
@@ -114,6 +125,12 @@ export default function ChatScreen() {
         // Update conversation ID if provided (only for system responses)
         if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
           setConversationId(voiceResponse.threadId);
+        }
+        
+        // Return to default mode after receiving AI response
+        if (!voiceResponse.isUserMessage) {
+          console.log('🔄 [CHAT] Received AI response - returning to default mode');
+          setVoiceUXMode('default');
         }
       }
     }
@@ -138,6 +155,9 @@ export default function ChatScreen() {
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
+  
+  // Pulsating animation for recording indicator
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
     // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -171,6 +191,69 @@ export default function ChatScreen() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Pulsating animation effect for active recording and processing
+  useEffect(() => {
+    if (voiceUXMode === 'active-recording' || voiceUXMode === 'processing') {
+      const duration = voiceUXMode === 'processing' ? 1200 : 800; // Slower pulse for processing
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      
+      return () => {
+        pulse.stop();
+        pulseAnim.setValue(1);
+      };
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [voiceUXMode, pulseAnim]);
+
+  // Auto-return to default mode when voice session becomes inactive
+  useEffect(() => {
+    if (voiceUXMode !== 'default' && !isVoiceActive && !isVoiceConnecting) {
+      console.log('🔄 [CHAT] Voice session ended - returning to default mode');
+      setVoiceUXMode('default');
+    }
+  }, [isVoiceActive, isVoiceConnecting, voiceUXMode]);
+
+  // Processing timeout - return to default if no AI response within 15 seconds
+  useEffect(() => {
+    if (voiceUXMode === 'processing') {
+      console.log('⏳ [CHAT] Starting 15-second processing timeout');
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ [CHAT] Processing timeout reached - returning to default mode');
+        setVoiceUXMode('default');
+      }, 15000); // 15 second timeout
+    } else {
+      // Clear timeout if we exit processing mode
+      if (processingTimeoutRef.current) {
+        console.log('🛑 [CHAT] Clearing processing timeout');
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    }
+
+    // Cleanup timeout on component unmount
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    };
+  }, [voiceUXMode]);
 
   // Show voice errors to user
   useEffect(() => {
@@ -210,10 +293,20 @@ export default function ChatScreen() {
       
       // Start appropriate voice session
       if (useFoundryVoice) {
+        // Convert recent chat messages to conversation history format
+        const recentMessages = messages
+          .filter(msg => msg.type === 'user' || msg.type === 'system')
+          .slice(-10) // Last 10 messages
+          .map(msg => ({
+            role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+            content: msg.text
+          }));
+        
         await foundryVoiceSession.startVoiceSession({
           query: "Start voice conversation",
           conversationId: conversationId || undefined,
           userId: userId,
+          recentMessages: recentMessages.length > 0 ? recentMessages : undefined
         });
       } else {
         await legacyVoiceSession.startVoiceSession({
@@ -245,74 +338,104 @@ export default function ChatScreen() {
     }
   };
 
-  // Pan responder for press-and-hold microphone functionality
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => false,
+  // Press and hold state management - UPDATED CODE v2
+  // New tap-to-start/tap-to-stop voice functionality
+  const handleMicButtonPress = async () => {
+    console.log('� [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
+    console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice });
     
-    onPanResponderGrant: () => {
-      // Visual feedback
+    // Animate button press
+    Animated.sequence([
       Animated.spring(micScale, {
-        toValue: 1.2,
+        toValue: 1.1,
         useNativeDriver: true,
-      }).start();
-      
-      if (!isVoiceActive) {
-        // Start voice session if not active
-        handleStartVoice();
-      } else {
-        // If voice session is already active, start recording immediately
+      }),
+      Animated.spring(micScale, {
+        toValue: 1,
+        useNativeDriver: true,
+      })
+    ]).start();
+    
+    switch (voiceUXMode) {
+      case 'default':
+        // First tap: Enter recording mode (start voice session)
+        console.log('🎤 [CHAT] Default mode - entering recording mode');
+        setVoiceUXMode('recording-mode');
+        await handleStartVoice();
+        break;
+        
+      case 'recording-mode':
+        // Second tap: Start recording
+        console.log('🎤 [CHAT] Recording mode - starting active recording');
+        setVoiceUXMode('active-recording');
         if (useFoundryVoice) {
-          // Azure OpenAI Realtime API handles recording automatically
-          console.log('🎤 [CHAT] Foundry voice session already active - recording automatically');
+          foundryVoiceSession.setRecording(true);
         } else {
           legacyVoiceSession.setRecording(true);
         }
-      }
-    },
-    
-    onPanResponderRelease: () => {
-      // Stop recording on release
-      Animated.spring(micScale, {
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
-      
-      if (isVoiceActive && isRecording) {
+        break;
+        
+      case 'active-recording':
+        // Third tap: Stop recording and go to processing state
+        console.log('🎤 [CHAT] Active recording - stopping recording and entering processing mode');
+        setVoiceUXMode('processing');
         if (useFoundryVoice) {
-          foundryVoiceSession.setRecording();
+          foundryVoiceSession.setRecording(false);
         } else {
           legacyVoiceSession.setRecording(false);
         }
-      }
-    },
-    
-    onPanResponderTerminate: () => {
-      // Stop recording if gesture is terminated
-      Animated.spring(micScale, {
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
-      
-      if (isVoiceActive && isRecording) {
+        break;
+        
+      case 'processing':
+        // During processing: Interrupt TTS and start new recording
+        console.log('⏸️ [CHAT] Processing mode - interrupting AI response and starting new recording');
+        
+        // Stop audio playback (interrupt TTS)
         if (useFoundryVoice) {
-          // Azure OpenAI Realtime API handles recording automatically
-          console.log('🔇 [CHAT] Foundry voice session - recording terminated automatically');
-        } else {
-          legacyVoiceSession.setRecording(false);
+          await foundryVoiceSession.stopAudioPlayback();
         }
-      }
-    },
-  });
+        
+        // Clear processing timeout if active
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
+        }
+        
+        // Go directly to active recording
+        setVoiceUXMode('active-recording');
+        if (useFoundryVoice) {
+          foundryVoiceSession.setRecording(true);
+        } else {
+          legacyVoiceSession.setRecording(true);
+        }
+        break;
+    }
+  };
 
-  // Get microphone button style based on voice state
+  // Get microphone button style based on new UX states
   const getMicButtonStyle = () => {
     if (!isVoiceSupported) {
       return [voiceStyles.micButton, voiceStyles.micButtonDisabled];
     }
-    if (isRecording) {
+    
+    // Red state: Active recording
+    if (voiceUXMode === 'active-recording') {
+      console.log('🔴 [CHAT] Button RED - Active recording mode');
       return [voiceStyles.micButton, voiceStyles.micButtonActive];
     }
+    
+    // Orange state: Processing (waiting for AI response)
+    if (voiceUXMode === 'processing') {
+      console.log('🟠 [CHAT] Button ORANGE - Processing AI response');
+      return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
+    }
+    
+    // Green state: Recording mode (ready to record)
+    if (voiceUXMode === 'recording-mode') {
+      console.log('🟢 [CHAT] Button GREEN - Recording mode (ready)');
+      return [voiceStyles.micButton, voiceStyles.micButtonReady];
+    }
+    
     if (isVoiceConnecting) {
       return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
     }
@@ -325,11 +448,24 @@ export default function ChatScreen() {
     return voiceStyles.micButton;
   };
 
-  // Get voice status text
+  // Debug effect to log component render state
+  useEffect(() => {
+    console.log('🔍 [CHAT-RENDER] Component rendered with voice state:', {
+      isVoiceActive,
+      isRecording,
+      isVoiceConnecting,
+      useFoundryVoice,
+      isVoiceSupported,
+      voiceUXMode
+    });
+  }, [isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice, isVoiceSupported, voiceUXMode]);
+
+  // Get voice status text for new UX pattern
   const getVoiceStatusText = () => {
-    if (isRecording) return 'Recording... Release to stop';
+    if (voiceUXMode === 'active-recording') return 'Tap the mic to stop';
+    if (voiceUXMode === 'processing') return 'Tap the mic to interrupt and speak';
+    if (voiceUXMode === 'recording-mode') return 'Tap the mic to record';
     if (isVoiceConnecting) return 'Connecting to voice service...';
-    if (isVoiceActive) return 'Hold mic button to record your message';
     if (voiceError) return voiceError;
     return '';
   };
@@ -518,22 +654,44 @@ export default function ChatScreen() {
           </View>
 
           <View style={styles.inputBar}>
-            <TextInput
-              ref={textInputRef}
-              value={input}
-              onChangeText={setInput}
-              placeholder="Message"
-              placeholderTextColor={Colors.grayPlaceholder}
-              style={styles.input}
-              editable={!isLoading}
-              maxLength={500}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-              testID="chat-input"
-              {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
-            />
+            {/* Conditionally render text input and send button - hide in recording modes */}
+            {voiceUXMode === 'default' && (
+              <>
+                <TextInput
+                  ref={textInputRef}
+                  value={input}
+                  onChangeText={setInput}
+                  placeholder="Message"
+                  placeholderTextColor={Colors.grayPlaceholder}
+                  style={styles.input}
+                  editable={!isLoading}
+                  maxLength={500}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSend}
+                  testID="chat-input"
+                  {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
+                />
+              </>
+            )}
             
-            {/* Voice Controls - Always show for debugging */}
+            {/* Voice status text in recording modes */}
+            {voiceUXMode !== 'default' && (
+              <View style={voiceStyles.voiceInstructionContainer}>
+                <Text style={voiceStyles.voiceInstructionText}>
+                  {getVoiceStatusText()}
+                </Text>
+                {(voiceUXMode === 'active-recording' || voiceUXMode === 'processing') && (
+                  <Animated.View 
+                    style={[
+                      voiceUXMode === 'active-recording' ? voiceStyles.pulsingIndicator : voiceStyles.processingIndicator,
+                      { transform: [{ scale: pulseAnim }] }
+                    ]} 
+                  />
+                )}
+              </View>
+            )}
+            
+            {/* Voice Controls - Always show mic button */}
             <View style={voiceStyles.voiceContainer}>
               <Animated.View 
                 style={[
@@ -543,55 +701,34 @@ export default function ChatScreen() {
                 <TouchableOpacity
                   style={getMicButtonStyle()}
                   activeOpacity={0.8}
-                  onPress={Platform.OS === 'web' ? handleStartVoice : undefined}
-                  onPressIn={Platform.OS !== 'web' ? () => {
-                    if (!isVoiceActive) {
-                      handleStartVoice();
-                    } else {
-                      if (useFoundryVoice) {
-                        foundryVoiceSession.setRecording();
-                      } else {
-                        legacyVoiceSession.setRecording(true);
-                      }
-                    }
-                  } : undefined}
-                  onPressOut={Platform.OS !== 'web' ? () => {
-                    if (isVoiceActive && isRecording) {
-                      if (useFoundryVoice) {
-                        foundryVoiceSession.setRecording();
-                      } else {
-                        legacyVoiceSession.setRecording(false);
-                      }
-                    }
-                  } : undefined}
+                  onPress={handleMicButtonPress}
                   testID="mic-button"
                   {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
-                  {...(Platform.OS !== 'web' && panResponder.panHandlers)}
                 >
                   <Text style={voiceStyles.micIcon}>🎤</Text>
-                  {isRecording && (
-                    <View style={voiceStyles.recordingIndicator} />
-                  )}
                 </TouchableOpacity>
               </Animated.View>
             </View>
 
-            <TouchableOpacity 
-              onPress={handleSend} 
-              style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
-              disabled={isLoading}
-              testID="send-button"
-              {...(Platform.OS === 'web' && { 'data-testid': 'send-button' })}
-            >
-              <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
-            </TouchableOpacity>
+            {/* Send button - only show in default mode */}
+            {voiceUXMode === 'default' && (
+              <TouchableOpacity 
+                onPress={handleSend} 
+                style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
+                disabled={isLoading}
+                testID="send-button"
+                {...(Platform.OS === 'web' && { 'data-testid': 'send-button' })}
+              >
+                <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Voice Instructions Overlay */}
-          {showVoiceInstructions && isVoiceSupported && !isVoiceActive && (
+          {/* Voice Instructions Overlay - only show in default mode */}
+          {showVoiceInstructions && isVoiceSupported && voiceUXMode === 'default' && (
             <View style={voiceStyles.holdInstructionOverlay}>
               <Text style={voiceStyles.holdInstructionText}>
-                Tap microphone to connect, then hold to record
+                Tap microphone to connect
               </Text>
             </View>
           )}

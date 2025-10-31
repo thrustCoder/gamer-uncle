@@ -37,6 +37,7 @@
     "expo-av": "~15.1.7",
     "expo-constants": "~17.1.6",
     "expo-dev-client": "~5.2.4",
+    "expo-file-system": "^19.0.17",
     "expo-speech": "~13.1.7",
     "expo-status-bar": "~2.2.3",
     "lottie-react-native": "7.2.2",

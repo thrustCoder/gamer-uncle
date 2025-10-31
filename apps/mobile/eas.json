@@ -1,11 +1,14 @@
 {
+  "cli": {
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
         "simulator": false,
-        "developmentClient": true
+        "resourceClass": "m-medium"
       },
       "android": {
         "developmentClient": true
