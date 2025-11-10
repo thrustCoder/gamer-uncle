@@ -2,6 +2,8 @@ using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Shared.Models;
+using Azure.Security.KeyVault.Secrets;
+using Azure.Identity;
 
 namespace GamerUncle.Api.Services.Speech;
 
@@ -20,17 +22,24 @@ public class AzureSpeechService : IAzureSpeechService
     {
         _logger = logger;
 
-        // Get Azure Speech configuration
-        var speechKey = configuration["AzureSpeech:Key"] 
-            ?? throw new InvalidOperationException("AzureSpeech:Key configuration is missing");
+        // Get Azure Speech configuration from Key Vault
+        var keyVaultUri = configuration["AzureSpeech:KeyVaultUri"] 
+            ?? throw new InvalidOperationException("AzureSpeech:KeyVaultUri configuration is missing");
+        var keySecretName = configuration["AzureSpeech:KeySecretName"] 
+            ?? throw new InvalidOperationException("AzureSpeech:KeySecretName configuration is missing");
         var speechRegion = configuration["AzureSpeech:Region"] 
             ?? throw new InvalidOperationException("AzureSpeech:Region configuration is missing");
         _defaultVoice = configuration["AzureSpeech:DefaultVoice"] ?? "en-US-AvaMultilingualNeural";
 
+        // Retrieve Speech Service key from Key Vault using Managed Identity
+        var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+        var secretResponse = keyVaultClient.GetSecret(keySecretName);
+        var speechKey = secretResponse.Value.Value;
+
         _speechConfig = SpeechConfig.FromSubscription(speechKey, speechRegion);
         
-        _logger.LogInformation("AzureSpeechService initialized with region: {Region}, default voice: {Voice}", 
-            speechRegion, _defaultVoice);
+        _logger.LogInformation("AzureSpeechService initialized with region: {Region}, default voice: {Voice}, Key Vault: {KeyVault}", 
+            speechRegion, _defaultVoice, keyVaultUri);
     }
 
     /// <inheritdoc/>
