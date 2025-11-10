@@ -1,0 +1,343 @@
+import { Audio } from 'expo-av';
+import { File, Paths } from 'expo-file-system';
+import axios from 'axios';
+
+export interface AudioProcessingRequest {
+  audioData: string; // Base64
+  format: 'Wav' | 'Pcm16';
+  conversationId?: string;
+}
+
+export interface AudioProcessingResponse {
+  transcription: string;
+  responseText: string;
+  audioData: string; // Base64 TTS audio
+  conversationId: string;
+}
+
+export class VoiceAudioService {
+  private recording: Audio.Recording | null = null;
+  private soundObject: Audio.Sound | null = null;
+  private apiBaseUrl: string;
+
+  constructor(apiBaseUrl: string) {
+    this.apiBaseUrl = apiBaseUrl;
+  }
+
+  /**
+   * Start recording audio from microphone
+   */
+  async startRecording(): Promise<void> {
+    console.log('🎤 [AUDIO] Requesting audio permissions...');
+    const { granted } = await Audio.requestPermissionsAsync();
+    if (!granted) {
+      throw new Error('Audio permission not granted');
+    }
+
+    console.log('🎤 [AUDIO] Setting audio mode for recording...');
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+
+    console.log('🎤 [AUDIO] Preparing to record...');
+    this.recording = new Audio.Recording();
+    
+    // Configure recording options for PCM16 format
+    await this.recording.prepareToRecordAsync({
+      isMeteringEnabled: true,
+      android: {
+        extension: '.wav',
+        outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+        audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+        sampleRate: 24000,
+        numberOfChannels: 1,
+        bitRate: 128000,
+      },
+      ios: {
+        extension: '.wav',
+        outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+        audioQuality: Audio.IOSAudioQuality.HIGH,
+        sampleRate: 24000,
+        numberOfChannels: 1,
+        bitRate: 128000,
+        linearPCMBitDepth: 16,
+        linearPCMIsBigEndian: false,
+        linearPCMIsFloat: false,
+      },
+      web: {
+        mimeType: 'audio/wav',
+        bitsPerSecond: 128000,
+      },
+    });
+
+    await this.recording.startAsync();
+    console.log('🟢 [AUDIO] Recording started');
+  }
+
+  /**
+   * Stop recording and send audio to backend for processing
+   */
+  async stopRecordingAndProcess(conversationId?: string): Promise<AudioProcessingResponse> {
+    if (!this.recording) {
+      throw new Error('No active recording');
+    }
+
+    console.log('🎤 [AUDIO] Stopping recording...');
+    await this.recording.stopAndUnloadAsync();
+    const uri = this.recording.getURI();
+    if (!uri) {
+      throw new Error('No recording URI');
+    }
+
+    console.log('🎤 [AUDIO] Recording URI:', uri);
+
+    try {
+      // Read WAV file as base64 using new v19 API
+      console.log('🎤 [AUDIO] Reading recorded audio file...');
+      const audioFile = new File(uri);
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const base64Audio = this.arrayBufferToBase64(arrayBuffer);
+
+      console.log(`🎤 [AUDIO] Audio file size: ${base64Audio.length} characters (base64)`);
+
+      // Send full WAV file to backend (backend will strip header if needed)
+      console.log('🌐 [AUDIO] Sending audio to backend for processing...');
+      const response = await axios.post<AudioProcessingResponse>(
+        `${this.apiBaseUrl}voice/process`,
+        {
+          audioData: base64Audio,
+          format: 'Wav',
+          conversationId,
+        } as AudioProcessingRequest,
+        {
+          timeout: 30000, // 30 second timeout for audio processing
+        }
+      );
+
+      console.log('🟢 [AUDIO] Backend processing complete');
+      console.log(`📝 Transcription: "${response.data.transcription}"`);
+      console.log(`🤖 Response: "${response.data.responseText}"`);
+
+      return response.data;
+    } finally {
+      // Clean up recording
+      this.recording = null;
+      
+      // Delete temporary file using new v19 API
+      try {
+        const audioFile = new File(uri);
+        await audioFile.delete();
+      } catch (error) {
+        console.warn('⚠️ [AUDIO] Failed to delete temporary recording:', error);
+      }
+    }
+  }
+
+  /**
+   * Play TTS audio response from backend
+   */
+  async playAudioResponse(base64Audio: string): Promise<void> {
+    console.log('🔊 [AUDIO] Preparing to play TTS audio response...');
+
+    // Convert base64 to WAV (backend returns raw PCM16, we need to add WAV header)
+    const wavData = this.pcm16ToWav(base64Audio);
+    const base64Wav = this.arrayBufferToBase64(wavData);
+    
+    // Save temporarily to file system using new v19 API
+    const tempFile = new File(Paths.cache, 'tts_response.wav');
+    const wavBytes = this.base64ToUint8Array(base64Wav);
+    await tempFile.write(wavBytes);
+
+    console.log('🔊 [AUDIO] Setting audio mode for playback...');
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+
+    console.log('🔊 [AUDIO] Loading audio file...');
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: tempFile.uri },
+      { shouldPlay: true, volume: 1.0 },
+      this.onPlaybackStatusUpdate
+    );
+
+    this.soundObject = sound;
+    console.log('🟢 [AUDIO] Playing TTS audio...');
+
+    return new Promise((resolve, reject) => {
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) {
+          if (status.error) {
+            console.error('🔴 [AUDIO] Playback error:', status.error);
+            reject(new Error(`Playback error: ${status.error}`));
+          }
+          return;
+        }
+
+        if (status.didJustFinish) {
+          console.log('🟢 [AUDIO] Playback finished');
+          sound.unloadAsync();
+          this.soundObject = null;
+          
+          // Clean up temporary file using new v19 API
+          try {
+            tempFile.delete();
+          } catch (error: any) {
+            console.warn('⚠️ [AUDIO] Failed to delete temp file:', error);
+          }
+          
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Stop audio playback (interrupt AI response)
+   */
+  async stopAudioPlayback(): Promise<void> {
+    if (this.soundObject) {
+      console.log('🛑 [AUDIO] Stopping playback...');
+      await this.soundObject.stopAsync();
+      await this.soundObject.unloadAsync();
+      this.soundObject = null;
+    }
+  }
+
+  /**
+   * Check if audio is currently playing
+   */
+  isPlaying(): boolean {
+    return this.soundObject !== null;
+  }
+
+  /**
+   * Check if currently recording
+   */
+  isRecording(): boolean {
+    return this.recording !== null;
+  }
+
+  /**
+   * Cleanup resources
+   */
+  async cleanup(): Promise<void> {
+    if (this.recording) {
+      try {
+        await this.recording.stopAndUnloadAsync();
+      } catch (error) {
+        console.warn('⚠️ [AUDIO] Error stopping recording during cleanup:', error);
+      }
+      this.recording = null;
+    }
+
+    if (this.soundObject) {
+      try {
+        await this.soundObject.unloadAsync();
+      } catch (error) {
+        console.warn('⚠️ [AUDIO] Error unloading sound during cleanup:', error);
+      }
+      this.soundObject = null;
+    }
+  }
+
+  // ========== Helper Methods ==========
+
+  /**
+   * Callback for playback status updates
+   */
+  private onPlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded && status.isPlaying) {
+      // Log playback progress (optional, for debugging)
+      // console.log(`🔊 [AUDIO] Playback position: ${status.positionMillis}ms / ${status.durationMillis}ms`);
+    }
+  };
+
+  /**
+   * Convert PCM16 data to WAV format with proper header
+   */
+  private pcm16ToWav(base64Pcm: string): ArrayBuffer {
+    // Decode base64 to binary
+    const pcmData = this.base64ToUint8Array(base64Pcm);
+    
+    // Create WAV header (44 bytes)
+    const wavHeader = new ArrayBuffer(44);
+    const view = new DataView(wavHeader);
+
+    // RIFF chunk descriptor
+    this.writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + pcmData.length, true); // File size - 8
+    this.writeString(view, 8, 'WAVE');
+
+    // fmt sub-chunk
+    this.writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+    view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
+    view.setUint16(22, 1, true); // NumChannels (1 = mono)
+    view.setUint32(24, 24000, true); // SampleRate (24kHz)
+    view.setUint32(28, 48000, true); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
+    view.setUint16(32, 2, true); // BlockAlign (NumChannels * BitsPerSample/8)
+    view.setUint16(34, 16, true); // BitsPerSample (16-bit)
+
+    // data sub-chunk
+    this.writeString(view, 36, 'data');
+    view.setUint32(40, pcmData.length, true); // Subchunk2Size (data size)
+
+    // Combine header and PCM data
+    const wavFile = new Uint8Array(44 + pcmData.length);
+    wavFile.set(new Uint8Array(wavHeader), 0);
+    wavFile.set(pcmData, 44);
+
+    return wavFile.buffer;
+  }
+
+  /**
+   * Write ASCII string to DataView
+   */
+  private writeString(view: DataView, offset: number, str: string): void {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
+
+  /**
+   * Convert base64 string to Uint8Array
+   */
+  private base64ToUint8Array(base64: string): Uint8Array {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  /**
+   * Convert ArrayBuffer to base64 string
+   */
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+}
+
+// Singleton instance for use across the app
+let voiceAudioServiceInstance: VoiceAudioService | null = null;
+
+export const getVoiceAudioService = (apiBaseUrl: string): VoiceAudioService => {
+  if (!voiceAudioServiceInstance) {
+    voiceAudioServiceInstance = new VoiceAudioService(apiBaseUrl);
+  }
+  return voiceAudioServiceInstance;
+};

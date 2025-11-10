@@ -4,6 +4,7 @@ import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
 import axios from 'axios';
 import { speechRecognitionService, SpeechRecognitionResult } from '../services/speechRecognitionService';
 import { getRecommendations } from '../services/ApiClient';
+import { VoiceAudioService } from '../services/voiceAudioService';
 
 // Types for voice session - matching backend C# models exactly
 export interface VoiceSessionRequest {
@@ -58,6 +59,9 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  
+  // Voice audio service for simplified audio processing
+  const voiceAudioServiceRef = useRef<VoiceAudioService>(new VoiceAudioService(getApiBaseUrl()));
   
   // 🚀 OPTIMIZATION: Pre-initialized state for faster startup
   const [isPreInitialized, setIsPreInitialized] = useState(false);
@@ -344,23 +348,78 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     }
   }, [updateState]);
 
-  // Start/stop recording (for push-to-talk)
-  const setRecording = useCallback((recording: boolean) => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = recording;
-      });
-      updateState({ isRecording: recording });
-      
-      if (recording) {
-        // Start speech recognition when recording starts
-        startSpeechRecognition();
-      } else if (state.isRecording) {
-        // Stop speech recognition and process when recording stops
-        stopSpeechRecognition();
+  // Start/stop recording (for push-to-talk) - NEW: Using VoiceAudioService
+  const setRecording = useCallback(async (recording: boolean) => {
+    const voiceService = voiceAudioServiceRef.current;
+    
+    if (recording) {
+      // Start recording audio
+      try {
+        console.log('🟡 [VOICE] Starting audio recording...');
+        updateState({ isRecording: true, error: null });
+        
+        await voiceService.startRecording();
+        
+        console.log('🟢 [VOICE] Recording started successfully');
+      } catch (error: any) {
+        console.error('🔴 [VOICE] Failed to start recording:', error);
+        updateState({ 
+          isRecording: false, 
+          error: error.message || 'Failed to start recording. Please check your microphone permissions.' 
+        });
+      }
+    } else {
+      // Stop recording and process audio
+      try {
+        console.log('🟡 [VOICE] Stopping recording and processing audio...');
+        
+        // Show user message immediately (empty for now, will be updated after STT)
+        if (onVoiceResponse) {
+          onVoiceResponse({
+            responseText: '🎤 Processing your message...',
+            isUserMessage: true,
+          });
+        }
+        
+        // Stop recording and process through backend (STT → AI → TTS)
+        const response = await voiceService.stopRecordingAndProcess(sessionIdRef.current || undefined);
+        
+        console.log('🟢 [VOICE] Processing complete:', response);
+        
+        // Update user message with transcribed text
+        if (onVoiceResponse && response.transcription) {
+          onVoiceResponse({
+            responseText: response.transcription,
+            isUserMessage: true,
+          });
+        }
+        
+        // Add AI response to chat
+        if (onVoiceResponse && response.responseText) {
+          onVoiceResponse({
+            responseText: response.responseText,
+            threadId: response.conversationId,
+          });
+        }
+        
+        // Play TTS audio response
+        if (response.audioData) {
+          console.log('🔊 [VOICE] Playing TTS audio response...');
+          await voiceService.playAudioResponse(response.audioData);
+          console.log('🟢 [VOICE] Audio playback complete');
+        }
+        
+        updateState({ isRecording: false });
+      } catch (error: any) {
+        console.error('🔴 [VOICE] Failed to process audio:', error);
+        console.error('🔴 [VOICE] Error details:', JSON.stringify(error.response?.data || error.message, null, 2));
+        updateState({ 
+          isRecording: false, 
+          error: error.response?.data?.message || error.message || 'Failed to process voice message. Please try again.' 
+        });
       }
     }
-  }, [updateState, state.isRecording]);
+  }, [updateState, onVoiceResponse]);
 
   // Start speech recognition
   const startSpeechRecognition = useCallback(async () => {
@@ -469,6 +528,16 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     }
   }, [updateState, onVoiceResponse]);
 
+  // Stop audio playback
+  const stopAudioPlayback = useCallback(async () => {
+    try {
+      await voiceAudioServiceRef.current.stopAudioPlayback();
+      console.log('🟢 [VOICE] Audio playback stopped');
+    } catch (error: any) {
+      console.error('🔴 [VOICE] Failed to stop audio playback:', error);
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -506,6 +575,7 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     startVoiceSession,
     stopVoiceSession,
     setRecording,
+    stopAudioPlayback,
     clearError,
     retryVoiceSession,
     

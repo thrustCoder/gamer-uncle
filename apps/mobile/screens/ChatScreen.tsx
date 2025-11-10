@@ -21,7 +21,6 @@ import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
-import { useFoundryVoiceSession } from '../hooks/useFoundryVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
@@ -70,7 +69,6 @@ export default function ChatScreen() {
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
-  const [useFoundryVoice, setUseFoundryVoice] = useState(true); // Toggle for Foundry Live Voice
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
     microphone: 'undetermined',
     camera: 'undetermined'
@@ -84,8 +82,8 @@ export default function ChatScreen() {
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
-  // Legacy voice session hook
-  const legacyVoiceSession = useVoiceSession((voiceResponse) => {
+  // Voice session hook with new audio processing pipeline
+  const voiceSession = useVoiceSession((voiceResponse) => {
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
@@ -108,50 +106,9 @@ export default function ChatScreen() {
       }
     }
   });
-
-  // Foundry voice session hook
-  const foundryVoiceSession = useFoundryVoiceSession({
-    onVoiceResponse: (voiceResponse) => {
-      // Handle voice response by adding it to chat messages
-      if (voiceResponse.responseText) {
-        const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
-        const newMessage = {
-          id: Date.now().toString(),
-          type: messageType,
-          text: voiceResponse.responseText
-        };
-        setMessages(prev => [...prev, newMessage]);
-        
-        // Update conversation ID if provided (only for system responses)
-        if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
-          setConversationId(voiceResponse.threadId);
-        }
-        
-        // Return to default mode after receiving AI response
-        if (!voiceResponse.isUserMessage) {
-          console.log('🔄 [CHAT] Received AI response - returning to default mode');
-          setVoiceUXMode('default');
-        }
-      }
-    }
-  });
-
-  // Use the appropriate voice session based on toggle
-  const foundrySession = foundryVoiceSession;
-  const legacySession = legacyVoiceSession;
   
-  // Extract properties based on voice type
-  const isVoiceActive = useFoundryVoice ? foundrySession.isActive : legacySession.isActive;
-  const isVoiceConnecting = useFoundryVoice ? foundrySession.isConnecting : legacySession.isConnecting;
-  const isRecording = useFoundryVoice ? foundrySession.isRecording : legacySession.isRecording;
-  const voiceError = useFoundryVoice ? foundrySession.error : legacySession.error;
-  const isVoiceSupported = useFoundryVoice ? foundrySession.isSupported : legacySession.isSupported;
-  
-  // Voice session methods
-  const startVoiceSession = useFoundryVoice ? foundrySession.startVoiceSession : legacySession.startVoiceSession;
-  const stopVoiceSession = useFoundryVoice ? foundrySession.stopVoiceSession : legacySession.stopVoiceSession;
-  const clearVoiceError = useFoundryVoice ? foundrySession.clearError : legacySession.clearError;
-  const setRecording = useFoundryVoice ? foundrySession.setRecording : legacySession.setRecording;
+  // Extract voice properties
+  const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
@@ -222,8 +179,9 @@ export default function ChatScreen() {
   }, [voiceUXMode, pulseAnim]);
 
   // Auto-return to default mode when voice session becomes inactive
+  // Only reset from 'processing' mode, not from 'recording-mode' or 'active-recording'
   useEffect(() => {
-    if (voiceUXMode !== 'default' && !isVoiceActive && !isVoiceConnecting) {
+    if (voiceUXMode === 'processing' && !isVoiceActive && !isVoiceConnecting) {
       console.log('🔄 [CHAT] Voice session ended - returning to default mode');
       setVoiceUXMode('default');
     }
@@ -291,36 +249,14 @@ export default function ChatScreen() {
         setPermissionStatus(newStatus);
       }
       
-      // Start appropriate voice session
-      if (useFoundryVoice) {
-        // Convert recent chat messages to conversation history format
-        const recentMessages = messages
-          .filter(msg => msg.type === 'user' || msg.type === 'system')
-          .slice(-10) // Last 10 messages
-          .map(msg => ({
-            role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
-            content: msg.text
-          }));
-        
-        await foundryVoiceSession.startVoiceSession({
-          query: "Start voice conversation",
-          conversationId: conversationId || undefined,
-          userId: userId,
-          recentMessages: recentMessages.length > 0 ? recentMessages : undefined
-        });
-      } else {
-        await legacyVoiceSession.startVoiceSession({
-          Query: "Start voice conversation",
-          ConversationId: conversationId || undefined,
-          UserId: userId,
-        });
-      }
+      // Voice recording works directly without needing to start a session
+      // The audio processing happens when user stops recording
       setShowVoiceInstructions(false);
     } catch (error) {
-      console.error('Failed to start voice session:', error);
+      console.error('Failed to prepare voice:', error);
       Alert.alert(
-        'Voice Session Failed',
-        'Failed to start voice session. Please check your microphone permissions and try again.',
+        'Voice Setup Failed',
+        'Failed to prepare voice functionality. Please check your microphone permissions and try again.',
         [{ text: 'OK' }]
       );
     }
@@ -328,11 +264,7 @@ export default function ChatScreen() {
 
   const handleStopVoice = async () => {
     try {
-      if (useFoundryVoice) {
-        await foundryVoiceSession.stopVoiceSession();
-      } else {
-        await legacyVoiceSession.stopVoiceSession();
-      }
+      await stopVoiceSession();
     } catch (error) {
       console.error('Failed to stop voice session:', error);
     }
@@ -341,8 +273,8 @@ export default function ChatScreen() {
   // Press and hold state management - UPDATED CODE v2
   // New tap-to-start/tap-to-stop voice functionality
   const handleMicButtonPress = async () => {
-    console.log('� [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
-    console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice });
+    console.log('🎤 [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
+    console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting });
     
     // Animate button press
     Animated.sequence([
@@ -368,22 +300,14 @@ export default function ChatScreen() {
         // Second tap: Start recording
         console.log('🎤 [CHAT] Recording mode - starting active recording');
         setVoiceUXMode('active-recording');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(true);
-        } else {
-          legacyVoiceSession.setRecording(true);
-        }
+        await setRecording(true);
         break;
         
       case 'active-recording':
         // Third tap: Stop recording and go to processing state
         console.log('🎤 [CHAT] Active recording - stopping recording and entering processing mode');
         setVoiceUXMode('processing');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(false);
-        } else {
-          legacyVoiceSession.setRecording(false);
-        }
+        await setRecording(false);
         break;
         
       case 'processing':
@@ -391,9 +315,7 @@ export default function ChatScreen() {
         console.log('⏸️ [CHAT] Processing mode - interrupting AI response and starting new recording');
         
         // Stop audio playback (interrupt TTS)
-        if (useFoundryVoice) {
-          await foundryVoiceSession.stopAudioPlayback();
-        }
+        await stopAudioPlayback();
         
         // Clear processing timeout if active
         if (processingTimeoutRef.current) {
@@ -403,11 +325,7 @@ export default function ChatScreen() {
         
         // Go directly to active recording
         setVoiceUXMode('active-recording');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(true);
-        } else {
-          legacyVoiceSession.setRecording(true);
-        }
+        await setRecording(true);
         break;
     }
   };
@@ -454,11 +372,10 @@ export default function ChatScreen() {
       isVoiceActive,
       isRecording,
       isVoiceConnecting,
-      useFoundryVoice,
       isVoiceSupported,
       voiceUXMode
     });
-  }, [isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice, isVoiceSupported, voiceUXMode]);
+  }, [isVoiceActive, isRecording, isVoiceConnecting, isVoiceSupported, voiceUXMode]);
 
   // Get voice status text for new UX pattern
   const getVoiceStatusText = () => {
@@ -635,21 +552,6 @@ export default function ChatScreen() {
               onContentSizeChange={() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }}
-            />
-          </View>
-
-          {/* Foundry Voice Toggle - Positioned above input bar */}
-          <View style={voiceStyles.toggleContainer}>
-            <Text style={voiceStyles.toggleLabel}>
-              {useFoundryVoice ? '🎯 Foundry Live Voice' : '🎙️ Legacy Voice'}
-            </Text>
-            <Switch
-              value={useFoundryVoice}
-              onValueChange={setUseFoundryVoice}
-              trackColor={{ false: '#767577', true: '#4A90E2' }}
-              thumbColor={useFoundryVoice ? '#fff' : '#f4f3f4'}
-              testID="foundry-voice-toggle"
-              {...(Platform.OS === 'web' && { 'data-testid': 'foundry-voice-toggle' })}
             />
           </View>
 
