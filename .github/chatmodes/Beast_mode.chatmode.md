@@ -1,6 +1,6 @@
 ---
 description: Beast Mode 3.1
-tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'extensions', 'todos', 'runTests', 'Azure MCP', 'azure', 'azureActivityLog']
+tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'Azure MCP/*', 'azure/*', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'ms-azuretools.vscode-azureresourcegroups/azureActivityLog', 'extensions', 'todos', 'runTests']
 ---
 
 # Beast Mode 3.1
