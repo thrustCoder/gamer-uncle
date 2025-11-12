@@ -147,11 +147,6 @@ export class VoiceAudioService {
     const wavData = this.pcm16ToWav(base64Audio);
     const base64Wav = this.arrayBufferToBase64(wavData);
     
-    // Save temporarily to file system using new v19 API
-    const tempFile = new File(Paths.cache, 'tts_response.wav');
-    const wavBytes = this.base64ToUint8Array(base64Wav);
-    await tempFile.write(wavBytes);
-
     console.log('🔊 [AUDIO] Setting audio mode for playback...');
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -161,9 +156,11 @@ export class VoiceAudioService {
       playThroughEarpieceAndroid: false,
     });
 
-    console.log('🔊 [AUDIO] Loading audio file...');
+    console.log('🔊 [AUDIO] Loading audio from data URI...');
+    // Use data URI instead of file system to avoid permission issues
+    const dataUri = `data:audio/wav;base64,${base64Wav}`;
     const { sound } = await Audio.Sound.createAsync(
-      { uri: tempFile.uri },
+      { uri: dataUri },
       { shouldPlay: true, volume: 1.0 },
       this.onPlaybackStatusUpdate
     );
@@ -185,14 +182,6 @@ export class VoiceAudioService {
           console.log('🟢 [AUDIO] Playback finished');
           sound.unloadAsync();
           this.soundObject = null;
-          
-          // Clean up temporary file using new v19 API
-          try {
-            tempFile.delete();
-          } catch (error: any) {
-            console.warn('⚠️ [AUDIO] Failed to delete temp file:', error);
-          }
-          
           resolve();
         }
       });
