@@ -359,6 +359,16 @@ export const useVoiceSession = (
       // Start recording audio
       try {
         console.log('🟡 [VOICE] Starting audio recording...');
+        
+        // Stop any ongoing TTS playback before starting new recording
+        try {
+          await voiceService.stopAudioPlayback();
+          console.log('🟢 [VOICE] Stopped previous TTS playback (if any)');
+        } catch (stopError) {
+          // Ignore errors from stopping playback - it may not be playing
+          console.log('🟡 [VOICE] No active playback to stop');
+        }
+        
         updateState({ isRecording: true, error: null });
         
         await voiceService.startRecording();
@@ -375,6 +385,7 @@ export const useVoiceSession = (
       // Stop recording and process audio
       try {
         console.log('🟡 [VOICE] Stopping recording and processing audio...');
+        console.log('🟡 [VOICE] Using conversationId for context:', conversationId || '(new conversation)');
         
         // Show user message immediately (empty for now, will be updated after STT)
         if (onVoiceResponse) {
@@ -385,7 +396,8 @@ export const useVoiceSession = (
         }
         
         // Stop recording and process through backend (STT → AI → TTS)
-        const response = await voiceService.stopRecordingAndProcess(sessionIdRef.current || undefined);
+        // Use conversationId from hook parameter to maintain conversation context
+        const response = await voiceService.stopRecordingAndProcess(conversationId || undefined);
         
         console.log('🟢 [VOICE] Processing complete:', response);
         
