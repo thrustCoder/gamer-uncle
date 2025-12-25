@@ -82,7 +82,7 @@ export default function ChatScreen() {
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
-  // Voice session hook with new audio processing pipeline
+  // Voice session hook with new audio processing pipeline - pass conversationId for context
   const voiceSession = useVoiceSession((voiceResponse) => {
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
@@ -105,7 +105,7 @@ export default function ChatScreen() {
         setVoiceUXMode('default');
       }
     }
-  });
+  }, conversationId); // Pass conversationId for maintaining conversation context
   
   // Extract voice properties
   const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;

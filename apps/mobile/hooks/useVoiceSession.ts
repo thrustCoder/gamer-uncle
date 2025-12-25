@@ -47,7 +47,10 @@ const api = axios.create({
   baseURL: getApiBaseUrl(),
 });
 
-export const useVoiceSession = (onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void) => {
+export const useVoiceSession = (
+  onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void,
+  conversationId?: string | null
+) => {
   const [state, setState] = useState<VoiceSessionState>({
     isActive: false,
     isConnecting: false,
@@ -492,7 +495,7 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
         const response = await getRecommendations({
           Query: userTranscription,
           UserId: 'voice-user', // Could be passed from ChatScreen
-          ConversationId: undefined // Could be linked to existing conversation
+          ConversationId: conversationId || undefined // Use the conversation ID from hook parameter
         });
 
         if (response.responseText) {
