@@ -30,9 +30,15 @@ namespace GamerUncle.Api.Services.AgentService
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             _agentId = config["AgentService:AgentId"] ?? throw new InvalidOperationException("Agent ID missing");
+            var tenantId = config["CosmosDb:TenantId"] ?? config["AgentService:TenantId"];
 
-            // Uses DefaultAzureCredential - works in Codespaces with Azure login or local dev with `az login`
-            _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential());
+            // Uses DefaultAzureCredential with explicit TenantId to avoid multi-tenant credential issues
+            var credentialOptions = new DefaultAzureCredentialOptions();
+            if (!string.IsNullOrEmpty(tenantId))
+            {
+                credentialOptions.TenantId = tenantId;
+            }
+            _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential(credentialOptions));
             _agentsClient = _projectClient.GetPersistentAgentsClient();
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
             _telemetryClient = telemetryClient;
