@@ -10,17 +10,7 @@ import {
   extractPCM16FromWav,
   encodePCM16ToBase64
 } from './audioUtils';
-
-// Environment-specific API base URLs
-const getApiBaseUrl = (): string => {
-  // For development testing with local API - use host machine IP for iOS simulator
-  if (__DEV__) {
-    // Use local API when developing locally
-    return 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
-    // return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure endpoint
-  }
-  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-};
+import { getApiBaseUrl } from '../config/apiConfig';
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),

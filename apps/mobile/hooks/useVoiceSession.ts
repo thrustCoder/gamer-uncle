@@ -5,6 +5,7 @@ import axios from 'axios';
 import { speechRecognitionService, SpeechRecognitionResult } from '../services/speechRecognitionService';
 import { getRecommendations } from '../services/ApiClient';
 import { VoiceAudioService } from '../services/voiceAudioService';
+import { getApiBaseUrl } from '../config/apiConfig';
 
 // Types for voice session - matching backend C# models exactly
 export interface VoiceSessionRequest {
@@ -29,19 +30,6 @@ export interface VoiceSessionState {
   error: string | null;
   sessionId: string | null;
 }
-
-// Environment-specific API base URLs
-const getApiBaseUrl = (): string => {
-  // Check if we're in a development environment
-  if (__DEV__) {
-    // Use local API when developing locally
-    return 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
-    // return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure dev endpoint
-  }
-  
-  // For production, use Azure Front Door endpoint
-  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-};
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
