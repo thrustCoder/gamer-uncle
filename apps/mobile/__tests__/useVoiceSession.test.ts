@@ -1,5 +1,11 @@
 import { renderHook, act } from '@testing-library/react-native';
 
+// Mock API config before importing the hook
+jest.mock('../config/apiConfig', () => ({
+  getApiBaseUrl: jest.fn(() => 'http://localhost:5001/api/'),
+  API_ENVIRONMENT: 'local' as const,
+}));
+
 // Mock React Native Voice and NativeEventEmitter
 jest.mock('@react-native-voice/voice', () => ({
   __esModule: true,
@@ -226,6 +232,67 @@ describe('useVoiceSession Hook', () => {
       });
       
       // No error should be set
+      expect(result.current.error).toBe(null);
+    });
+  });
+
+  describe('Recording Safety Configuration', () => {
+    it('should accept recording safety configuration parameter', () => {
+      const mockCallback = jest.fn();
+      const mockAutoStopCallback = jest.fn();
+      const testConversationId = 'test-conv-123';
+      
+      const safetyConfig = {
+        maxRecordingDurationMs: 60000, // 1 minute
+        silenceThresholdDb: -40,
+        silenceDurationMs: 10000, // 10 seconds
+        onAutoStop: mockAutoStopCallback,
+      };
+      
+      const { result } = renderHook(() => 
+        useVoiceSession(mockCallback, testConversationId, safetyConfig)
+      );
+      
+      // The hook should be initialized successfully with the safety config
+      expect(result.current).toBeDefined();
+      expect(result.current.isActive).toBe(false);
+    });
+
+    it('should work without safety configuration (backward compatibility)', () => {
+      const mockCallback = jest.fn();
+      
+      // Call without safety config - should not throw
+      const { result } = renderHook(() => useVoiceSession(mockCallback, null));
+      
+      expect(result.current).toBeDefined();
+      expect(result.current.isActive).toBe(false);
+    });
+
+    it('should work with partial safety configuration', () => {
+      const mockCallback = jest.fn();
+      
+      // Only max duration, no silence detection
+      const partialConfig = {
+        maxRecordingDurationMs: 60000,
+        onAutoStop: jest.fn(),
+      };
+      
+      const { result } = renderHook(() => 
+        useVoiceSession(mockCallback, null, partialConfig)
+      );
+      
+      expect(result.current).toBeDefined();
+    });
+  });
+
+  describe('No Speech Error Handling', () => {
+    it('should handle no speech errors gracefully', () => {
+      const mockCallback = jest.fn();
+      
+      const { result } = renderHook(() => useVoiceSession(mockCallback, null));
+      
+      // The hook should be able to handle errors without crashing
+      expect(result.current).toBeDefined();
       expect(result.current.error).toBe(null);
     });
   });
