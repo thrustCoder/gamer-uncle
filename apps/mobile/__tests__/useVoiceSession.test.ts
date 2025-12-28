@@ -73,7 +73,8 @@ describe('useVoiceSession Hook', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    // Clean up any pending timers without advancing them
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 

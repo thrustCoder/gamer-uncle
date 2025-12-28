@@ -52,11 +52,12 @@ describe('Playwright Configuration Tests', () => {
     expect(playwrightConfigContent).toContain('...(process.env.CI && { headless: true })');
   });
 
-  test('should limit browsers in CI for performance', () => {
-    // Assert
-    expect(playwrightConfigContent).toContain('...(process.env.CI ? [] : [');
-    expect(playwrightConfigContent).toContain('Desktop Firefox');
-    expect(playwrightConfigContent).toContain('Desktop Safari');
+  test('should use chromium browser for testing', () => {
+    // Assert - we only use chromium, not limiting other browsers
+    expect(playwrightConfigContent).toContain("name: 'chromium'");
+    expect(playwrightConfigContent).toContain('Desktop Chrome');
+    // Comment indicates we don't need to test on other browsers
+    expect(playwrightConfigContent).toContain('Dont need to test on other browsers');
   });
 
   test('should have web server configuration for local development', () => {

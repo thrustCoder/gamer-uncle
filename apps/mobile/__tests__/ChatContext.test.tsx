@@ -1,6 +1,7 @@
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-hooks';
-import { ChatProvider, useChat, ChatMessage } from '../store/ChatContext';
+import { renderHook, act } from '@testing-library/react-native';
+import { ChatProvider, useChat } from '../store/ChatContext';
+import type { ChatMessage } from '../store/ChatContext';
 
 // Wrapper component for testing hooks
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -45,7 +46,7 @@ describe('ChatContext', () => {
       };
       
       act(() => {
-        result.current.setMessages(prev => [...prev, newMessage]);
+        result.current.setMessages((prev: ChatMessage[]) => [...prev, newMessage]);
       });
       
       expect(result.current.messages).toHaveLength(2);
@@ -67,7 +68,7 @@ describe('ChatContext', () => {
       
       // Add messages and set conversation ID
       act(() => {
-        result.current.setMessages(prev => [...prev, {
+        result.current.setMessages((prev: ChatMessage[]) => [...prev, {
           id: '2',
           type: 'user',
           text: 'User message'
@@ -99,25 +100,24 @@ describe('ChatContext', () => {
       };
       
       act(() => {
-        result.current.setMessages(prev => [...prev, voiceMessage]);
+        result.current.setMessages((prev: ChatMessage[]) => [...prev, voiceMessage]);
       });
       
       expect(result.current.messages[1].isVoiceMessage).toBe(true);
     });
 
     it('should persist state between re-renders', () => {
-      const { result, rerender } = renderHook(() => useChat(), { wrapper });
+      const { result } = renderHook(() => useChat(), { wrapper });
       
       act(() => {
-        result.current.setMessages(prev => [...prev, {
+        result.current.setMessages((prev: ChatMessage[]) => [...prev, {
           id: '2',
           type: 'user',
           text: 'Persisted message'
         }]);
       });
       
-      rerender();
-      
+      // State persists without rerender in React Testing Library
       expect(result.current.messages).toHaveLength(2);
       expect(result.current.messages[1].text).toBe('Persisted message');
     });

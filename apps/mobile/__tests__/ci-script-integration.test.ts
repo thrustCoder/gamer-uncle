@@ -21,8 +21,11 @@ describe('CI Script Integration Tests', () => {
       const scriptPath = './run-e2e-ci.sh';
       expect(fs.existsSync(scriptPath)).toBe(true);
       
-      const stats = fs.statSync(scriptPath);
-      expect(stats.mode & parseInt('111', 8)).toBeTruthy(); // Check if executable
+      // Skip executable check on Windows (not applicable)
+      if (process.platform !== 'win32') {
+        const stats = fs.statSync(scriptPath);
+        expect(stats.mode & parseInt('111', 8)).toBeTruthy(); // Check if executable
+      }
     });
 
     it('should set correct environment variables', async () => {

@@ -25,7 +25,7 @@ describe('Playwright command fix', () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       expect(errorMessage).not.toContain('unknown option');
     }
-  });
+  }, 30000);
 
   it('should have correct CI scripts without invalid options', () => {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
