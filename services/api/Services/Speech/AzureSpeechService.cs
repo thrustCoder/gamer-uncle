@@ -22,24 +22,40 @@ public class AzureSpeechService : IAzureSpeechService
     {
         _logger = logger;
 
-        // Get Azure Speech configuration from Key Vault
-        var keyVaultUri = configuration["AzureSpeech:KeyVaultUri"] 
-            ?? throw new InvalidOperationException("AzureSpeech:KeyVaultUri configuration is missing");
-        var keySecretName = configuration["AzureSpeech:KeySecretName"] 
-            ?? throw new InvalidOperationException("AzureSpeech:KeySecretName configuration is missing");
         var speechRegion = configuration["AzureSpeech:Region"] 
             ?? throw new InvalidOperationException("AzureSpeech:Region configuration is missing");
         _defaultVoice = configuration["AzureSpeech:DefaultVoice"] ?? "en-US-AvaMultilingualNeural";
 
-        // Retrieve Speech Service key from Key Vault using Managed Identity
-        var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
-        var secretResponse = keyVaultClient.GetSecret(keySecretName);
-        var speechKey = secretResponse.Value.Value;
+        // Check if API key is provided directly (for local development)
+        var directApiKey = configuration["AzureSpeech:ApiKey"];
+        
+        string speechKey;
+        if (!string.IsNullOrEmpty(directApiKey))
+        {
+            // Use direct API key for local development
+            speechKey = directApiKey;
+            _logger.LogInformation("AzureSpeechService initialized with direct API key (local development mode)");
+        }
+        else
+        {
+            // Get Azure Speech configuration from Key Vault (production mode)
+            var keyVaultUri = configuration["AzureSpeech:KeyVaultUri"] 
+                ?? throw new InvalidOperationException("AzureSpeech:KeyVaultUri configuration is missing");
+            var keySecretName = configuration["AzureSpeech:KeySecretName"] 
+                ?? throw new InvalidOperationException("AzureSpeech:KeySecretName configuration is missing");
+
+            // Retrieve Speech Service key from Key Vault using Managed Identity
+            var keyVaultClient = new SecretClient(new Uri(keyVaultUri), new DefaultAzureCredential());
+            var secretResponse = keyVaultClient.GetSecret(keySecretName);
+            speechKey = secretResponse.Value.Value;
+            
+            _logger.LogInformation("AzureSpeechService initialized with Key Vault: {KeyVault}", keyVaultUri);
+        }
 
         _speechConfig = SpeechConfig.FromSubscription(speechKey, speechRegion);
         
-        _logger.LogInformation("AzureSpeechService initialized with region: {Region}, default voice: {Voice}, Key Vault: {KeyVault}", 
-            speechRegion, _defaultVoice, keyVaultUri);
+        _logger.LogInformation("AzureSpeechService configured with region: {Region}, default voice: {Voice}", 
+            speechRegion, _defaultVoice);
     }
 
     /// <inheritdoc/>
@@ -125,8 +141,12 @@ public class AzureSpeechService : IAzureSpeechService
             // Create synthesizer (null audio config means return data instead of playing)
             using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
 
-            // Synthesize speech
-            var result = await synthesizer.SpeakTextAsync(text);
+            // Create SSML for natural speech with controlled rate and pauses
+            var ssml = CreateNaturalSpeechSSML(text, selectedVoice);
+            _logger.LogDebug("Generated SSML: {SSML}", ssml);
+
+            // Synthesize speech using SSML for better control
+            var result = await synthesizer.SpeakSsmlAsync(ssml);
 
             if (result.Reason == ResultReason.SynthesizingAudioCompleted)
             {
@@ -148,6 +168,33 @@ public class AzureSpeechService : IAzureSpeechService
             _logger.LogError(ex, "Error during TTS processing");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Create SSML markup for natural-sounding elderly "uncle" voice
+    /// </summary>
+    private string CreateNaturalSpeechSSML(string text, string voice)
+    {
+        // Escape XML special characters in the text
+        var escapedText = System.Security.SecurityElement.Escape(text) ?? text;
+
+        // Build SSML optimized for an elderly male "uncle" character (70s):
+        // - Extra deep pitch (-45%) - Aged, gravelly voice
+        // - Moderate rate (0.75) - Elderly but not sluggish
+        // - Soft volume for warmth and intimacy
+        // - Leading silence for natural pause
+        
+        var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' 
+                      xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>
+    <voice name='{voice}'>
+        <mstts:silence type='Leading' value='150ms'/>
+        <prosody rate='0.75' pitch='-40%' volume='soft'>
+            {escapedText}
+        </prosody>
+    </voice>
+</speak>";
+
+        return ssml;
     }
 
     /// <summary>

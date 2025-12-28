@@ -20,17 +20,19 @@ describe('E2E Test Structure', () => {
       expect(specFiles).toContain(spec);
     });
     
-    // Should not have tool-specific tests
-    const toolSpecs = [
+    // Should not have dice-roller or timer specific tests (removed)
+    const removedToolSpecs = [
       'dice-roller.spec.ts',
-      'timer.spec.ts', 
-      'team-randomizer.spec.ts',
-      'turn-selector.spec.ts'
+      'timer.spec.ts'
     ];
     
-    toolSpecs.forEach(spec => {
+    removedToolSpecs.forEach(spec => {
       expect(specFiles).not.toContain(spec);
     });
+    
+    // Should have team-randomizer and turn-selector tests
+    expect(specFiles).toContain('team-randomizer.spec.ts');
+    expect(specFiles).toContain('turn-selector.spec.ts');
   });
 
   it('should have playwright/test dependency properly configured', () => {

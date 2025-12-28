@@ -87,8 +87,7 @@ dotnet test services/tests/functional/  # API functional tests
 - **Verify location before running commands**: Use `Get-Location` or `pwd` to confirm directory
 - **Mobile app commands template**:
   ```powershell
-  Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"
-  npx expo start --clear
+  Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"; npx expo start --clear
   ```
 - **API server commands template**:
   ```powershell
@@ -165,6 +164,42 @@ Use these predefined tasks via `Ctrl+Shift+P` → "Tasks: Run Task":
 - If a patch is not applied correctly, attempt to reapply it.
 - Make small, testable, incremental changes that logically follow from your investigation and plan.
 - For backend changes, ensure you add one class/interface per file.
+
+## Quick Commands
+
+### "testit" Command
+When the user says **"testit"**, execute the following steps in order:
+
+1. **Kill any existing dotnet processes** to ensure clean state:
+   ```powershell
+   Get-Process -Name "dotnet" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+   ```
+
+2. **Kill any existing Metro/Node processes** (Expo bundler) to prevent port conflicts:
+   ```powershell
+   Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -like "*metro*" -or $_.CommandLine -like "*expo*"} | Stop-Process -Force -ErrorAction SilentlyContinue
+   ```
+
+3. **Start the API server in a new terminal window** (background process with voice API key):
+   - **IMPORTANT**: Read the actual API key from `services/api/appsettings.Development.json` under `AzureSpeech.ApiKey`
+   - Use that actual key value in the command (NOT a placeholder like 'your_key_here')
+   - **CRITICAL**: Use `http://*:5001` to bind to all network interfaces (not just localhost) so the mobile device can connect
+   ```powershell
+   Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\rajsin\r\Code\gamer-uncle'; `$env:AZURE_OPENAI_API_KEY='<ACTUAL_KEY_FROM_CONFIG>'; dotnet run --project services/api/GamerUncle.Api.csproj --urls 'http://*:5001'"
+   ```
+
+3. **Start the Expo mobile app** in the current terminal:
+   ```powershell
+   Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"; npx expo start --clear
+   ```
+
+**Important Notes for "testit"**:
+- The API server MUST run in a separate PowerShell window to avoid blocking
+- The `AZURE_OPENAI_API_KEY` environment variable is always set for voice functionality
+- **Always read the actual key from `services/api/appsettings.Development.json` (`AzureSpeech.ApiKey`) - never use placeholders**
+- The mobile app connects to `http://localhost:5001` by default for local development
+- Use `--clear` flag with Expo to ensure a fresh cache start
+- Existing dotnet and Metro/Node processes are killed to prevent port conflicts
 
 ## General Guidelines
 

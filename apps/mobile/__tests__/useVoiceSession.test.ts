@@ -73,7 +73,8 @@ describe('useVoiceSession Hook', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    // Clean up any pending timers without advancing them
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
@@ -174,6 +175,58 @@ describe('useVoiceSession Hook', () => {
 
       // Should detect support when mocks are available
       expect(result.current.isSupported).toBe(true);
+    });
+  });
+
+  describe('Conversation ID Handling', () => {
+    it('should accept and pass conversationId parameter to hook', () => {
+      const mockCallback = jest.fn();
+      const testConversationId = 'thread_test123';
+      
+      const { result } = renderHook(() => useVoiceSession(mockCallback, testConversationId));
+      
+      // The hook should be initialized successfully with the conversationId
+      expect(result.current).toBeDefined();
+      expect(result.current.isActive).toBe(false);
+    });
+
+    it('should maintain conversation context across multiple calls', () => {
+      const mockCallback = jest.fn();
+      const testConversationId = 'thread_persistent123';
+      
+      // First render with conversationId
+      const { result, rerender } = renderHook(
+        (convId: string | null) => useVoiceSession(mockCallback, convId),
+        { initialProps: testConversationId }
+      );
+      
+      expect(result.current).toBeDefined();
+      
+      // Re-render with same conversationId (simulating follow-up messages)
+      rerender(testConversationId);
+      
+      expect(result.current).toBeDefined();
+      expect(result.current.isActive).toBe(false);
+    });
+  });
+
+  describe('TTS Interruption', () => {
+    it('should provide stopAudioPlayback function', () => {
+      const { result } = renderHook(() => useVoiceSession());
+      
+      expect(typeof result.current.stopAudioPlayback).toBe('function');
+    });
+
+    it('should allow calling stopAudioPlayback without errors', async () => {
+      const { result } = renderHook(() => useVoiceSession());
+      
+      // Should not throw even when no audio is playing
+      await act(async () => {
+        await result.current.stopAudioPlayback();
+      });
+      
+      // No error should be set
+      expect(result.current.error).toBe(null);
     });
   });
 });

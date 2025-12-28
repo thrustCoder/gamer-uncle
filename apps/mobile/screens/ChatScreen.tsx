@@ -21,10 +21,10 @@ import BackButton from '../components/BackButton';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
-import { useFoundryVoiceSession } from '../hooks/useFoundryVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
+import { useChat, ChatMessage } from '../store/ChatContext';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -61,16 +61,39 @@ const TypingIndicator = () => {
   );
 };
 
+// Voice processing indicator component (rotating dots for voice messages)
+const VoiceProcessingIndicator = () => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '.';
+        return prev + '.';
+      });
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View 
+      style={styles.userBubble} 
+      testID="voice-processing-indicator"
+      {...(Platform.OS === 'web' && { 'data-testid': 'voice-processing-indicator' })}
+    >
+      <Text style={styles.bubbleText}>🎤{dots}</Text>
+    </View>
+  );
+};
+
 export default function ChatScreen() {
-  const [messages, setMessages] = useState([
-    { id: '1', type: 'system', text: 'Hi there! 👋 Got a board game question? \n\nWhether you\'re looking for the perfect game, need help with tricky rules 📋, or just some strategy advice - I\'m here to help! 🎲' }
-  ]);
+  // Use ChatContext for persisted state
+  const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
-  const [useFoundryVoice, setUseFoundryVoice] = useState(true); // Toggle for Foundry Live Voice
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
     microphone: 'undetermined',
     camera: 'undetermined'
@@ -84,17 +107,45 @@ export default function ChatScreen() {
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
 
-  // Legacy voice session hook
-  const legacyVoiceSession = useVoiceSession((voiceResponse) => {
+  // Voice session hook with new audio processing pipeline - pass conversationId for context
+  const voiceSession = useVoiceSession((voiceResponse) => {
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
-      const newMessage = {
-        id: Date.now().toString(),
-        type: messageType,
-        text: voiceResponse.responseText
-      };
-      setMessages(prev => [...prev, newMessage]);
+      
+      // Check if this is a user message replacing the processing indicator
+      if (voiceResponse.isUserMessage && voiceResponse.responseText !== '🎤...') {
+        // Replace the processing indicator (🎤...) with the actual transcription
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          // If the last message is the processing indicator, replace it
+          if (lastMessage && lastMessage.text?.startsWith('🎤.')) {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            };
+            return newMessages;
+          }
+          // Otherwise just add the new message
+          return [...prev, {
+            id: Date.now().toString(),
+            type: messageType,
+            text: voiceResponse.responseText,
+            isVoiceMessage: true
+          }];
+        });
+      } else {
+        // For processing indicator or system messages, just add
+        const newMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: messageType,
+          text: voiceResponse.responseText,
+          isVoiceMessage: true
+        };
+        setMessages(prev => [...prev, newMessage]);
+      }
       
       // Update conversation ID if provided (only for system responses)
       if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
@@ -107,51 +158,10 @@ export default function ChatScreen() {
         setVoiceUXMode('default');
       }
     }
-  });
-
-  // Foundry voice session hook
-  const foundryVoiceSession = useFoundryVoiceSession({
-    onVoiceResponse: (voiceResponse) => {
-      // Handle voice response by adding it to chat messages
-      if (voiceResponse.responseText) {
-        const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
-        const newMessage = {
-          id: Date.now().toString(),
-          type: messageType,
-          text: voiceResponse.responseText
-        };
-        setMessages(prev => [...prev, newMessage]);
-        
-        // Update conversation ID if provided (only for system responses)
-        if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
-          setConversationId(voiceResponse.threadId);
-        }
-        
-        // Return to default mode after receiving AI response
-        if (!voiceResponse.isUserMessage) {
-          console.log('🔄 [CHAT] Received AI response - returning to default mode');
-          setVoiceUXMode('default');
-        }
-      }
-    }
-  });
-
-  // Use the appropriate voice session based on toggle
-  const foundrySession = foundryVoiceSession;
-  const legacySession = legacyVoiceSession;
+  }, conversationId); // Pass conversationId for maintaining conversation context
   
-  // Extract properties based on voice type
-  const isVoiceActive = useFoundryVoice ? foundrySession.isActive : legacySession.isActive;
-  const isVoiceConnecting = useFoundryVoice ? foundrySession.isConnecting : legacySession.isConnecting;
-  const isRecording = useFoundryVoice ? foundrySession.isRecording : legacySession.isRecording;
-  const voiceError = useFoundryVoice ? foundrySession.error : legacySession.error;
-  const isVoiceSupported = useFoundryVoice ? foundrySession.isSupported : legacySession.isSupported;
-  
-  // Voice session methods
-  const startVoiceSession = useFoundryVoice ? foundrySession.startVoiceSession : legacySession.startVoiceSession;
-  const stopVoiceSession = useFoundryVoice ? foundrySession.stopVoiceSession : legacySession.stopVoiceSession;
-  const clearVoiceError = useFoundryVoice ? foundrySession.clearError : legacySession.clearError;
-  const setRecording = useFoundryVoice ? foundrySession.setRecording : legacySession.setRecording;
+  // Extract voice properties
+  const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
@@ -195,11 +205,13 @@ export default function ChatScreen() {
   // Pulsating animation effect for active recording and processing
   useEffect(() => {
     if (voiceUXMode === 'active-recording' || voiceUXMode === 'processing') {
-      const duration = voiceUXMode === 'processing' ? 1200 : 800; // Slower pulse for processing
+      // More prominent pulse for active recording (larger scale, faster)
+      const duration = voiceUXMode === 'active-recording' ? 500 : 1000;
+      const maxScale = voiceUXMode === 'active-recording' ? 1.25 : 1.15;
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.3,
+            toValue: maxScale,
             duration: duration,
             useNativeDriver: true,
           }),
@@ -222,8 +234,9 @@ export default function ChatScreen() {
   }, [voiceUXMode, pulseAnim]);
 
   // Auto-return to default mode when voice session becomes inactive
+  // Only reset from 'processing' mode, not from 'recording-mode' or 'active-recording'
   useEffect(() => {
-    if (voiceUXMode !== 'default' && !isVoiceActive && !isVoiceConnecting) {
+    if (voiceUXMode === 'processing' && !isVoiceActive && !isVoiceConnecting) {
       console.log('🔄 [CHAT] Voice session ended - returning to default mode');
       setVoiceUXMode('default');
     }
@@ -291,36 +304,14 @@ export default function ChatScreen() {
         setPermissionStatus(newStatus);
       }
       
-      // Start appropriate voice session
-      if (useFoundryVoice) {
-        // Convert recent chat messages to conversation history format
-        const recentMessages = messages
-          .filter(msg => msg.type === 'user' || msg.type === 'system')
-          .slice(-10) // Last 10 messages
-          .map(msg => ({
-            role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
-            content: msg.text
-          }));
-        
-        await foundryVoiceSession.startVoiceSession({
-          query: "Start voice conversation",
-          conversationId: conversationId || undefined,
-          userId: userId,
-          recentMessages: recentMessages.length > 0 ? recentMessages : undefined
-        });
-      } else {
-        await legacyVoiceSession.startVoiceSession({
-          Query: "Start voice conversation",
-          ConversationId: conversationId || undefined,
-          UserId: userId,
-        });
-      }
+      // Voice recording works directly without needing to start a session
+      // The audio processing happens when user stops recording
       setShowVoiceInstructions(false);
     } catch (error) {
-      console.error('Failed to start voice session:', error);
+      console.error('Failed to prepare voice:', error);
       Alert.alert(
-        'Voice Session Failed',
-        'Failed to start voice session. Please check your microphone permissions and try again.',
+        'Voice Setup Failed',
+        'Failed to prepare voice functionality. Please check your microphone permissions and try again.',
         [{ text: 'OK' }]
       );
     }
@@ -328,11 +319,7 @@ export default function ChatScreen() {
 
   const handleStopVoice = async () => {
     try {
-      if (useFoundryVoice) {
-        await foundryVoiceSession.stopVoiceSession();
-      } else {
-        await legacyVoiceSession.stopVoiceSession();
-      }
+      await stopVoiceSession();
     } catch (error) {
       console.error('Failed to stop voice session:', error);
     }
@@ -341,8 +328,8 @@ export default function ChatScreen() {
   // Press and hold state management - UPDATED CODE v2
   // New tap-to-start/tap-to-stop voice functionality
   const handleMicButtonPress = async () => {
-    console.log('� [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
-    console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice });
+    console.log('🎤 [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
+    console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting });
     
     // Animate button press
     Animated.sequence([
@@ -368,22 +355,14 @@ export default function ChatScreen() {
         // Second tap: Start recording
         console.log('🎤 [CHAT] Recording mode - starting active recording');
         setVoiceUXMode('active-recording');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(true);
-        } else {
-          legacyVoiceSession.setRecording(true);
-        }
+        await setRecording(true);
         break;
         
       case 'active-recording':
         // Third tap: Stop recording and go to processing state
         console.log('🎤 [CHAT] Active recording - stopping recording and entering processing mode');
         setVoiceUXMode('processing');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(false);
-        } else {
-          legacyVoiceSession.setRecording(false);
-        }
+        await setRecording(false);
         break;
         
       case 'processing':
@@ -391,9 +370,7 @@ export default function ChatScreen() {
         console.log('⏸️ [CHAT] Processing mode - interrupting AI response and starting new recording');
         
         // Stop audio playback (interrupt TTS)
-        if (useFoundryVoice) {
-          await foundryVoiceSession.stopAudioPlayback();
-        }
+        await stopAudioPlayback();
         
         // Clear processing timeout if active
         if (processingTimeoutRef.current) {
@@ -403,11 +380,7 @@ export default function ChatScreen() {
         
         // Go directly to active recording
         setVoiceUXMode('active-recording');
-        if (useFoundryVoice) {
-          foundryVoiceSession.setRecording(true);
-        } else {
-          legacyVoiceSession.setRecording(true);
-        }
+        await setRecording(true);
         break;
     }
   };
@@ -454,11 +427,10 @@ export default function ChatScreen() {
       isVoiceActive,
       isRecording,
       isVoiceConnecting,
-      useFoundryVoice,
       isVoiceSupported,
       voiceUXMode
     });
-  }, [isVoiceActive, isRecording, isVoiceConnecting, useFoundryVoice, isVoiceSupported, voiceUXMode]);
+  }, [isVoiceActive, isRecording, isVoiceConnecting, isVoiceSupported, voiceUXMode]);
 
   // Get voice status text for new UX pattern
   const getVoiceStatusText = () => {
@@ -496,7 +468,7 @@ export default function ChatScreen() {
     if (!input.trim() || isLoading) return;
     
     const userMessage = input.trim();
-    const userMessageObj = { 
+    const userMessageObj: ChatMessage = { 
       id: Date.now().toString(), 
       type: 'user', 
       text: userMessage 
@@ -516,7 +488,8 @@ export default function ChatScreen() {
 
     // Add typing indicator
     const typingId = `typing-${Date.now()}`;
-    setMessages(prev => [...prev, { id: typingId, type: 'typing', text: '' }]);
+    const typingMessage: ChatMessage = { id: typingId, type: 'typing', text: '' };
+    setMessages(prev => [...prev, typingMessage]);
 
     try {
       // FIX: Use PascalCase keys to match backend
@@ -533,7 +506,7 @@ export default function ChatScreen() {
       }
 
       if (response.responseText) {
-        const systemMessage = {
+        const systemMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: 'system',
           text: response.responseText
@@ -543,7 +516,7 @@ export default function ChatScreen() {
     } catch (error) {
       console.error('Error calling API:', error);
       setMessages(prev => prev.filter(msg => msg.id !== typingId));
-      const errorMessage = {
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'system',
         text: 'Sorry, I encountered an error. Please try again.'
@@ -561,9 +534,14 @@ export default function ChatScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: ChatMessage }) => {
     if (item.type === 'typing') {
       return <TypingIndicator />;
+    }
+    
+    // Show voice processing indicator for "🎤..." messages
+    if (item.text === '🎤...' || item.text?.startsWith('🎤.')) {
+      return <VoiceProcessingIndicator />;
     }
     
     return (
@@ -574,7 +552,10 @@ export default function ChatScreen() {
           'data-testid': item.type === 'user' ? 'user-message' : 'system-message' 
         })}
       >
-        <Text style={styles.bubbleText}>{item.text}</Text>
+        <Text style={styles.bubbleText}>
+          {item.isVoiceMessage && <Text style={styles.voiceIcon}>🎤 </Text>}
+          {item.text}
+        </Text>
       </View>
     );
   };
@@ -594,6 +575,38 @@ export default function ChatScreen() {
           setConversationId(null);
           navigation.goBack(); // <-- Add this line to actually go back
         }} />
+
+        {/* New Chat Thread Button */}
+        <TouchableOpacity
+          style={styles.newChatButton}
+          onPress={() => {
+            Alert.alert(
+              'Start New Chat',
+              'Your current chat thread will be permanently deleted. Continue?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'New Chat',
+                  style: 'destructive',
+                  onPress: async () => {
+                    // Stop voice recording if active
+                    if (voiceUXMode !== 'default') {
+                      await setRecording(false);
+                      await stopAudioPlayback();
+                      setVoiceUXMode('default');
+                    }
+                    // Clear conversation using context
+                    clearChat();
+                    setInput('');
+                  }
+                }
+              ]
+            );
+          }}
+          testID="new-chat-button"
+        >
+          <Text style={styles.newChatIcon}>+</Text>
+        </TouchableOpacity>
 
         {/* Simulator Mode Banner */}
         {renderSimulatorBanner()}
@@ -638,80 +651,43 @@ export default function ChatScreen() {
             />
           </View>
 
-          {/* Foundry Voice Toggle - Positioned above input bar */}
-          <View style={voiceStyles.toggleContainer}>
-            <Text style={voiceStyles.toggleLabel}>
-              {useFoundryVoice ? '🎯 Foundry Live Voice' : '🎙️ Legacy Voice'}
-            </Text>
-            <Switch
-              value={useFoundryVoice}
-              onValueChange={setUseFoundryVoice}
-              trackColor={{ false: '#767577', true: '#4A90E2' }}
-              thumbColor={useFoundryVoice ? '#fff' : '#f4f3f4'}
-              testID="foundry-voice-toggle"
-              {...(Platform.OS === 'web' && { 'data-testid': 'foundry-voice-toggle' })}
-            />
-          </View>
-
-          <View style={styles.inputBar}>
-            {/* Conditionally render text input and send button - hide in recording modes */}
-            {voiceUXMode === 'default' && (
-              <>
-                <TextInput
-                  ref={textInputRef}
-                  value={input}
-                  onChangeText={setInput}
-                  placeholder="Message"
-                  placeholderTextColor={Colors.grayPlaceholder}
-                  style={styles.input}
-                  editable={!isLoading}
-                  maxLength={500}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSend}
-                  testID="chat-input"
-                  {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
-                />
-              </>
-            )}
-            
-            {/* Voice status text in recording modes */}
-            {voiceUXMode !== 'default' && (
-              <View style={voiceStyles.voiceInstructionContainer}>
-                <Text style={voiceStyles.voiceInstructionText}>
-                  {getVoiceStatusText()}
-                </Text>
-                {(voiceUXMode === 'active-recording' || voiceUXMode === 'processing') && (
-                  <Animated.View 
-                    style={[
-                      voiceUXMode === 'active-recording' ? voiceStyles.pulsingIndicator : voiceStyles.processingIndicator,
-                      { transform: [{ scale: pulseAnim }] }
-                    ]} 
-                  />
-                )}
-              </View>
-            )}
-            
-            {/* Voice Controls - Always show mic button */}
-            <View style={voiceStyles.voiceContainer}>
-              <Animated.View 
-                style={[
-                  { transform: [{ scale: micScale }] }
-                ]}
-              >
-                <TouchableOpacity
-                  style={getMicButtonStyle()}
-                  activeOpacity={0.8}
-                  onPress={handleMicButtonPress}
-                  testID="mic-button"
-                  {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+          {/* Input bar - only show in default mode */}
+          {voiceUXMode === 'default' && (
+            <View style={styles.inputBar}>
+              <TextInput
+                ref={textInputRef}
+                value={input}
+                onChangeText={setInput}
+                placeholder="Message"
+                placeholderTextColor={Colors.grayPlaceholder}
+                style={styles.input}
+                editable={!isLoading}
+                maxLength={500}
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                testID="chat-input"
+                {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
+              />
+              
+              {/* Voice Controls - mic button in input bar */}
+              <View style={voiceStyles.voiceContainer}>
+                <Animated.View 
+                  style={[
+                    { transform: [{ scale: micScale }] }
+                  ]}
                 >
-                  <Text style={voiceStyles.micIcon}>🎤</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
+                  <TouchableOpacity
+                    style={getMicButtonStyle()}
+                    activeOpacity={0.8}
+                    onPress={handleMicButtonPress}
+                    testID="mic-button"
+                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                  >
+                    <Text style={voiceStyles.micIcon}>🎤</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
 
-            {/* Send button - only show in default mode */}
-            {voiceUXMode === 'default' && (
               <TouchableOpacity 
                 onPress={handleSend} 
                 style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
@@ -721,14 +697,37 @@ export default function ChatScreen() {
               >
                 <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
 
-          {/* Voice Instructions Overlay - only show in default mode */}
-          {showVoiceInstructions && isVoiceSupported && voiceUXMode === 'default' && (
-            <View style={voiceStyles.holdInstructionOverlay}>
-              <Text style={voiceStyles.holdInstructionText}>
-                Tap microphone to connect
+          {/* Voice Mode Overlay - centered mic with status text underneath */}
+          {voiceUXMode !== 'default' && (
+            <View style={voiceStyles.voiceModeOverlay}>
+              <Animated.View 
+                style={{
+                  transform: [{ 
+                    scale: voiceUXMode === 'active-recording' 
+                      ? Animated.multiply(micScale, pulseAnim) 
+                      : (voiceUXMode === 'processing' ? pulseAnim : micScale)
+                  }]
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    voiceStyles.micButtonLarge,
+                    voiceUXMode === 'active-recording' && voiceStyles.micButtonLargeRecording,
+                    voiceUXMode === 'processing' && voiceStyles.micButtonLargeProcessing,
+                    voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={handleMicButtonPress}
+                  testID="mic-button-large"
+                >
+                  <Text style={voiceStyles.micIconLarge}>🎤</Text>
+                </TouchableOpacity>
+              </Animated.View>
+              <Text style={voiceStyles.voiceModeStatusText}>
+                {getVoiceStatusText()}
               </Text>
             </View>
           )}

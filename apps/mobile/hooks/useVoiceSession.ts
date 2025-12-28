@@ -4,6 +4,7 @@ import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
 import axios from 'axios';
 import { speechRecognitionService, SpeechRecognitionResult } from '../services/speechRecognitionService';
 import { getRecommendations } from '../services/ApiClient';
+import { VoiceAudioService } from '../services/voiceAudioService';
 
 // Types for voice session - matching backend C# models exactly
 export interface VoiceSessionRequest {
@@ -46,7 +47,10 @@ const api = axios.create({
   baseURL: getApiBaseUrl(),
 });
 
-export const useVoiceSession = (onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void) => {
+export const useVoiceSession = (
+  onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void,
+  conversationId?: string | null
+) => {
   const [state, setState] = useState<VoiceSessionState>({
     isActive: false,
     isConnecting: false,
@@ -58,6 +62,9 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  
+  // Voice audio service for simplified audio processing
+  const voiceAudioServiceRef = useRef<VoiceAudioService>(new VoiceAudioService(getApiBaseUrl()));
   
   // 🚀 OPTIMIZATION: Pre-initialized state for faster startup
   const [isPreInitialized, setIsPreInitialized] = useState(false);
@@ -344,23 +351,90 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     }
   }, [updateState]);
 
-  // Start/stop recording (for push-to-talk)
-  const setRecording = useCallback((recording: boolean) => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = recording;
-      });
-      updateState({ isRecording: recording });
-      
-      if (recording) {
-        // Start speech recognition when recording starts
-        startSpeechRecognition();
-      } else if (state.isRecording) {
-        // Stop speech recognition and process when recording stops
-        stopSpeechRecognition();
+  // Start/stop recording (for push-to-talk) - NEW: Using VoiceAudioService
+  const setRecording = useCallback(async (recording: boolean) => {
+    const voiceService = voiceAudioServiceRef.current;
+    
+    if (recording) {
+      // Start recording audio
+      try {
+        console.log('🟡 [VOICE] Starting audio recording...');
+        
+        // Stop any ongoing TTS playback before starting new recording
+        try {
+          await voiceService.stopAudioPlayback();
+          console.log('🟢 [VOICE] Stopped previous TTS playback (if any)');
+        } catch (stopError) {
+          // Ignore errors from stopping playback - it may not be playing
+          console.log('🟡 [VOICE] No active playback to stop');
+        }
+        
+        updateState({ isRecording: true, error: null });
+        
+        await voiceService.startRecording();
+        
+        console.log('🟢 [VOICE] Recording started successfully');
+      } catch (error: any) {
+        console.error('🔴 [VOICE] Failed to start recording:', error);
+        updateState({ 
+          isRecording: false, 
+          error: error.message || 'Failed to start recording. Please check your microphone permissions.' 
+        });
+      }
+    } else {
+      // Stop recording and process audio
+      try {
+        console.log('🟡 [VOICE] Stopping recording and processing audio...');
+        console.log('🟡 [VOICE] Using conversationId for context:', conversationId || '(new conversation)');
+        
+        // Show processing indicator (rotating dots will be handled by chat UI)
+        if (onVoiceResponse) {
+          onVoiceResponse({
+            responseText: '🎤...',
+            isUserMessage: true,
+          });
+        }
+        
+        // Stop recording and process through backend (STT → AI → TTS)
+        // Use conversationId from hook parameter to maintain conversation context
+        const response = await voiceService.stopRecordingAndProcess(conversationId || undefined);
+        
+        console.log('🟢 [VOICE] Processing complete:', response);
+        
+        // Update user message with transcribed text
+        if (onVoiceResponse && response.transcription) {
+          onVoiceResponse({
+            responseText: response.transcription,
+            isUserMessage: true,
+          });
+        }
+        
+        // Add AI response to chat
+        if (onVoiceResponse && response.responseText) {
+          onVoiceResponse({
+            responseText: response.responseText,
+            threadId: response.conversationId,
+          });
+        }
+        
+        // Play TTS audio response
+        if (response.audioData) {
+          console.log('🔊 [VOICE] Playing TTS audio response...');
+          await voiceService.playAudioResponse(response.audioData);
+          console.log('🟢 [VOICE] Audio playback complete');
+        }
+        
+        updateState({ isRecording: false });
+      } catch (error: any) {
+        console.error('🔴 [VOICE] Failed to process audio:', error);
+        console.error('🔴 [VOICE] Error details:', JSON.stringify(error.response?.data || error.message, null, 2));
+        updateState({ 
+          isRecording: false, 
+          error: error.response?.data?.message || error.message || 'Failed to process voice message. Please try again.' 
+        });
       }
     }
-  }, [updateState, state.isRecording]);
+  }, [updateState, onVoiceResponse]);
 
   // Start speech recognition
   const startSpeechRecognition = useCallback(async () => {
@@ -433,7 +507,7 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
         const response = await getRecommendations({
           Query: userTranscription,
           UserId: 'voice-user', // Could be passed from ChatScreen
-          ConversationId: undefined // Could be linked to existing conversation
+          ConversationId: conversationId || undefined // Use the conversation ID from hook parameter
         });
 
         if (response.responseText) {
@@ -468,6 +542,16 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
       updateState({ error: 'Failed to process voice recording. Please try again.' });
     }
   }, [updateState, onVoiceResponse]);
+
+  // Stop audio playback
+  const stopAudioPlayback = useCallback(async () => {
+    try {
+      await voiceAudioServiceRef.current.stopAudioPlayback();
+      console.log('🟢 [VOICE] Audio playback stopped');
+    } catch (error: any) {
+      console.error('🔴 [VOICE] Failed to stop audio playback:', error);
+    }
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -506,6 +590,7 @@ export const useVoiceSession = (onVoiceResponse?: (response: { responseText: str
     startVoiceSession,
     stopVoiceSession,
     setRecording,
+    stopAudioPlayback,
     clearError,
     retryVoiceSession,
     
