@@ -7,7 +7,8 @@ export const chatVoiceStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    marginLeft: 4,
+    marginRight: 10,
   },
 
   // Voice status container
@@ -46,15 +47,15 @@ export const chatVoiceStyles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Microphone button
+  // Microphone button (matches send button size)
   micButton: {
     backgroundColor: Colors.themeGreenMedium,
     borderRadius: 24,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 48,
-    minHeight: 48,
+    minWidth: 44,
+    minHeight: 44,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -392,5 +393,81 @@ export const chatVoiceStyles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: Colors.timerOrange,
+  },
+
+  // Voice mode overlay - fullscreen centered mic layout
+  voiceModeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: 40,
+    paddingTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+
+  // Large mic button for voice mode overlay
+  micButtonLarge: {
+    backgroundColor: Colors.themeGreenMedium,
+    borderRadius: 40,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // Large mic button - ready state (green)
+  micButtonLargeReady: {
+    backgroundColor: Colors.themeGreen,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+
+  // Large mic button - recording state (red with glow effect)
+  micButtonLargeRecording: {
+    backgroundColor: Colors.timerRed,
+    shadowColor: Colors.timerRed,
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 12,
+  },
+
+  // Large mic button - processing state (orange)
+  micButtonLargeProcessing: {
+    backgroundColor: Colors.timerOrange,
+    shadowColor: Colors.timerOrange,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+
+  // Large mic icon
+  micIconLarge: {
+    fontSize: 32,
+    color: Colors.themeYellow,
+    fontWeight: 'bold',
+  },
+
+  // Voice mode status text (underneath mic button)
+  voiceModeStatusText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.textDark,
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });

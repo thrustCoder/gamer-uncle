@@ -387,10 +387,10 @@ export const useVoiceSession = (
         console.log('🟡 [VOICE] Stopping recording and processing audio...');
         console.log('🟡 [VOICE] Using conversationId for context:', conversationId || '(new conversation)');
         
-        // Show user message immediately (empty for now, will be updated after STT)
+        // Show processing indicator (rotating dots will be handled by chat UI)
         if (onVoiceResponse) {
           onVoiceResponse({
-            responseText: '🎤 Processing your message...',
+            responseText: '🎤...',
             isUserMessage: true,
           });
         }

@@ -24,6 +24,7 @@ import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
+import { useChat, ChatMessage } from '../store/ChatContext';
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -60,12 +61,36 @@ const TypingIndicator = () => {
   );
 };
 
+// Voice processing indicator component (rotating dots for voice messages)
+const VoiceProcessingIndicator = () => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '.';
+        return prev + '.';
+      });
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View 
+      style={styles.userBubble} 
+      testID="voice-processing-indicator"
+      {...(Platform.OS === 'web' && { 'data-testid': 'voice-processing-indicator' })}
+    >
+      <Text style={styles.bubbleText}>🎤{dots}</Text>
+    </View>
+  );
+};
+
 export default function ChatScreen() {
-  const [messages, setMessages] = useState([
-    { id: '1', type: 'system', text: 'Hi there! 👋 Got a board game question? \n\nWhether you\'re looking for the perfect game, need help with tricky rules 📋, or just some strategy advice - I\'m here to help! 🎲' }
-  ]);
+  // Use ChatContext for persisted state
+  const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
   const [userId] = useState(generateUserId()); // Generate once per session
   const [isLoading, setIsLoading] = useState(false);
   const [showVoiceInstructions, setShowVoiceInstructions] = useState(true);
@@ -87,12 +112,40 @@ export default function ChatScreen() {
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
-      const newMessage = {
-        id: Date.now().toString(),
-        type: messageType,
-        text: voiceResponse.responseText
-      };
-      setMessages(prev => [...prev, newMessage]);
+      
+      // Check if this is a user message replacing the processing indicator
+      if (voiceResponse.isUserMessage && voiceResponse.responseText !== '🎤...') {
+        // Replace the processing indicator (🎤...) with the actual transcription
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          // If the last message is the processing indicator, replace it
+          if (lastMessage && lastMessage.text?.startsWith('🎤.')) {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            };
+            return newMessages;
+          }
+          // Otherwise just add the new message
+          return [...prev, {
+            id: Date.now().toString(),
+            type: messageType,
+            text: voiceResponse.responseText,
+            isVoiceMessage: true
+          }];
+        });
+      } else {
+        // For processing indicator or system messages, just add
+        const newMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: messageType,
+          text: voiceResponse.responseText,
+          isVoiceMessage: true
+        };
+        setMessages(prev => [...prev, newMessage]);
+      }
       
       // Update conversation ID if provided (only for system responses)
       if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
@@ -152,11 +205,13 @@ export default function ChatScreen() {
   // Pulsating animation effect for active recording and processing
   useEffect(() => {
     if (voiceUXMode === 'active-recording' || voiceUXMode === 'processing') {
-      const duration = voiceUXMode === 'processing' ? 1200 : 800; // Slower pulse for processing
+      // More prominent pulse for active recording (larger scale, faster)
+      const duration = voiceUXMode === 'active-recording' ? 500 : 1000;
+      const maxScale = voiceUXMode === 'active-recording' ? 1.25 : 1.15;
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.3,
+            toValue: maxScale,
             duration: duration,
             useNativeDriver: true,
           }),
@@ -413,7 +468,7 @@ export default function ChatScreen() {
     if (!input.trim() || isLoading) return;
     
     const userMessage = input.trim();
-    const userMessageObj = { 
+    const userMessageObj: ChatMessage = { 
       id: Date.now().toString(), 
       type: 'user', 
       text: userMessage 
@@ -433,7 +488,8 @@ export default function ChatScreen() {
 
     // Add typing indicator
     const typingId = `typing-${Date.now()}`;
-    setMessages(prev => [...prev, { id: typingId, type: 'typing', text: '' }]);
+    const typingMessage: ChatMessage = { id: typingId, type: 'typing', text: '' };
+    setMessages(prev => [...prev, typingMessage]);
 
     try {
       // FIX: Use PascalCase keys to match backend
@@ -450,7 +506,7 @@ export default function ChatScreen() {
       }
 
       if (response.responseText) {
-        const systemMessage = {
+        const systemMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           type: 'system',
           text: response.responseText
@@ -460,7 +516,7 @@ export default function ChatScreen() {
     } catch (error) {
       console.error('Error calling API:', error);
       setMessages(prev => prev.filter(msg => msg.id !== typingId));
-      const errorMessage = {
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'system',
         text: 'Sorry, I encountered an error. Please try again.'
@@ -478,9 +534,14 @@ export default function ChatScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: ChatMessage }) => {
     if (item.type === 'typing') {
       return <TypingIndicator />;
+    }
+    
+    // Show voice processing indicator for "🎤..." messages
+    if (item.text === '🎤...' || item.text?.startsWith('🎤.')) {
+      return <VoiceProcessingIndicator />;
     }
     
     return (
@@ -491,7 +552,10 @@ export default function ChatScreen() {
           'data-testid': item.type === 'user' ? 'user-message' : 'system-message' 
         })}
       >
-        <Text style={styles.bubbleText}>{item.text}</Text>
+        <Text style={styles.bubbleText}>
+          {item.isVoiceMessage && <Text style={styles.voiceIcon}>🎤 </Text>}
+          {item.text}
+        </Text>
       </View>
     );
   };
@@ -511,6 +575,38 @@ export default function ChatScreen() {
           setConversationId(null);
           navigation.goBack(); // <-- Add this line to actually go back
         }} />
+
+        {/* New Chat Thread Button */}
+        <TouchableOpacity
+          style={styles.newChatButton}
+          onPress={() => {
+            Alert.alert(
+              'Start New Chat',
+              'Your current chat thread will be permanently deleted. Continue?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'New Chat',
+                  style: 'destructive',
+                  onPress: async () => {
+                    // Stop voice recording if active
+                    if (voiceUXMode !== 'default') {
+                      await setRecording(false);
+                      await stopAudioPlayback();
+                      setVoiceUXMode('default');
+                    }
+                    // Clear conversation using context
+                    clearChat();
+                    setInput('');
+                  }
+                }
+              ]
+            );
+          }}
+          testID="new-chat-button"
+        >
+          <Text style={styles.newChatIcon}>+</Text>
+        </TouchableOpacity>
 
         {/* Simulator Mode Banner */}
         {renderSimulatorBanner()}
@@ -555,65 +651,43 @@ export default function ChatScreen() {
             />
           </View>
 
-          <View style={styles.inputBar}>
-            {/* Conditionally render text input and send button - hide in recording modes */}
-            {voiceUXMode === 'default' && (
-              <>
-                <TextInput
-                  ref={textInputRef}
-                  value={input}
-                  onChangeText={setInput}
-                  placeholder="Message"
-                  placeholderTextColor={Colors.grayPlaceholder}
-                  style={styles.input}
-                  editable={!isLoading}
-                  maxLength={500}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSend}
-                  testID="chat-input"
-                  {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
-                />
-              </>
-            )}
-            
-            {/* Voice status text in recording modes */}
-            {voiceUXMode !== 'default' && (
-              <View style={voiceStyles.voiceInstructionContainer}>
-                <Text style={voiceStyles.voiceInstructionText}>
-                  {getVoiceStatusText()}
-                </Text>
-                {(voiceUXMode === 'active-recording' || voiceUXMode === 'processing') && (
-                  <Animated.View 
-                    style={[
-                      voiceUXMode === 'active-recording' ? voiceStyles.pulsingIndicator : voiceStyles.processingIndicator,
-                      { transform: [{ scale: pulseAnim }] }
-                    ]} 
-                  />
-                )}
-              </View>
-            )}
-            
-            {/* Voice Controls - Always show mic button */}
-            <View style={voiceStyles.voiceContainer}>
-              <Animated.View 
-                style={[
-                  { transform: [{ scale: micScale }] }
-                ]}
-              >
-                <TouchableOpacity
-                  style={getMicButtonStyle()}
-                  activeOpacity={0.8}
-                  onPress={handleMicButtonPress}
-                  testID="mic-button"
-                  {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+          {/* Input bar - only show in default mode */}
+          {voiceUXMode === 'default' && (
+            <View style={styles.inputBar}>
+              <TextInput
+                ref={textInputRef}
+                value={input}
+                onChangeText={setInput}
+                placeholder="Message"
+                placeholderTextColor={Colors.grayPlaceholder}
+                style={styles.input}
+                editable={!isLoading}
+                maxLength={500}
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                testID="chat-input"
+                {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
+              />
+              
+              {/* Voice Controls - mic button in input bar */}
+              <View style={voiceStyles.voiceContainer}>
+                <Animated.View 
+                  style={[
+                    { transform: [{ scale: micScale }] }
+                  ]}
                 >
-                  <Text style={voiceStyles.micIcon}>🎤</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </View>
+                  <TouchableOpacity
+                    style={getMicButtonStyle()}
+                    activeOpacity={0.8}
+                    onPress={handleMicButtonPress}
+                    testID="mic-button"
+                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                  >
+                    <Text style={voiceStyles.micIcon}>🎤</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
 
-            {/* Send button - only show in default mode */}
-            {voiceUXMode === 'default' && (
               <TouchableOpacity 
                 onPress={handleSend} 
                 style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
@@ -623,14 +697,37 @@ export default function ChatScreen() {
               >
                 <Text style={styles.sendText}>{isLoading ? '...' : '➤'}</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
 
-          {/* Voice Instructions Overlay - only show in default mode */}
-          {showVoiceInstructions && isVoiceSupported && voiceUXMode === 'default' && (
-            <View style={voiceStyles.holdInstructionOverlay}>
-              <Text style={voiceStyles.holdInstructionText}>
-                Tap microphone to connect
+          {/* Voice Mode Overlay - centered mic with status text underneath */}
+          {voiceUXMode !== 'default' && (
+            <View style={voiceStyles.voiceModeOverlay}>
+              <Animated.View 
+                style={{
+                  transform: [{ 
+                    scale: voiceUXMode === 'active-recording' 
+                      ? Animated.multiply(micScale, pulseAnim) 
+                      : (voiceUXMode === 'processing' ? pulseAnim : micScale)
+                  }]
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    voiceStyles.micButtonLarge,
+                    voiceUXMode === 'active-recording' && voiceStyles.micButtonLargeRecording,
+                    voiceUXMode === 'processing' && voiceStyles.micButtonLargeProcessing,
+                    voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={handleMicButtonPress}
+                  testID="mic-button-large"
+                >
+                  <Text style={voiceStyles.micIconLarge}>🎤</Text>
+                </TouchableOpacity>
+              </Animated.View>
+              <Text style={voiceStyles.voiceModeStatusText}>
+                {getVoiceStatusText()}
               </Text>
             </View>
           )}
