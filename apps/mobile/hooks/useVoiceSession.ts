@@ -4,7 +4,8 @@ import { mediaDevices, RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
 import axios from 'axios';
 import { speechRecognitionService, SpeechRecognitionResult } from '../services/speechRecognitionService';
 import { getRecommendations } from '../services/ApiClient';
-import { VoiceAudioService } from '../services/voiceAudioService';
+import { VoiceAudioService, SilenceDetectionConfig } from '../services/voiceAudioService';
+import { getApiBaseUrl } from '../config/apiConfig';
 
 // Types for voice session - matching backend C# models exactly
 export interface VoiceSessionRequest {
@@ -30,26 +31,21 @@ export interface VoiceSessionState {
   sessionId: string | null;
 }
 
-// Environment-specific API base URLs
-const getApiBaseUrl = (): string => {
-  // Check if we're in a development environment
-  if (__DEV__) {
-    // Use local API when developing locally
-    return 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
-    // return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure dev endpoint
-  }
-  
-  // For production, use Azure Front Door endpoint
-  return 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/';
-};
-
 const api = axios.create({
   baseURL: getApiBaseUrl(),
 });
 
+export interface RecordingSafetyConfig {
+  maxRecordingDurationMs?: number;  // Max recording time (e.g., 60000 for 1 minute)
+  silenceThresholdDb?: number;       // dB threshold for silence (e.g., -40)
+  silenceDurationMs?: number;        // How long silence triggers stop (e.g., 10000)
+  onAutoStop?: (reason: 'max-duration' | 'silence') => void;
+}
+
 export const useVoiceSession = (
   onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void,
-  conversationId?: string | null
+  conversationId?: string | null,
+  recordingSafetyConfig?: RecordingSafetyConfig
 ) => {
   const [state, setState] = useState<VoiceSessionState>({
     isActive: false,
@@ -351,6 +347,15 @@ export const useVoiceSession = (
     }
   }, [updateState]);
 
+  // Reference for max duration timeout
+  const maxDurationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Callback ref to capture latest onAutoStop without stale closure
+  const onAutoStopRef = useRef(recordingSafetyConfig?.onAutoStop);
+  useEffect(() => {
+    onAutoStopRef.current = recordingSafetyConfig?.onAutoStop;
+  }, [recordingSafetyConfig?.onAutoStop]);
+
   // Start/stop recording (for push-to-talk) - NEW: Using VoiceAudioService
   const setRecording = useCallback(async (recording: boolean) => {
     const voiceService = voiceAudioServiceRef.current;
@@ -371,7 +376,32 @@ export const useVoiceSession = (
         
         updateState({ isRecording: true, error: null });
         
+        // Configure silence detection if enabled
+        if (recordingSafetyConfig?.silenceThresholdDb !== undefined && 
+            recordingSafetyConfig?.silenceDurationMs !== undefined) {
+          voiceService.setSilenceDetection({
+            silenceThresholdDb: recordingSafetyConfig.silenceThresholdDb,
+            silenceDurationMs: recordingSafetyConfig.silenceDurationMs,
+            onSilenceDetected: () => {
+              console.log('🔇 [VOICE] Silence detected - auto-stopping recording');
+              // Use a ref to avoid stale closure on the callback
+              setRecordingWithAutoStop(false, 'silence');
+            },
+          });
+        } else {
+          voiceService.setSilenceDetection(null);
+        }
+        
         await voiceService.startRecording();
+        
+        // Set up max duration timeout
+        if (recordingSafetyConfig?.maxRecordingDurationMs) {
+          console.log(`⏱️ [VOICE] Setting max recording duration: ${recordingSafetyConfig.maxRecordingDurationMs}ms`);
+          maxDurationTimeoutRef.current = setTimeout(() => {
+            console.log('⏰ [VOICE] Max recording duration reached - auto-stopping');
+            setRecordingWithAutoStop(false, 'max-duration');
+          }, recordingSafetyConfig.maxRecordingDurationMs);
+        }
         
         console.log('🟢 [VOICE] Recording started successfully');
       } catch (error: any) {
@@ -382,6 +412,12 @@ export const useVoiceSession = (
         });
       }
     } else {
+      // Clear max duration timeout
+      if (maxDurationTimeoutRef.current) {
+        clearTimeout(maxDurationTimeoutRef.current);
+        maxDurationTimeoutRef.current = null;
+      }
+      
       // Stop recording and process audio
       try {
         console.log('🟡 [VOICE] Stopping recording and processing audio...');
@@ -428,13 +464,47 @@ export const useVoiceSession = (
       } catch (error: any) {
         console.error('🔴 [VOICE] Failed to process audio:', error);
         console.error('🔴 [VOICE] Error details:', JSON.stringify(error.response?.data || error.message, null, 2));
-        updateState({ 
-          isRecording: false, 
-          error: error.response?.data?.message || error.message || 'Failed to process voice message. Please try again.' 
-        });
+        
+        // Check if this is a "no speech recognized" error - handle gracefully without showing error
+        const errorData = error.response?.data || {};
+        const errorMessage = errorData.error || errorData.message || error.message || '';
+        const isNoSpeechError = 
+          errorMessage.toLowerCase().includes('no speech') ||
+          errorMessage.toLowerCase().includes('could not be recognized') ||
+          errorMessage.toLowerCase().includes('no audio') ||
+          (error.response?.status === 400 && errorMessage.toLowerCase().includes('recognized'));
+        
+        if (isNoSpeechError) {
+          console.log('🔇 [VOICE] No speech detected - showing friendly message');
+          
+          // Replace the processing indicator with a friendly message
+          if (onVoiceResponse) {
+            onVoiceResponse({
+              responseText: "I didn't catch that. Please tap the mic and try speaking again.",
+              isUserMessage: false, // Show as system message
+            });
+          }
+          
+          updateState({ isRecording: false });
+        } else {
+          // For other errors, show the error state
+          updateState({ 
+            isRecording: false, 
+            error: error.response?.data?.message || error.message || 'Failed to process voice message. Please try again.' 
+          });
+        }
       }
     }
-  }, [updateState, onVoiceResponse]);
+  }, [updateState, onVoiceResponse, conversationId, recordingSafetyConfig]);
+
+  // Helper function to stop recording with auto-stop reason (avoids stale closure)
+  const setRecordingWithAutoStop = useCallback(async (recording: boolean, reason: 'max-duration' | 'silence') => {
+    // Trigger the auto-stop callback first
+    onAutoStopRef.current?.(reason);
+    
+    // Then stop recording
+    await setRecording(recording);
+  }, [setRecording]);
 
   // Start speech recognition
   const startSpeechRecognition = useCallback(async () => {

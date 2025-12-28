@@ -11,7 +11,7 @@ echo "POST $DEV_API/voice/sessions"
 
 curl -X POST "$DEV_API/voice/sessions" \
   -H "Content-Type: application/json" \
-  -H "User-Agent: Gamer-Uncle/2.1.25 iOS/17.0" \
+  -H "User-Agent: Gamer-Uncle/2.2.1 iOS/17.0" \
   -H "Accept: application/json" \
   -d '{
     "Query": "Tell me about a board game",
@@ -26,7 +26,7 @@ echo "POST $DEV_API/recommendations"
 
 curl -X POST "$DEV_API/recommendations" \
   -H "Content-Type: application/json" \
-  -H "User-Agent: Gamer-Uncle/2.1.25 iOS/17.0" \
+  -H "User-Agent: Gamer-Uncle/2.2.1 iOS/17.0" \
   -H "Accept: application/json" \
   -d '{
     "Query": "Recommend a strategy game",
@@ -41,7 +41,7 @@ for i in {1..3}; do
   echo "Request $i:"
   curl -X POST "$DEV_API/recommendations" \
     -H "Content-Type: application/json" \
-    -H "User-Agent: Gamer-Uncle/2.1.25 iOS/17.0" \
+    -H "User-Agent: Gamer-Uncle/2.2.1 iOS/17.0" \
     -d '{"Query": "Quick test '$i'", "ConversationId": "rate-test"}' \
     -w "HTTP: %{http_code} | Time: %{time_total}s\n" \
     -s

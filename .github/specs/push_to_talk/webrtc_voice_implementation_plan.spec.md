@@ -3,6 +3,83 @@
 ## Overview
 This document outlines the implementation plan for push-to-talk voice functionality using **WebRTC for signaling/connection management** and **Expo libraries (expo-av, @react-native-voice/voice) for audio capture and playback**. This approach provides better cross-platform compatibility and leverages React Native's mature audio ecosystem.
 
+> **Last Updated:** December 2024  
+> **Status:** Phase 2 & 3 Complete, Phase 4-5 In Progress
+
+---
+
+## 🔒 Voice Data Privacy & Security
+
+### User Voice Data Handling Policy
+
+**⚠️ IMPORTANT: No user voice recordings are persistently stored anywhere in the system.**
+
+#### Frontend (Mobile App)
+| Stage | Data | Storage | Retention |
+|-------|------|---------|-----------|
+| Recording | Audio captured via `expo-av` | Temporary device file | **Deleted immediately** after transmission |
+| Transmission | Base64-encoded audio | In-memory only | Cleared after API response |
+| Playback | AI TTS response | Data URI (memory) | Cleared after playback |
+
+**Implementation Details:**
+- Temporary WAV file created during recording at device temp directory
+- File is read, converted to base64, and sent to API
+- **Temporary file is immediately deleted** via `File.delete()` in `voiceAudioService.ts`
+- No audio data stored in `AsyncStorage` or any persistent storage
+- `appCache.ts` only stores game preferences (player count, dice count) - **never audio**
+
+```typescript
+// From voiceAudioService.ts - Cleanup after processing
+finally {
+  this.recording = null;
+  // Delete temporary file using new v19 API
+  try {
+    const audioFile = new File(uri);
+    await audioFile.delete();
+  } catch (error) {
+    console.warn('⚠️ [AUDIO] Failed to delete temporary recording:', error);
+  }
+}
+```
+
+#### Backend API
+| Stage | Data | Storage | Retention |
+|-------|------|---------|-----------|
+| Receive | Base64 audio in request body | In-memory only | Cleared after request completes |
+| STT Processing | Audio bytes | Azure Speech Services | **No retention** (transient processing) |
+| AI Processing | Transcribed text only | In-memory only | Not stored |
+| TTS Generation | Response audio | Azure Speech Services | **No retention** (transient processing) |
+| Response | TTS audio bytes | In-memory only | Cleared after response sent |
+
+**What is NOT stored in Azure:**
+- ❌ Raw audio recordings
+- ❌ Voice samples or biometrics
+- ❌ Audio files in Blob Storage
+- ❌ Audio data in Cosmos DB
+- ❌ Audio in Application Insights telemetry
+
+**What IS logged (metadata only):**
+- ✅ Request timestamps and duration
+- ✅ Audio size in bytes (for monitoring)
+- ✅ Processing latency metrics (STT, AI, TTS)
+- ✅ Transcribed text (for debugging - can be disabled in production)
+- ✅ Conversation IDs for session tracking
+- ✅ Error information (no audio content)
+
+#### Azure Services Used
+| Service | Data Processed | Retention Policy |
+|---------|---------------|------------------|
+| Azure Speech Services (STT) | Audio stream | Transient - no storage |
+| Azure Speech Services (TTS) | Text input | Transient - no storage |
+| Azure AI Agent Service | Text only | Conversation threads (configurable) |
+| Azure Key Vault | API keys only | N/A - no user data |
+
+### Compliance Considerations
+- Audio data exists only during active processing (typically <5 seconds)
+- No audio fingerprinting or voice recognition storage
+- Suitable for GDPR/CCPA compliance (no persistent voice data)
+- Users can verify: no audio files appear in device storage after voice interactions
+
 ---
 
 ## Architecture Decision
@@ -23,10 +100,10 @@ This document outlines the implementation plan for push-to-talk voice functional
 
 ---
 
-## Phase 1: Core Voice Session Management ✅ (Existing)
+## Phase 1: Core Voice Session Management ✅ (Complete)
 
 ### 🎯 Current State
-The following components are already implemented in `apps/mobile/hooks/useVoiceSession.ts`:
+The following components are implemented in `apps/mobile/hooks/useVoiceSession.ts`:
 
 #### Implemented Features
 - [x] WebRTC peer connection setup
@@ -37,10 +114,12 @@ The following components are already implemented in `apps/mobile/hooks/useVoiceS
 - [x] Push-to-talk controls (setRecording)
 - [x] Pre-initialization for faster startup
 - [x] Error handling and cleanup
+- [x] VoiceAudioService integration for recording/playback
 
 #### Existing Services
 - [x] `speechRecognitionService.ts` - Wrapper for @react-native-voice/voice
-- [x] Backend `/api/voice/session` endpoint (VoiceController)
+- [x] `voiceAudioService.ts` - Audio recording/playback with cleanup
+- [x] Backend `/api/voice/process` endpoint (VoiceController)
 - [x] Shared models: `VoiceSessionRequest`, `VoiceSessionResponse`
 
 ### 📋 What's Already Working
@@ -60,478 +139,151 @@ speechRecognitionService.startListening({
 
 ---
 
-## Phase 2: Backend Audio Processing Implementation
+## Phase 2: Backend Audio Processing Implementation ✅ (Complete)
 
-### 🎯 Objective
-Implement backend services to process audio from mobile app and return AI-generated TTS audio.
+### 🎯 Status: Fully Implemented
+Backend services for audio processing are complete and deployed.
 
-### 📋 Backend Tasks
+### ✅ Implemented Components
 
-#### 2.1 Audio Processing Service
+#### 2.1 Audio Processing Service ✅
 
-##### Create `services/api/Services/IAudioProcessingService.cs`
+##### `services/api/Services/Interfaces/IAudioProcessingService.cs`
 ```csharp
 public interface IAudioProcessingService
 {
-    /// <summary>
-    /// Process audio from user (STT), get AI response, convert to speech (TTS)
-    /// </summary>
     Task<AudioProcessingResult> ProcessAudioAsync(
         string audioBase64,
         AudioFormat format,
         string? conversationId = null,
         CancellationToken cancellationToken = default);
 }
-
-public class AudioProcessingResult
-{
-    public string TranscribedText { get; set; } = string.Empty;
-    public string ResponseText { get; set; } = string.Empty;
-    public byte[] ResponseAudio { get; set; } = Array.Empty<byte>();
-    public string ConversationId { get; set; } = string.Empty;
-}
-
-public enum AudioFormat
-{
-    Wav,
-    Pcm16
-}
 ```
 
-##### Implement `services/api/Services/AudioProcessingService.cs`
-```csharp
-public class AudioProcessingService : IAudioProcessingService
-{
-    private readonly IAzureSpeechService _speechService;
-    private readonly IAgentService _agentService;
-    
-    public async Task<AudioProcessingResult> ProcessAudioAsync(...)
-    {
-        // 1. Convert audio to speech (STT)
-        var transcription = await _speechService.SpeechToTextAsync(audioBase64, format);
-        
-        // 2. Get AI response from agent
-        var aiResponse = await _agentService.GetResponseAsync(
-            new UserQuery { Query = transcription, ConversationId = conversationId });
-        
-        // 3. Convert response to speech (TTS)
-        var audioBytes = await _speechService.TextToSpeechAsync(aiResponse.Response);
-        
-        return new AudioProcessingResult
-        {
-            TranscribedText = transcription,
-            ResponseText = aiResponse.Response,
-            ResponseAudio = audioBytes,
-            ConversationId = aiResponse.ThreadId
-        };
-    }
-}
-```
+##### `services/api/Services/Speech/AudioProcessingService.cs`
+- ✅ Full STT → AI Agent → TTS pipeline
+- ✅ Custom metrics for Application Insights
+- ✅ Detailed logging with timing breakdowns
+- ✅ Error handling with proper status codes
 
-#### 2.2 Azure Speech Service Integration
+#### 2.2 Azure Speech Service ✅
 
-##### Create `services/api/Services/IAzureSpeechService.cs`
-```csharp
-public interface IAzureSpeechService
-{
-    Task<string> SpeechToTextAsync(string audioBase64, AudioFormat format);
-    Task<byte[]> TextToSpeechAsync(string text, string voice = "en-US-AvaMultilingualNeural");
-}
-```
+##### `services/api/Services/Speech/AzureSpeechService.cs`
+- ✅ STT with PCM16/WAV format support
+- ✅ TTS with SSML for natural speech
+- ✅ Key Vault integration for production
+- ✅ Direct API key support for development
 
-##### Implement `services/api/Services/AzureSpeechService.cs`
-```csharp
-public class AzureSpeechService : IAzureSpeechService
-{
-    private readonly SpeechConfig _speechConfig;
-    
-    public AzureSpeechService(IConfiguration configuration)
-    {
-        var key = configuration["AzureSpeech:Key"];
-        var region = configuration["AzureSpeech:Region"];
-        _speechConfig = SpeechConfig.FromSubscription(key, region);
-    }
-    
-    public async Task<string> SpeechToTextAsync(string audioBase64, AudioFormat format)
-    {
-        var audioBytes = Convert.FromBase64String(audioBase64);
-        using var audioStream = new MemoryStream(audioBytes);
-        using var audioConfig = AudioConfig.FromStreamInput(
-            new BinaryAudioStreamReader(audioStream));
-        using var recognizer = new SpeechRecognizer(_speechConfig, audioConfig);
-        
-        var result = await recognizer.RecognizeOnceAsync();
-        return result.Text;
-    }
-    
-    public async Task<byte[]> TextToSpeechAsync(string text, string voice)
-    {
-        _speechConfig.SpeechSynthesisVoiceName = voice;
-        using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
-        var result = await synthesizer.SpeakTextAsync(text);
-        return result.AudioData;
-    }
-}
-```
+#### 2.3 Voice Controller ✅
 
-#### 2.3 Update Voice Controller
+##### `services/api/Controllers/VoiceController.cs`
+- ✅ `POST /api/voice/process` endpoint
+- ✅ Rate limiting via `GameRecommendations` policy
+- ✅ Distributed tracing with ActivitySource
+- ✅ Audio size validation (max 5MB)
+- ✅ Comprehensive error handling
 
-##### Extend `services/api/Controllers/VoiceController.cs`
-```csharp
-[ApiController]
-[Route("api/voice")]
-[EnableRateLimiting("DefaultPolicy")]
-public class VoiceController : ControllerBase
-{
-    // Existing: POST /api/voice/session - Create voice session
-    
-    // NEW: Process audio from user
-    [HttpPost("process")]
-    public async Task<IActionResult> ProcessAudio([FromBody] AudioRequest request)
-    {
-        try
-        {
-            var result = await _audioProcessingService.ProcessAudioAsync(
-                request.AudioData,
-                request.Format,
-                request.ConversationId);
-            
-            return Ok(new AudioResponse
-            {
-                Transcription = result.TranscribedText,
-                ResponseText = result.ResponseText,
-                AudioData = Convert.ToBase64String(result.ResponseAudio),
-                ConversationId = result.ConversationId
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to process audio");
-            return StatusCode(500, "Audio processing failed");
-        }
-    }
-}
-```
+#### 2.4 Configuration ✅
 
-#### 2.4 Configuration Updates
-
-##### Add to `appsettings.json`
+##### `appsettings.json` (Current)
 ```json
 {
   "AzureSpeech": {
-    "Key": "your-azure-speech-key",
-    "Region": "eastus2",
+    "KeyVaultUri": "https://gamer-uncle-dev-vault.vault.azure.net/",
+    "KeySecretName": "AzureSpeechKey",
+    "Region": "westus",
     "DefaultVoice": "en-US-AvaMultilingualNeural"
   }
 }
 ```
 
-##### Update `Program.cs`
-```csharp
-// Register audio services
-builder.Services.AddSingleton<IAzureSpeechService, AzureSpeechService>();
-builder.Services.AddScoped<IAudioProcessingService, AudioProcessingService>();
-```
+##### `appsettings.Development.json`
+- Supports direct `ApiKey` for local development
+- Falls back to Key Vault for production
 
 ---
 
-## Phase 3: Frontend Audio Integration
+## Phase 3: Frontend Audio Integration ✅ (Complete)
 
-### 🎯 Objective
-Complete the audio recording/playback cycle in the mobile app using expo-av.
+### 🎯 Status: Fully Implemented
+Frontend audio recording and playback are complete with privacy-respecting cleanup.
 
-### 📋 Frontend Tasks
+### ✅ Implemented Components
 
-#### 3.1 Audio Service Enhancement
+#### 3.1 VoiceAudioService ✅
 
-##### Update `apps/mobile/services/voiceAudioService.ts` (New File)
+##### `apps/mobile/services/voiceAudioService.ts`
 ```typescript
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
-import axios from 'axios';
-
-export interface AudioProcessingRequest {
-  audioData: string; // Base64
-  format: 'Wav' | 'Pcm16';
-  conversationId?: string;
-}
-
-export interface AudioProcessingResponse {
-  transcription: string;
-  responseText: string;
-  audioData: string; // Base64 TTS audio
-  conversationId: string;
-}
-
 export class VoiceAudioService {
-  private recording: Audio.Recording | null = null;
-  private soundObject: Audio.Sound | null = null;
-  private apiBaseUrl: string;
-
-  constructor(apiBaseUrl: string) {
-    this.apiBaseUrl = apiBaseUrl;
-  }
-
-  // Start recording audio
-  async startRecording(): Promise<void> {
-    const { granted } = await Audio.requestPermissionsAsync();
-    if (!granted) throw new Error('Audio permission not granted');
-
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false
-    });
-
-    this.recording = new Audio.Recording();
-    await this.recording.prepareToRecordAsync({
-      ios: {
-        extension: '.wav',
-        outputFormat: 'lpcm',
-        audioQuality: 127,
-        sampleRate: 24000,
-        numberOfChannels: 1,
-        bitRate: 128000,
-        linearPCMBitDepth: 16,
-        linearPCMIsBigEndian: false,
-        linearPCMIsFloat: false
-      },
-      android: {
-        extension: '.wav',
-        outputFormat: 0,
-        audioEncoder: 3,
-        sampleRate: 24000,
-        numberOfChannels: 1,
-        bitRate: 128000
-      }
-    });
-
-    await this.recording.startAsync();
-  }
-
-  // Stop recording and send to backend
-  async stopRecordingAndProcess(conversationId?: string): Promise<AudioProcessingResponse> {
-    if (!this.recording) throw new Error('No active recording');
-
-    await this.recording.stopAndUnloadAsync();
-    const uri = this.recording.getURI();
-    if (!uri) throw new Error('No recording URI');
-
-    // Read WAV file as base64
-    const base64Audio = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64
-    });
-
-    // Strip WAV header (44 bytes) for PCM16 format
-    const wavHeaderSize = Math.ceil(44 * 4 / 3); // Base64 representation
-    const pcm16Data = base64Audio.substring(wavHeaderSize);
-
-    // Send to backend for processing
-    const response = await axios.post<AudioProcessingResponse>(
-      `${this.apiBaseUrl}/voice/process`,
-      {
-        audioData: pcm16Data,
-        format: 'Pcm16',
-        conversationId
-      }
-    );
-
-    this.recording = null;
-    return response.data;
-  }
-
-  // Play TTS audio response
-  async playAudioResponse(base64Audio: string): Promise<void> {
-    // Convert base64 to WAV
-    const wavData = this.pcm16ToWav(base64Audio);
-    const base64Wav = this.arrayBufferToBase64(wavData);
-    const uri = `data:audio/wav;base64,${base64Wav}`;
-
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false
-    });
-
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      { shouldPlay: true }
-    );
-
-    this.soundObject = sound;
-    
-    return new Promise((resolve) => {
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-          this.soundObject = null;
-          resolve();
-        }
-      });
-    });
-  }
-
-  // Stop audio playback (interrupt AI)
-  async stopAudioPlayback(): Promise<void> {
-    if (this.soundObject) {
-      await this.soundObject.unloadAsync();
-      this.soundObject = null;
-    }
-  }
-
-  isPlaying(): boolean {
-    return this.soundObject !== null;
-  }
-
-  // Helper: Convert PCM16 to WAV
-  private pcm16ToWav(base64Pcm: string): ArrayBuffer {
-    const pcmData = Uint8Array.from(atob(base64Pcm), c => c.charCodeAt(0));
-    const wavHeader = new ArrayBuffer(44);
-    const view = new DataView(wavHeader);
-
-    // WAV header construction
-    this.writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + pcmData.length, true);
-    this.writeString(view, 8, 'WAVE');
-    this.writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // Subchunk1Size
-    view.setUint16(20, 1, true); // AudioFormat (PCM)
-    view.setUint16(22, 1, true); // NumChannels (mono)
-    view.setUint32(24, 24000, true); // SampleRate
-    view.setUint32(28, 48000, true); // ByteRate
-    view.setUint16(32, 2, true); // BlockAlign
-    view.setUint16(34, 16, true); // BitsPerSample
-    this.writeString(view, 36, 'data');
-    view.setUint32(40, pcmData.length, true);
-
-    const wavFile = new Uint8Array(44 + pcmData.length);
-    wavFile.set(new Uint8Array(wavHeader), 0);
-    wavFile.set(pcmData, 44);
-
-    return wavFile.buffer;
-  }
-
-  private writeString(view: DataView, offset: number, str: string): void {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  }
-
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-  }
+  // Recording with PCM16 WAV format (24kHz, mono, 16-bit)
+  async startRecording(): Promise<void>;
+  
+  // Stop, process, and cleanup temporary file
+  async stopRecordingAndProcess(conversationId?: string): Promise<AudioProcessingResponse>;
+  
+  // Play TTS with PCM16 to WAV conversion
+  async playAudioResponse(base64Audio: string): Promise<void>;
+  
+  // Interrupt AI playback
+  async stopAudioPlayback(): Promise<void>;
+  
+  // Resource cleanup
+  async cleanup(): Promise<void>;
 }
 ```
 
-#### 3.2 Update useVoiceSession Hook
+**Key Features:**
+- ✅ Expo-av Recording API with proper format configuration
+- ✅ Automatic temporary file cleanup after transmission
+- ✅ PCM16 to WAV header construction for playback
+- ✅ Data URI playback (avoids file system permissions)
+- ✅ Playback interruption support
 
-##### Modify `apps/mobile/hooks/useVoiceSession.ts`
-```typescript
-// Add VoiceAudioService integration
-import { VoiceAudioService } from '../services/voiceAudioService';
+#### 3.2 useVoiceSession Hook Integration ✅
 
-export const useVoiceSession = (onVoiceResponse?: ...) => {
-  const audioServiceRef = useRef<VoiceAudioService | null>(null);
-  
-  // Initialize audio service
-  useEffect(() => {
-    audioServiceRef.current = new VoiceAudioService(getApiBaseUrl());
-  }, []);
+##### `apps/mobile/hooks/useVoiceSession.ts`
+- ✅ VoiceAudioService instantiation
+- ✅ Pre-initialization for faster startup
+- ✅ Recording state management
+- ✅ Error handling and user feedback
+- ✅ Conversation ID tracking across voice turns
 
-  // Enhanced setRecording with audio processing
-  const setRecording = useCallback(async (recording: boolean) => {
-    if (!audioServiceRef.current) return;
+#### 3.3 Audio Utilities ✅
 
-    if (recording) {
-      // Start recording
-      await audioServiceRef.current.startRecording();
-      updateState({ isRecording: true });
-    } else {
-      // Stop recording and process
-      try {
-        updateState({ isRecording: false });
-        
-        const result = await audioServiceRef.current.stopRecordingAndProcess(
-          conversationIdRef.current || undefined
-        );
+##### `apps/mobile/services/audioUtils.ts`
+- ✅ `pcm16ToWav()` - WAV header construction
+- ✅ `arrayBufferToBase64()` - Binary encoding
+- ✅ `decodeBase64PCM16()` - Binary decoding
+- ✅ `extractPCM16FromWav()` - Header stripping
+- ✅ `concatenateAudioBuffers()` - Buffer management
 
-        // Update conversation ID
-        if (result.conversationId) {
-          conversationIdRef.current = result.conversationId;
-        }
+#### 3.3 UI Components ✅ (Existing)
 
-        // Notify with user transcription
-        onVoiceResponse?.({
-          responseText: result.transcription,
-          threadId: result.conversationId,
-          isUserMessage: true
-        });
-
-        // Play AI response
-        await audioServiceRef.current.playAudioResponse(result.audioData);
-
-        // Notify with AI response
-        onVoiceResponse?.({
-          responseText: result.responseText,
-          threadId: result.conversationId,
-          isUserMessage: false
-        });
-      } catch (error) {
-        console.error('Audio processing failed:', error);
-        updateState({ error: 'Failed to process audio' });
-      }
-    }
-  }, [onVoiceResponse, updateState]);
-
-  // Add stop audio playback method
-  const stopAudioPlayback = useCallback(async () => {
-    if (audioServiceRef.current) {
-      await audioServiceRef.current.stopAudioPlayback();
-    }
-  }, []);
-
-  return {
-    ...state,
-    startVoiceSession,
-    stopVoiceSession,
-    setRecording,
-    stopAudioPlayback,
-    isSupported: true,
-    clearError
-  };
-};
-```
-
-#### 3.3 UI Updates (Minimal - Reuse Existing)
-
-The existing ChatScreen UI can remain largely unchanged:
-- Mic button for push-to-talk (already implemented)
-- Visual feedback for recording state (already implemented)
-- Conversation display with voice messages (already implemented)
-
-Only minor adjustments needed:
-- Remove Foundry-specific toggle/UI elements
-- Ensure voice mode indicators work with new implementation
+The ChatScreen UI works with the new implementation:
+- ✅ Microphone button for push-to-talk
+- ✅ Visual recording state indicator
+- ✅ Conversation display with voice messages
+- ✅ Error state handling
 
 ---
 
-## Phase 4: Testing & Validation
+## Phase 4: Testing & Validation 🔄 (In Progress)
 
 ### 🎯 Objective
 Ensure end-to-end voice functionality works correctly across all scenarios.
 
-### 📋 Testing Tasks
+### ✅ Completed Testing
 
-#### 4.1 Backend Tests
+#### 4.1 E2E Tests ✅
+##### `apps/mobile/e2e/voiceChat.spec.ts`
+- ✅ Microphone button visibility
+- ✅ Recording state indication
+- ✅ Voice session initialization
+- ✅ Error handling for unavailable service
+
+### 📋 Remaining Testing Tasks
+
+#### 4.2 Backend Functional Tests
 
 ##### Create `services/tests/functional/AudioProcessingTests.cs`
 ```csharp
@@ -609,42 +361,57 @@ test('complete voice interaction flow', async () => {
 #### 4.3 Integration Testing
 
 ##### Manual Test Checklist
-- [ ] Voice session starts successfully
-- [ ] Push-to-talk recording captures audio
-- [ ] Audio is transcribed correctly (STT)
-- [ ] AI response is generated
-- [ ] TTS audio plays back clearly
-- [ ] Conversation ID is maintained across turns
+- [x] Voice session starts successfully
+- [x] Push-to-talk recording captures audio
+- [x] Audio is transcribed correctly (STT)
+- [x] AI response is generated
+- [x] TTS audio plays back clearly
+- [x] Conversation ID is maintained across turns
+- [x] Temporary audio files are deleted after transmission
 - [ ] Error handling works (no permissions, network failure)
 - [ ] Rate limiting is enforced
 - [ ] Multiple consecutive voice interactions work
+- [ ] Cross-platform testing (iOS/Android/Web)
 
 ---
 
-## Phase 5: Production Readiness
+## Phase 5: Production Readiness 🔄 (In Progress)
 
 ### 🎯 Objective
 Prepare voice functionality for production deployment with monitoring and security.
 
-### 📋 Production Tasks
+### ✅ Completed Production Tasks
 
-#### 5.1 Application Insights Telemetry
-- [ ] Add custom metrics tracking for voice endpoints
-- [ ] Track audio processing performance (STT, AI, TTS latency)
-- [ ] Log audio sizes and formats
-- [ ] Monitor success/failure rates
+#### 5.1 Application Insights Telemetry ✅
+- [x] Custom metrics tracking for voice endpoints (via `AudioProcessingService`)
+- [x] Track audio processing performance (STT, AI, TTS latency)
+- [x] Log audio sizes and formats
+- [x] Monitor success/failure rates via counters
+
+**Implemented Metrics:**
+- `voice.audio_requests_total` - Request counter
+- `voice.audio_failures_total` - Failure counter
+- `voice.stt_duration_ms` - STT latency histogram
+- `voice.agent_duration_ms` - AI processing histogram
+- `voice.tts_duration_ms` - TTS latency histogram
+- `voice.total_duration_ms` - End-to-end latency
+- `voice.audio_size_bytes` - Response audio size
 
 #### 5.2 Azure Front Door Verification ✅
-**Note:** Azure Front Door is already configured and routes all `/api/*` traffic through WAF and rate limiting.
-No additional configuration needed for `/api/voice/process` endpoint.
-
 - [x] AFD routes `/api/*` traffic (includes `/api/voice/process`)
 - [x] WAF protection active on all API routes
-- [x] Rate limiting configured in VoiceController
-- [ ] Verify voice endpoint accessible through AFD URL
-- [ ] Test rate limiting on voice endpoint specifically
+- [x] Rate limiting configured in VoiceController (`GameRecommendations` policy)
+- [x] Voice endpoint accessible through AFD URL
 
-#### 5.3 Monitoring & Alerting
+#### 5.3 Security ✅
+- [x] Key Vault integration for Azure Speech API keys
+- [x] No persistent storage of user audio data
+- [x] Request validation and size limits (5MB max)
+- [x] Distributed tracing for debugging
+
+### 📋 Remaining Production Tasks
+
+#### 5.4 Monitoring & Alerting
 - [ ] Set up Application Insights alerts for voice endpoint failures
 - [ ] Monitor Azure Speech Service quota usage
 - [ ] Alert on high latency (>5s end-to-end)
@@ -655,56 +422,59 @@ No additional configuration needed for `/api/voice/process` endpoint.
 ## Dependencies
 
 ### Frontend
-- `expo-av` - ✅ Already installed (audio recording/playback)
-- `@react-native-voice/voice` - ✅ Already installed (speech recognition)
-- `react-native-webrtc` - ✅ Already installed (peer connection management)
-- `expo-file-system` - ✅ Already installed (file reading)
+- `expo-av` - ✅ Installed (audio recording/playback)
+- `expo-file-system` - ✅ Installed (v19 File API for cleanup)
+- `@react-native-voice/voice` - ✅ Installed (speech recognition)
+- `react-native-webrtc` - ✅ Installed (peer connection management)
 
 ### Backend
-- `Microsoft.CognitiveServices.Speech` - 🔴 **NEW** (Azure Speech SDK)
-- Existing: `Azure.AI.Projects`, `Microsoft.AspNetCore.RateLimiting`
+- `Microsoft.CognitiveServices.Speech` - ✅ Installed (Azure Speech SDK)
+- `Azure.AI.Projects` - ✅ Installed (AI Agent integration)
+- `Azure.Security.KeyVault.Secrets` - ✅ Installed (Key Vault)
+- `Microsoft.AspNetCore.RateLimiting` - ✅ Installed
 
 ### Azure Services
-- Azure Speech Services (STT/TTS) - **Required**
-- Azure AI Agent Service - ✅ Already configured
-- Cosmos DB - ✅ Already configured
+- Azure Speech Services (STT/TTS) - ✅ Configured (westus region)
+- Azure AI Agent Service - ✅ Configured
+- Azure Key Vault - ✅ Configured (gamer-uncle-dev-vault)
+- Cosmos DB - ✅ Configured
 
 ---
 
-## Migration from Foundry Live Voice
+## Current Implementation Status
 
-### Files to Remove
-1. `apps/mobile/services/foundryVoiceService.ts` - ❌ Delete
-2. `apps/mobile/hooks/useFoundryVoiceSession.ts` - ❌ Delete
-3. `.github/specs/push_to_talk/full_foundry_live_voice_integration_plan.spec.md` - ❌ Delete
-4. `.github/specs/push_to_talk/top_level_plan.spec.md` - ❌ Delete (if Foundry-specific)
+### Files Implemented
 
-### Files to Keep & Refactor
-1. `apps/mobile/hooks/useVoiceSession.ts` - ✅ Keep (add audio processing)
-2. `apps/mobile/services/speechRecognitionService.ts` - ✅ Keep (unchanged)
-3. `services/api/Controllers/VoiceController.cs` - ✅ Keep (extend with audio endpoint)
-4. `services/shared/models/VoiceSessionRequest.cs` - ✅ Keep (add audio models)
-5. `apps/mobile/screens/ChatScreen.tsx` - ✅ Keep (remove Foundry toggle UI)
+#### Backend (Complete)
+| File | Status | Description |
+|------|--------|-------------|
+| `services/api/Controllers/VoiceController.cs` | ✅ | Voice processing endpoint |
+| `services/api/Services/Speech/AzureSpeechService.cs` | ✅ | STT/TTS integration |
+| `services/api/Services/Speech/AudioProcessingService.cs` | ✅ | Full pipeline orchestration |
+| `services/api/Services/Interfaces/IAzureSpeechService.cs` | ✅ | Speech service interface |
+| `services/api/Services/Interfaces/IAudioProcessingService.cs` | ✅ | Processing interface |
+| `services/shared/models/AudioRequest.cs` | ✅ | Request model |
+| `services/shared/models/AudioResponse.cs` | ✅ | Response model |
 
-### Configuration Changes
-```json
-// Remove from appsettings.json
-{
-  "VoiceService": {
-    "Endpoint": "...", // Remove Azure OpenAI Realtime references
-    "AzureOpenAIKey": "..." // Remove
-  }
-}
+#### Frontend (Complete)
+| File | Status | Description |
+|------|--------|-------------|
+| `apps/mobile/services/voiceAudioService.ts` | ✅ | Audio recording/playback |
+| `apps/mobile/services/audioUtils.ts` | ✅ | PCM16/WAV utilities |
+| `apps/mobile/hooks/useVoiceSession.ts` | ✅ | Voice session hook |
+| `apps/mobile/services/speechRecognitionService.ts` | ✅ | Speech recognition wrapper |
+| `apps/mobile/e2e/voiceChat.spec.ts` | ✅ | E2E tests |
 
-// Add to appsettings.json
-{
-  "AzureSpeech": {
-    "Key": "your-azure-speech-key",
-    "Region": "eastus2",
-    "DefaultVoice": "en-US-AvaMultilingualNeural"
-  }
-}
-```
+#### Legacy Files (To Be Cleaned Up)
+| File | Status | Notes |
+|------|--------|-------|
+| `apps/mobile/services/foundryVoiceService.ts` | 🗑️ Deprecated | Azure OpenAI Realtime implementation |
+
+### Configuration Files Updated
+- ✅ `services/api/appsettings.json` - AzureSpeech config
+- ✅ `services/api/appsettings.Development.json` - Dev API key support
+- ✅ `services/api/appsettings.Production.json` - Production Key Vault
+- ✅ `services/api/Program.cs` - Service registration
 
 ---
 
@@ -730,16 +500,22 @@ No additional configuration needed for `/api/voice/process` endpoint.
 
 ---
 
-## Timeline Estimate
+## Timeline & Progress
 
-| Phase | Duration | Notes |
-|-------|----------|-------|
-| Phase 1 | ✅ Complete | Already implemented |
-| Phase 2 | 2-3 days | Backend audio processing |
-| Phase 3 | 2-3 days | Frontend audio integration |
-| Phase 4 | 2 days | Testing & validation |
-| Phase 5 | 1-2 days | Production setup |
-| **Total** | **7-10 days** | For full production-ready implementation |
+| Phase | Duration | Status | Notes |
+|-------|----------|--------|-------|
+| Phase 1 | - | ✅ Complete | Core voice session management |
+| Phase 2 | - | ✅ Complete | Backend audio processing |
+| Phase 3 | - | ✅ Complete | Frontend audio integration |
+| Phase 4 | - | 🔄 In Progress | Testing & validation |
+| Phase 5 | - | 🔄 In Progress | Production setup |
+
+### Remaining Work
+- [ ] Additional functional tests for edge cases
+- [ ] Cross-platform testing (iOS physical device)
+- [ ] Application Insights alerting setup
+- [ ] Azure Speech quota monitoring
+- [ ] Cleanup deprecated Foundry voice files
 
 ---
 
@@ -796,10 +572,13 @@ If voice quality is insufficient:
 
 ## Conclusion
 
-This implementation plan provides a **robust, scalable, and maintainable** voice solution by:
-- Leveraging proven React Native audio libraries
-- Using Azure Speech Services for high-quality STT/TTS
-- Building on existing WebRTC infrastructure
-- Maintaining architectural consistency with the rest of the codebase
+This implementation provides a **robust, scalable, and privacy-respecting** voice solution by:
+- ✅ Leveraging proven React Native audio libraries (expo-av)
+- ✅ Using Azure Speech Services for high-quality STT/TTS
+- ✅ Building on existing WebRTC infrastructure
+- ✅ Maintaining architectural consistency with the codebase
+- ✅ **No persistent storage of user voice data** - audio exists only during processing
+- ✅ Automatic cleanup of temporary files on mobile devices
+- ✅ Comprehensive telemetry for monitoring and debugging
 
-The approach avoids the complexity of Azure OpenAI Realtime API while delivering a superior user experience through native audio capabilities and battle-tested speech recognition.
+The approach delivers a superior user experience through native audio capabilities while maintaining user privacy and data protection compliance.

@@ -15,13 +15,31 @@ export interface AudioProcessingResponse {
   conversationId: string;
 }
 
+export interface SilenceDetectionConfig {
+  silenceThresholdDb: number;  // dB level below which is considered silence (e.g., -40)
+  silenceDurationMs: number;   // How long silence must persist before triggering (e.g., 10000ms)
+  onSilenceDetected?: () => void;
+}
+
 export class VoiceAudioService {
   private recording: Audio.Recording | null = null;
   private soundObject: Audio.Sound | null = null;
   private apiBaseUrl: string;
+  
+  // Silence detection state
+  private silenceConfig: SilenceDetectionConfig | null = null;
+  private meteringInterval: NodeJS.Timeout | null = null;
+  private silenceStartTime: number | null = null;
 
   constructor(apiBaseUrl: string) {
     this.apiBaseUrl = apiBaseUrl;
+  }
+
+  /**
+   * Configure silence detection (call before startRecording)
+   */
+  setSilenceDetection(config: SilenceDetectionConfig | null): void {
+    this.silenceConfig = config;
   }
 
   /**
@@ -76,12 +94,85 @@ export class VoiceAudioService {
 
     await this.recording.startAsync();
     console.log('🟢 [AUDIO] Recording started');
+
+    // Start silence detection monitoring if configured
+    if (this.silenceConfig) {
+      this.startSilenceDetection();
+    }
+  }
+
+  /**
+   * Start monitoring audio levels for silence detection
+   */
+  private startSilenceDetection(): void {
+    if (!this.silenceConfig || !this.recording) return;
+
+    console.log('🔇 [AUDIO] Starting silence detection monitoring...');
+    this.silenceStartTime = null;
+
+    // Check audio levels every 200ms
+    this.meteringInterval = setInterval(async () => {
+      if (!this.recording || !this.silenceConfig) {
+        this.stopSilenceDetection();
+        return;
+      }
+
+      try {
+        const status = await this.recording.getStatusAsync();
+        if (!status.isRecording) {
+          this.stopSilenceDetection();
+          return;
+        }
+
+        // metering is the audio level in dB (typically -160 to 0)
+        const meteringDb = status.metering ?? -160;
+        
+        // Check if current level is below silence threshold
+        if (meteringDb < this.silenceConfig.silenceThresholdDb) {
+          // Audio is silent
+          if (this.silenceStartTime === null) {
+            this.silenceStartTime = Date.now();
+            console.log('🔇 [AUDIO] Silence started at', meteringDb, 'dB');
+          } else {
+            const silenceDuration = Date.now() - this.silenceStartTime;
+            if (silenceDuration >= this.silenceConfig.silenceDurationMs) {
+              console.log(`🔇 [AUDIO] Silence detected for ${silenceDuration}ms - triggering callback`);
+              this.stopSilenceDetection();
+              this.silenceConfig.onSilenceDetected?.();
+              return;
+            }
+          }
+        } else {
+          // Audio detected, reset silence timer
+          if (this.silenceStartTime !== null) {
+            console.log('🔊 [AUDIO] Audio detected at', meteringDb, 'dB - resetting silence timer');
+          }
+          this.silenceStartTime = null;
+        }
+      } catch (error) {
+        console.warn('⚠️ [AUDIO] Error checking metering:', error);
+      }
+    }, 200);
+  }
+
+  /**
+   * Stop silence detection monitoring
+   */
+  private stopSilenceDetection(): void {
+    if (this.meteringInterval) {
+      clearInterval(this.meteringInterval);
+      this.meteringInterval = null;
+    }
+    this.silenceStartTime = null;
   }
 
   /**
    * Stop recording and send audio to backend for processing
    */
   async stopRecordingAndProcess(conversationId?: string): Promise<AudioProcessingResponse> {
+    // Stop silence detection first
+    this.stopSilenceDetection();
+
     if (!this.recording) {
       throw new Error('No active recording');
     }
@@ -218,6 +309,9 @@ export class VoiceAudioService {
    * Cleanup resources
    */
   async cleanup(): Promise<void> {
+    // Stop silence detection
+    this.stopSilenceDetection();
+
     if (this.recording) {
       try {
         await this.recording.stopAndUnloadAsync();

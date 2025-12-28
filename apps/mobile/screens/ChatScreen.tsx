@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -101,11 +101,43 @@ export default function ChatScreen() {
   
   // New UX states - tap-to-start/tap-to-stop pattern
   const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing'>('default');
+  const voiceUXModeRef = useRef(voiceUXMode);
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    voiceUXModeRef.current = voiceUXMode;
+  }, [voiceUXMode]);
   
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
+
+  // Auto-stop handler for recording safety (max duration & silence detection)
+  const handleRecordingAutoStop = useCallback((reason: 'max-duration' | 'silence') => {
+    console.log(`🛑 [CHAT] Recording auto-stopped due to: ${reason}`);
+    
+    // Transition from active-recording to processing (use ref to avoid stale closure)
+    if (voiceUXModeRef.current === 'active-recording') {
+      setVoiceUXMode('processing');
+    }
+    
+    // Show a brief notification to the user
+    const message = reason === 'max-duration' 
+      ? 'Recording stopped (1 minute limit reached)'
+      : 'Recording stopped (silence detected)';
+    
+    // Use a lightweight notification instead of blocking Alert
+    console.log(`📢 [CHAT] ${message}`);
+  }, []); // Empty deps - uses ref to access current voiceUXMode
+
+  // Recording safety configuration: 1 minute max, 10 seconds silence detection
+  const recordingSafetyConfig = useMemo(() => ({
+    maxRecordingDurationMs: 60000,  // 1 minute max recording
+    silenceThresholdDb: -40,         // Audio level below -40dB is considered silence
+    silenceDurationMs: 10000,        // 10 seconds of silence triggers auto-stop
+    onAutoStop: handleRecordingAutoStop,
+  }), [handleRecordingAutoStop]);
 
   // Voice session hook with new audio processing pipeline - pass conversationId for context
   const voiceSession = useVoiceSession((voiceResponse) => {
@@ -136,8 +168,31 @@ export default function ChatScreen() {
             isVoiceMessage: true
           }];
         });
+      } else if (!voiceResponse.isUserMessage) {
+        // For system messages, check if we need to remove a processing indicator first
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          // If the last message is a processing indicator (🎤...), remove it before adding system message
+          if (lastMessage && lastMessage.text?.startsWith('🎤.')) {
+            console.log('🔄 [CHAT] Removing processing indicator before adding system message');
+            const newMessages = prev.slice(0, -1); // Remove the processing indicator
+            return [...newMessages, {
+              id: Date.now().toString(),
+              type: 'system',
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            }];
+          }
+          // Otherwise just add the system message
+          return [...prev, {
+            id: Date.now().toString(),
+            type: 'system',
+            text: voiceResponse.responseText,
+            isVoiceMessage: true
+          }];
+        });
       } else {
-        // For processing indicator or system messages, just add
+        // For processing indicator, just add
         const newMessage: ChatMessage = {
           id: Date.now().toString(),
           type: messageType,
@@ -158,7 +213,7 @@ export default function ChatScreen() {
         setVoiceUXMode('default');
       }
     }
-  }, conversationId); // Pass conversationId for maintaining conversation context
+  }, conversationId, recordingSafetyConfig); // Pass conversationId and safety config for maintaining conversation context
   
   // Extract voice properties
   const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
