@@ -1,14 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Vibration, AppState, AppStateStatus, ImageBackground, Animated, Alert, Platform } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ImageBackground, Animated, Alert } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import BackButton from '../components/BackButton';
 import { timerStyles as styles } from '../styles/timerStyles';
 import { Colors } from '../styles/colors';
 import { Dimensions } from 'react-native';
-import { Audio } from 'expo-av';
+import { useTimer } from '../store/TimerContext';
 
 const { width } = Dimensions.get('window');
-const MAX_SECONDS = 600; // 10 minutes maximum
 const PRESET_VALUES = [
   { label: '10s', seconds: 10 },
   { label: '30s', seconds: 30 },
@@ -17,140 +16,59 @@ const PRESET_VALUES = [
 ];
 
 export default function TimerScreen() {
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [totalTime, setTotalTime] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [showStartButton, setShowStartButton] = useState(false);
-  const intervalRef = useRef<NodeJS.Timer | number | null>(null);
-  const appState = useRef(AppState.currentState);
-  const startTime = useRef<number | null>(null);
-  const pausedTime = useRef<number>(0);
+  // Use global timer context - timer continues even when navigating away
+  const {
+    timeLeft,
+    totalTime,
+    isRunning,
+    isPaused,
+    showStartButton,
+    addTime,
+    start,
+    pause,
+    resume,
+    reset,
+  } = useTimer();
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Pulse animation when timer completes (triggered by timeLeft becoming 0 after running)
+  const wasRunningRef = useRef(false);
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    if (isRunning && !isPaused) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current as any);
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(intervalRef.current as any);
+    // Detect when timer just completed (was running, now stopped with timeLeft = 0)
+    if (wasRunningRef.current && !isRunning && timeLeft === 0 && totalTime === 0) {
+      // Timer just completed - play pulse animation
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-    return () => clearInterval(intervalRef.current as any);
-  }, [isRunning, isPaused]);
-
-  const handleTimerComplete = async () => {
-    // Vibration
-    Vibration.vibrate([0, 500, 200, 500]);
-    
-    // Play bell sound
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/bell-ring.mp3')
-      );
-      await sound.playAsync();
-    } catch (error) {
-      console.warn('Sound playback error:', error);
-    }
-
-    // Pulse animation
-    Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 1.2,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1.2,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    setIsRunning(false);
-    setIsPaused(false);
-    setShowStartButton(false);
-    setTimeLeft(0); // Reset time left
-    setTotalTime(0); // Reset total time - this was missing!
-  };
-
-  const handleAppStateChange = (nextAppState: AppStateStatus) => {
-    if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
-      pausedTime.current = Date.now();
-    }
-    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      if (isRunning && !isPaused && pausedTime.current) {
-        const elapsed = Math.floor((Date.now() - pausedTime.current) / 1000);
-        setTimeLeft((prev) => Math.max(0, prev - elapsed));
-      }
-    }
-    appState.current = nextAppState;
-  };
+    wasRunningRef.current = isRunning;
+  }, [isRunning, timeLeft, totalTime, pulseAnim]);
 
   const handlePresetSelect = (seconds: number) => {
-    if (!isRunning) {
-      // Additive presets - add to existing time
-      const newTotalTime = totalTime + seconds;
-      
-      // Validate against maximum time
-      if (newTotalTime > MAX_SECONDS) {
-        Alert.alert('Time Limit', 'Maximum timer duration is 10 minutes.');
-        return;
-      }
-      
-      setTimeLeft(newTotalTime);
-      setTotalTime(newTotalTime);
-      setIsRunning(false);
-      setIsPaused(false);
-      setShowStartButton(true);
+    const success = addTime(seconds);
+    if (!success) {
+      Alert.alert('Time Limit', 'Maximum timer duration is 10 minutes.');
     }
-  };
-
-  const handleStart = () => {
-    if (timeLeft > 0) {
-      setIsRunning(true);
-      setIsPaused(false);
-      setShowStartButton(false);
-      startTime.current = Date.now();
-    }
-  };
-
-  const handlePause = () => {
-    setIsPaused(true);
-  };
-
-  const handleResume = () => {
-    setIsPaused(false);
-  };
-
-  const handleReset = () => {
-    setIsRunning(false);
-    setTimeLeft(0);
-    setTotalTime(0);
-    setIsPaused(false);
-    setShowStartButton(false);
   };
 
   const formatTime = (sec: number) => {
@@ -237,7 +155,7 @@ export default function TimerScreen() {
           {showStartButton && !isRunning && (
             <TouchableOpacity
               style={styles.mainButton}
-              onPress={handleStart}
+              onPress={start}
               testID="start-timer"
             >
               <Text style={styles.mainButtonText}>START</Text>
@@ -248,7 +166,7 @@ export default function TimerScreen() {
           {showStartButton && !isRunning && (
             <TouchableOpacity 
               style={styles.resetButton} 
-              onPress={handleReset}
+              onPress={reset}
               testID="reset-timer"
             >
               <Text style={styles.resetText}>RESET</Text>
@@ -259,7 +177,7 @@ export default function TimerScreen() {
           {isRunning && (
             <TouchableOpacity
               style={styles.mainButton}
-              onPress={isPaused ? handleResume : handlePause}
+              onPress={isPaused ? resume : pause}
               testID={isPaused ? "resume-timer" : "pause-timer"}
             >
               <Text style={styles.mainButtonText}>
@@ -272,7 +190,7 @@ export default function TimerScreen() {
           {isRunning && isPaused && (
             <TouchableOpacity 
               style={styles.resetButton} 
-              onPress={handleReset}
+              onPress={reset}
               testID="reset-timer-paused"
             >
               <Text style={styles.resetText}>RESET</Text>

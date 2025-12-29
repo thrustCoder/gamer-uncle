@@ -323,6 +323,14 @@ export default function ChatScreen() {
     };
   }, [voiceUXMode]);
 
+  // Cleanup TTS on component unmount (navigation away)
+  useEffect(() => {
+    return () => {
+      console.log('🧹 [CHAT] Cleaning up - stopping TTS on unmount');
+      stopAudioPlayback();
+    };
+  }, [stopAudioPlayback]);
+
   // Show voice errors to user
   useEffect(() => {
     if (voiceError) {
@@ -626,15 +634,25 @@ export default function ChatScreen() {
         style={styles.background}
         resizeMode="repeat"
       >
-        <BackButton onPress={() => {
-          setConversationId(null);
-          navigation.goBack(); // <-- Add this line to actually go back
+        <BackButton onPress={async () => {
+          // Stop TTS if playing when navigating away
+          await stopAudioPlayback();
+          // Reset voice UX mode
+          if (voiceUXMode !== 'default') {
+            await setRecording(false);
+            setVoiceUXMode('default');
+          }
+          // Note: Don't clear conversationId - preserve thread context
+          navigation.goBack();
         }} />
 
         {/* New Chat Thread Button */}
         <TouchableOpacity
           style={styles.newChatButton}
-          onPress={() => {
+          onPress={async () => {
+            // Stop TTS immediately when '+' is tapped (before Alert)
+            await stopAudioPlayback();
+            
             Alert.alert(
               'Start New Chat',
               'Your current chat thread will be permanently deleted. Continue?',
@@ -647,7 +665,6 @@ export default function ChatScreen() {
                     // Stop voice recording if active
                     if (voiceUXMode !== 'default') {
                       await setRecording(false);
-                      await stopAudioPlayback();
                       setVoiceUXMode('default');
                     }
                     // Clear conversation using context

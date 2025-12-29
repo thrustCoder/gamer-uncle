@@ -9,7 +9,7 @@
 
 // Configure which API endpoint to use
 export type ApiEnvironment = 'local' | 'dev' | 'prod';
-export const API_ENVIRONMENT: ApiEnvironment = 'prod'; // Change this to switch endpoints
+export const API_ENVIRONMENT: ApiEnvironment = 'local'; // Change this to switch endpoints
 
 // API endpoint URLs
 const LOCAL_API_URL = 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
