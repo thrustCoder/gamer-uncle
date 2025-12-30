@@ -234,7 +234,7 @@ export default function ChatScreen() {
     }
   }, [messages]);
 
-  // Check permissions on mount
+  // Check permissions on mount (check only, don't request - that happens on mic tap)
   useEffect(() => {
     const checkPerms = async () => {
       try {
@@ -247,6 +247,21 @@ export default function ChatScreen() {
     };
     checkPerms();
   }, []);
+
+  // Clean up orphaned processing indicators on mount
+  // These can occur if the app was closed/restarted while voice was processing
+  useEffect(() => {
+    const hasOrphanedIndicators = messages.some(
+      msg => msg.text === '🎤...' || msg.text?.startsWith('🎤.')
+    );
+    
+    if (hasOrphanedIndicators) {
+      debugLogger.log('Cleaning up orphaned voice processing indicators from chat history');
+      setMessages(prev => prev.filter(
+        msg => msg.text !== '🎤...' && !msg.text?.startsWith('🎤.')
+      ));
+    }
+  }, []); // Run only on mount
 
   // Hide voice instructions after first use or timeout
   useEffect(() => {

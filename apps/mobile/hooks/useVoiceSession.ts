@@ -63,29 +63,16 @@ export const useVoiceSession = (
   const voiceAudioServiceRef = useRef<VoiceAudioService>(new VoiceAudioService(getApiBaseUrl()));
   
   // 🚀 OPTIMIZATION: Pre-initialized state for faster startup
+  // Note: Permission request is deferred until user actually taps the mic button
+  // This provides a better UX by not prompting for permissions on screen load
   const [isPreInitialized, setIsPreInitialized] = useState(false);
 
-  // Pre-initialize audio permissions when hook is first used
+  // Mark as pre-initialized without requesting permissions
+  // Actual permission request happens when user taps mic button (on-demand)
   useEffect(() => {
-    const preInitialize = async () => {
-      try {
-        console.log('🟡 [DEBUG] Pre-initializing voice capabilities...');
-        
-        // Pre-request audio permissions (this is often the slowest part)
-        const stream = await requestAudioPermissions();
-        if (stream) {
-          // Store for later use but don't keep it active
-          stream.getTracks().forEach(track => track.stop());
-          setIsPreInitialized(true);
-          console.log('🟢 [DEBUG] Voice pre-initialization completed');
-        }
-      } catch (error) {
-        console.log('🟡 [DEBUG] Pre-initialization failed (will request on-demand):', error);
-        // Not critical - will fall back to on-demand initialization
-      }
-    };
-
-    preInitialize();
+    // No pre-initialization of audio permissions - defer until user action
+    // This avoids the permission popup appearing when user navigates to chat screen
+    console.log('🟡 [DEBUG] Voice capabilities ready (permissions will be requested on first mic tap)');
   }, []);
 
   const updateState = useCallback((updates: Partial<VoiceSessionState>) => {
