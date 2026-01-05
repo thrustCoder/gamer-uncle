@@ -156,6 +156,48 @@ builder.Services.AddScoped<IGameDataService, GameDataService>();
 builder.Services.AddSingleton<IAzureSpeechService, AzureSpeechService>();
 builder.Services.AddScoped<IAudioProcessingService, AudioProcessingService>();
 
+// A1 Optimization: Register Criteria Cache (L1 + optional L2 Redis)
+builder.Services.AddMemoryCache();
+var cacheEnabled = builder.Configuration.GetValue<bool>("CriteriaCache:Enabled");
+if (cacheEnabled)
+{
+    // Redis connection string can be:
+    // 1. Direct value in appsettings
+    // 2. Key Vault reference: @Microsoft.KeyVault(SecretUri=https://vault.azure.net/secrets/redis-conn)
+    // 3. Environment variable (for local dev): set CRITERIACACHE__REDISCONNECTIONSTRING
+    var redisConnectionString = builder.Configuration["CriteriaCache:RedisConnectionString"];
+    if (!string.IsNullOrEmpty(redisConnectionString))
+    {
+        // L2 cache: Upstash Redis or Azure Cache for Redis
+        builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<Program>>();
+            try
+            {
+                var connection = StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString);
+                logger.LogInformation("Redis L2 cache connected successfully");
+                return connection;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to connect to Redis L2 cache, using L1 only");
+                throw;
+            }
+        });
+    }
+    else
+    {
+        // No Redis configured - L1 only mode (register null via factory returning null!)
+        builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
+            sp => null!); // Null is intentional - CriteriaCache handles gracefully
+    }
+    builder.Services.AddSingleton<ICriteriaCache, GamerUncle.Api.Services.Cache.CriteriaCache>();
+}
+else
+{
+    // Cache disabled - don't register ICriteriaCache, AgentServiceClient handles null gracefully
+}
+
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
 {

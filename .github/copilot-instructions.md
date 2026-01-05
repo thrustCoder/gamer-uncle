@@ -17,6 +17,30 @@ This is a **React Native (Expo) + .NET 8 API + Azure AI** board game assistant a
 - **Azure resources**: All services use `DefaultAzureCredential` for managed identity auth
 - **Key settings**: `AgentService.Endpoint`, `CosmosDb.Endpoint`, rate limiting configs
 
+### Secrets Management (CRITICAL)
+- **NEVER commit secrets to code**: No API keys, connection strings, or passwords in appsettings files
+- **Local development**: Use `dotnet user-secrets` for sensitive configuration
+- **Azure deployment**: Use Key Vault references in appsettings: `@Microsoft.KeyVault(SecretUri=...)`
+- **User secrets location**: `%APPDATA%\Microsoft\UserSecrets\<UserSecretsId>\secrets.json` (outside repo)
+
+**Setting up local secrets:**
+```powershell
+# Initialize user secrets (already done for this project)
+dotnet user-secrets init --project services/api/GamerUncle.Api.csproj
+
+# Set a secret
+dotnet user-secrets set "CriteriaCache:RedisConnectionString" "your-connection-string" --project services/api/GamerUncle.Api.csproj
+
+# List all secrets
+dotnet user-secrets list --project services/api/GamerUncle.Api.csproj
+
+# Remove a secret
+dotnet user-secrets remove "KeyName" --project services/api/GamerUncle.Api.csproj
+```
+
+**Current secrets needed for local development:**
+- `CriteriaCache:RedisConnectionString` - Upstash Redis connection string for L2 cache
+
 ### Rate Limiting Strategy
 ```csharp
 // Different limits per environment - see Program.cs
