@@ -88,6 +88,31 @@ export const chatVoiceStyles = StyleSheet.create({
     elevation: 4,
   },
   
+  // TTS Playing state (blue - pause icon shown)
+  micButtonTTSPlaying: {
+    backgroundColor: '#4A90D9', // Blue
+    shadowColor: '#4A90D9',
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  
+  // TTS Paused state (purple - play icon shown)
+  micButtonTTSPaused: {
+    backgroundColor: '#8B5CF6', // Purple
+    shadowColor: '#8B5CF6',
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  
+  // Inline TTS control button (shown in system message bubble)
+  inlineTTSControl: {
+    fontSize: 18,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  
   // Disabled state
   micButtonDisabled: {
     backgroundColor: Colors.grayDisabled,
@@ -445,6 +470,24 @@ export const chatVoiceStyles = StyleSheet.create({
   micButtonLargeProcessing: {
     backgroundColor: Colors.timerOrange,
     shadowColor: Colors.timerOrange,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+
+  // Large mic button - TTS playing state (blue)
+  micButtonLargeTTSPlaying: {
+    backgroundColor: '#4A90D9', // Blue
+    shadowColor: '#4A90D9',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+
+  // Large mic button - TTS paused state (purple)
+  micButtonLargeTTSPaused: {
+    backgroundColor: '#8B5CF6', // Purple
+    shadowColor: '#8B5CF6',
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 10,

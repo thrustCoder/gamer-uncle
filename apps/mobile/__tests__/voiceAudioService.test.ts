@@ -121,6 +121,55 @@ describe('VoiceAudioService', () => {
     });
   });
 
+  describe('TTS Pause/Resume', () => {
+    it('should provide pauseAudioPlayback method', () => {
+      expect(typeof service.pauseAudioPlayback).toBe('function');
+    });
+
+    it('should provide resumeAudioPlayback method', () => {
+      expect(typeof service.resumeAudioPlayback).toBe('function');
+    });
+
+    it('should provide isPaused method', () => {
+      expect(typeof service.isPaused).toBe('function');
+      expect(service.isPaused()).toBe(false); // Not paused initially
+    });
+
+    it('should provide hasActiveAudio method', () => {
+      expect(typeof service.hasActiveAudio).toBe('function');
+      expect(service.hasActiveAudio()).toBe(false); // No active audio initially
+    });
+
+    it('should not throw when pausing with no active audio', async () => {
+      await expect(service.pauseAudioPlayback()).resolves.not.toThrow();
+    });
+
+    it('should not throw when resuming with no active audio', async () => {
+      await expect(service.resumeAudioPlayback()).resolves.not.toThrow();
+    });
+
+    it('should not throw when stopping with no active audio', async () => {
+      await expect(service.stopAudioPlayback()).resolves.not.toThrow();
+    });
+  });
+
+  describe('TTS Callbacks', () => {
+    it('should provide setTTSCallbacks method', () => {
+      expect(typeof service.setTTSCallbacks).toBe('function');
+    });
+
+    it('should allow setting TTS callbacks', () => {
+      const onStart = jest.fn();
+      const onEnd = jest.fn();
+      
+      expect(() => service.setTTSCallbacks(onStart, onEnd)).not.toThrow();
+    });
+
+    it('should allow setting undefined callbacks', () => {
+      expect(() => service.setTTSCallbacks(undefined, undefined)).not.toThrow();
+    });
+  });
+
   describe('Cleanup', () => {
     it('should cleanup without errors when no resources are active', async () => {
       // Should not throw

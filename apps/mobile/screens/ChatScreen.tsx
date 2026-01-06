@@ -87,6 +87,32 @@ const VoiceProcessingIndicator = () => {
   );
 };
 
+// System thinking indicator component (rotating dots for AI processing)
+const SystemThinkingIndicator = () => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '.';
+        return prev + '.';
+      });
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View 
+      style={styles.systemBubble} 
+      testID="system-thinking-indicator"
+      {...(Platform.OS === 'web' && { 'data-testid': 'system-thinking-indicator' })}
+    >
+      <Text style={styles.bubbleText}>🤔{dots}</Text>
+    </View>
+  );
+};
+
 export default function ChatScreen() {
   // Use ChatContext for persisted state
   const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
@@ -99,15 +125,24 @@ export default function ChatScreen() {
     camera: 'undetermined'
   });
   
-  // New UX states - tap-to-start/tap-to-stop pattern
-  const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing'>('default');
+  // New UX states - tap-to-start/tap-to-stop pattern with TTS controls
+  const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing' | 'tts-playing' | 'tts-paused'>('default');
   const voiceUXModeRef = useRef(voiceUXMode);
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track which message is currently playing TTS (for inline pause/play button)
+  const [activeTTSMessageId, setActiveTTSMessageId] = useState<string | null>(null);
   
   // Keep ref in sync with state
   useEffect(() => {
     voiceUXModeRef.current = voiceUXMode;
   }, [voiceUXMode]);
+  
+  // Clean up stale 'thinking' and 'typing' messages on screen load
+  // These are transient indicators that should not persist across navigation
+  useEffect(() => {
+    setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing'));
+  }, []); // Only run once on mount
   
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
@@ -141,26 +176,83 @@ export default function ChatScreen() {
 
   // Voice session hook with new audio processing pipeline - pass conversationId for context
   const voiceSession = useVoiceSession((voiceResponse) => {
+    // Handle TTS events for UX mode changes
+    if (voiceResponse.eventType === 'tts-start') {
+      console.log('🔊 [CHAT] TTS started - switching to tts-playing mode');
+      setVoiceUXMode('tts-playing');
+      // activeTTSMessageId is set when the system message is added below
+      return;
+    }
+    
+    if (voiceResponse.eventType === 'tts-end') {
+      console.log('🔊 [CHAT] TTS ended - returning to default mode');
+      setVoiceUXMode('default');
+      setActiveTTSMessageId(null);
+      return;
+    }
+    
+    // Handle thinking indicator (system processing)
+    if (voiceResponse.eventType === 'thinking') {
+      const thinkingMessage: ChatMessage = {
+        id: `thinking-${Date.now()}`,
+        type: 'thinking',
+        text: '',
+        isVoiceMessage: true
+      };
+      setMessages(prev => [...prev, thinkingMessage]);
+      return;
+    }
+    
     // Handle voice response by adding it to chat messages
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
       
-      // Check if this is a user message replacing the processing indicator
+      // Check if this is a user transcription replacing the processing indicator
       if (voiceResponse.isUserMessage && voiceResponse.responseText !== '🎤...') {
-        // Replace the processing indicator (🎤...) with the actual transcription
+        // Replace the processing indicator (🎤...) or update existing voice user message with the actual transcription
         setMessages(prev => {
-          const lastMessage = prev[prev.length - 1];
-          // If the last message is the processing indicator, replace it
-          if (lastMessage && lastMessage.text?.startsWith('🎤.')) {
+          // First, try to find the processing indicator (🎤...)
+          const processingMsgIndex = prev.findIndex(
+            msg => msg.type === 'user' && msg.isVoiceMessage && (msg.text === '🎤...' || msg.text?.startsWith('🎤.'))
+          );
+          
+          if (processingMsgIndex !== -1) {
+            // Replace the processing indicator
             const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...lastMessage,
+            newMessages[processingMsgIndex] = {
+              ...newMessages[processingMsgIndex],
               text: voiceResponse.responseText,
               isVoiceMessage: true
             };
             return newMessages;
           }
-          // Otherwise just add the new message
+          
+          // If no processing indicator, check if there's a recent voice user message to update
+          // (This handles the case where on-device STT already updated the message)
+          const lastVoiceUserMsgIndex = [...prev].reverse().findIndex(
+            msg => msg.type === 'user' && msg.isVoiceMessage
+          );
+          
+          if (lastVoiceUserMsgIndex !== -1) {
+            // Convert reverse index to forward index
+            const actualIndex = prev.length - 1 - lastVoiceUserMsgIndex;
+            const existingMsg = prev[actualIndex];
+            
+            // Only update if the message content is different (avoid no-op updates)
+            if (existingMsg.text !== voiceResponse.responseText) {
+              const newMessages = [...prev];
+              newMessages[actualIndex] = {
+                ...existingMsg,
+                text: voiceResponse.responseText,
+                isVoiceMessage: true
+              };
+              return newMessages;
+            }
+            // Same content, no update needed
+            return prev;
+          }
+          
+          // No existing voice user message, add a new one
           return [...prev, {
             id: Date.now().toString(),
             type: messageType,
@@ -169,28 +261,20 @@ export default function ChatScreen() {
           }];
         });
       } else if (!voiceResponse.isUserMessage) {
-        // For system messages, check if we need to remove a processing indicator first
+        // For AI response or other system messages, replace thinking indicator and add system message
+        const newMessageId = Date.now().toString();
         setMessages(prev => {
-          const lastMessage = prev[prev.length - 1];
-          // If the last message is a processing indicator (🎤...), remove it before adding system message
-          if (lastMessage && lastMessage.text?.startsWith('🎤.')) {
-            console.log('🔄 [CHAT] Removing processing indicator before adding system message');
-            const newMessages = prev.slice(0, -1); // Remove the processing indicator
-            return [...newMessages, {
-              id: Date.now().toString(),
-              type: 'system',
-              text: voiceResponse.responseText,
-              isVoiceMessage: true
-            }];
-          }
-          // Otherwise just add the system message
-          return [...prev, {
-            id: Date.now().toString(),
+          // Remove thinking indicator if present
+          const filtered = prev.filter(msg => msg.type !== 'thinking');
+          return [...filtered, {
+            id: newMessageId,
             type: 'system',
             text: voiceResponse.responseText,
             isVoiceMessage: true
           }];
         });
+        // Track this message for TTS playback controls
+        setActiveTTSMessageId(newMessageId);
       } else {
         // For processing indicator, just add
         const newMessage: ChatMessage = {
@@ -206,17 +290,11 @@ export default function ChatScreen() {
       if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
         setConversationId(voiceResponse.threadId);
       }
-      
-      // Return to default mode after receiving AI response
-      if (!voiceResponse.isUserMessage) {
-        console.log('🔄 [CHAT] Received AI response - returning to default mode');
-        setVoiceUXMode('default');
-      }
     }
   }, conversationId, recordingSafetyConfig); // Pass conversationId and safety config for maintaining conversation context
   
   // Extract voice properties
-  const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
+  const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, pauseAudioPlayback, resumeAudioPlayback, isAudioPaused, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
 
   // Animation for mic button
   const micScale = useRef(new Animated.Value(1)).current;
@@ -404,7 +482,7 @@ export default function ChatScreen() {
   };
 
   // Press and hold state management - UPDATED CODE v2
-  // New tap-to-start/tap-to-stop voice functionality
+  // New tap-to-start/tap-to-stop voice functionality with TTS pause/play
   const handleMicButtonPress = async () => {
     console.log('🎤 [CHAT] Mic button pressed - Current UX mode:', voiceUXMode);
     console.log('🎤 [CHAT] Current voice state:', { isVoiceActive, isRecording, isVoiceConnecting });
@@ -444,8 +522,8 @@ export default function ChatScreen() {
         break;
         
       case 'processing':
-        // During processing: Interrupt TTS and start new recording
-        console.log('⏸️ [CHAT] Processing mode - interrupting AI response and starting new recording');
+        // During processing: Interrupt and start new recording
+        console.log('⏸️ [CHAT] Processing mode - interrupting and starting new recording');
         
         // Stop audio playback (interrupt TTS)
         await stopAudioPlayback();
@@ -460,6 +538,37 @@ export default function ChatScreen() {
         setVoiceUXMode('active-recording');
         await setRecording(true);
         break;
+        
+      case 'tts-playing':
+        // TTS is playing: Stop TTS and start new recording
+        console.log('🎤 [CHAT] TTS playing - stopping TTS and starting recording');
+        await stopAudioPlayback();
+        setActiveTTSMessageId(null);
+        setVoiceUXMode('recording-mode');
+        await handleStartVoice();
+        break;
+        
+      case 'tts-paused':
+        // TTS is paused: Stop TTS and start new recording
+        console.log('🎤 [CHAT] TTS paused - stopping TTS and starting recording');
+        await stopAudioPlayback();
+        setActiveTTSMessageId(null);
+        setVoiceUXMode('recording-mode');
+        await handleStartVoice();
+        break;
+    }
+  };
+
+  // Handle inline TTS pause/play button press
+  const handleTTSControlPress = async () => {
+    if (voiceUXMode === 'tts-playing') {
+      console.log('⏸️ [CHAT] Inline button - pausing TTS');
+      await pauseAudioPlayback();
+      setVoiceUXMode('tts-paused');
+    } else if (voiceUXMode === 'tts-paused') {
+      console.log('▶️ [CHAT] Inline button - resuming TTS');
+      await resumeAudioPlayback();
+      setVoiceUXMode('tts-playing');
     }
   };
 
@@ -487,6 +596,12 @@ export default function ChatScreen() {
       return [voiceStyles.micButton, voiceStyles.micButtonReady];
     }
     
+    // TTS playing/paused - mic button shows as default (controls are inline now)
+    if (voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') {
+      // Show mic as available to interrupt TTS and start new recording
+      return voiceStyles.micButton;
+    }
+    
     if (isVoiceConnecting) {
       return [voiceStyles.micButton, voiceStyles.micButtonConnecting];
     }
@@ -497,6 +612,11 @@ export default function ChatScreen() {
     }
     
     return voiceStyles.micButton;
+  };
+
+  // Get mic button icon based on UX mode - always mic icon now (TTS controls are inline)
+  const getMicButtonIcon = () => {
+    return '🎤'; // Always mic icon
   };
 
   // Debug effect to log component render state
@@ -513,8 +633,10 @@ export default function ChatScreen() {
   // Get voice status text for new UX pattern
   const getVoiceStatusText = () => {
     if (voiceUXMode === 'active-recording') return 'Tap the mic to stop';
-    if (voiceUXMode === 'processing') return 'Tap the mic to interrupt and speak';
+    if (voiceUXMode === 'processing') return 'Processing...';
     if (voiceUXMode === 'recording-mode') return 'Tap the mic to record';
+    if (voiceUXMode === 'tts-playing') return 'Speaking... (use inline controls)';
+    if (voiceUXMode === 'tts-paused') return 'Paused (use inline controls)';
     if (isVoiceConnecting) return 'Connecting to voice service...';
     if (voiceError) return voiceError;
     return '';
@@ -544,6 +666,13 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    
+    // Stop TTS if playing/paused when user sends a text message
+    if (voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') {
+      console.log('🛑 [CHAT] Stopping TTS - user sending text message');
+      await stopAudioPlayback();
+      setVoiceUXMode('default');
+    }
     
     const userMessage = input.trim();
     const userMessageObj: ChatMessage = { 
@@ -617,10 +746,26 @@ export default function ChatScreen() {
       return <TypingIndicator />;
     }
     
+    // Show system thinking indicator for "thinking" type messages
+    if (item.type === 'thinking') {
+      return <SystemThinkingIndicator />;
+    }
+    
     // Show voice processing indicator for "🎤..." messages
     if (item.text === '🎤...' || item.text?.startsWith('🎤.')) {
       return <VoiceProcessingIndicator />;
     }
+    
+    // Check if this is the message currently playing TTS
+    const isActiveTTSMessage = item.id === activeTTSMessageId && 
+      (voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused');
+    
+    // Get the inline TTS control icon
+    const getTTSControlIcon = () => {
+      if (voiceUXMode === 'tts-playing') return '⏸️';
+      if (voiceUXMode === 'tts-paused') return '▶️';
+      return null;
+    };
     
     return (
       <View 
@@ -631,7 +776,17 @@ export default function ChatScreen() {
         })}
       >
         <Text style={styles.bubbleText}>
-          {item.isVoiceMessage && <Text style={styles.voiceIcon}>🎤 </Text>}
+          {/* For system voice messages with active TTS, show pause/play control instead of mic */}
+          {item.type === 'system' && item.isVoiceMessage && isActiveTTSMessage ? (
+            <Text 
+              style={[styles.voiceIcon, voiceStyles.inlineTTSControl]}
+              onPress={handleTTSControlPress}
+            >
+              {getTTSControlIcon()}{' '}
+            </Text>
+          ) : (
+            item.isVoiceMessage && <Text style={styles.voiceIcon}>🎤 </Text>
+          )}
           {item.text}
         </Text>
       </View>
@@ -652,11 +807,11 @@ export default function ChatScreen() {
         <BackButton onPress={async () => {
           // Stop TTS if playing when navigating away
           await stopAudioPlayback();
-          // Reset voice UX mode
-          if (voiceUXMode !== 'default') {
+          // Reset voice UX mode - only stop recording if actually recording
+          if (voiceUXMode === 'recording-mode' || voiceUXMode === 'active-recording' || voiceUXMode === 'processing') {
             await setRecording(false);
-            setVoiceUXMode('default');
           }
+          setVoiceUXMode('default');
           // Note: Don't clear conversationId - preserve thread context
           navigation.goBack();
         }} />
@@ -738,8 +893,8 @@ export default function ChatScreen() {
             />
           </View>
 
-          {/* Input bar - only show in default mode */}
-          {voiceUXMode === 'default' && (
+          {/* Input bar - show in default mode and during TTS playback (inline controls in messages) */}
+          {(voiceUXMode === 'default' || voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') && (
             <View style={styles.inputBar}>
               <TextInput
                 ref={textInputRef}
@@ -770,7 +925,7 @@ export default function ChatScreen() {
                     testID="mic-button"
                     {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
                   >
-                    <Text style={voiceStyles.micIcon}>🎤</Text>
+                    <Text style={voiceStyles.micIcon}>{getMicButtonIcon()}</Text>
                   </TouchableOpacity>
                 </Animated.View>
               </View>
@@ -788,7 +943,8 @@ export default function ChatScreen() {
           )}
 
           {/* Voice Mode Overlay - centered mic with status text underneath */}
-          {voiceUXMode !== 'default' && (
+          {/* Only show overlay for recording modes, NOT during TTS (TTS controls are inline in message bubbles) */}
+          {(voiceUXMode === 'recording-mode' || voiceUXMode === 'active-recording' || voiceUXMode === 'processing') && (
             <View style={voiceStyles.voiceModeOverlay}>
               <Animated.View 
                 style={{
@@ -804,13 +960,13 @@ export default function ChatScreen() {
                     voiceStyles.micButtonLarge,
                     voiceUXMode === 'active-recording' && voiceStyles.micButtonLargeRecording,
                     voiceUXMode === 'processing' && voiceStyles.micButtonLargeProcessing,
-                    voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady
+                    voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady,
                   ]}
                   activeOpacity={0.8}
                   onPress={handleMicButtonPress}
                   testID="mic-button-large"
                 >
-                  <Text style={voiceStyles.micIconLarge}>🎤</Text>
+                  <Text style={voiceStyles.micIconLarge}>{getMicButtonIcon()}</Text>
                 </TouchableOpacity>
               </Animated.View>
               <Text style={voiceStyles.voiceModeStatusText}>

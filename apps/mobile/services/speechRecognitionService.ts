@@ -143,7 +143,11 @@ export class SpeechRecognitionService {
   async checkPermissions(): Promise<boolean> {
     try {
       const isAvailable = await Voice.isAvailable();
-      return isAvailable === 1; // Voice.isAvailable() returns 1 for true, 0 for false
+      // Voice.isAvailable() can return boolean true/false OR number 1/0 depending on platform
+      // Use truthy check to handle both cases
+      const available = Boolean(isAvailable);
+      console.log('🟡 [SPEECH] Voice availability check:', { isAvailable, available });
+      return available;
     } catch (error) {
       console.error('🔴 [SPEECH] Failed to check speech permissions:', error);
       return false;
