@@ -9,8 +9,10 @@ using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
 
 using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -166,6 +168,10 @@ if (cacheEnabled)
     // 2. Key Vault reference: @Microsoft.KeyVault(SecretUri=https://vault.azure.net/secrets/redis-conn)
     // 3. Environment variable (for local dev): set CRITERIACACHE__REDISCONNECTIONSTRING
     var redisConnectionString = builder.Configuration["CriteriaCache:RedisConnectionString"];
+    
+    // Resolve Key Vault reference if present
+    redisConnectionString = ResolveKeyVaultReference(redisConnectionString);
+    
     if (!string.IsNullOrEmpty(redisConnectionString))
     {
         // L2 cache: Upstash Redis or Azure Cache for Redis
@@ -312,6 +318,57 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 });
 
 app.Run();
+
+// Resolves Azure Key Vault references in configuration values.
+// Key Vault references have the format: @Microsoft.KeyVault(SecretUri=https://vault.azure.net/secrets/secret-name)
+static string? ResolveKeyVaultReference(string? configValue)
+{
+    if (string.IsNullOrEmpty(configValue))
+    {
+        return configValue;
+    }
+
+    // Check if this is a Key Vault reference
+    var keyVaultPattern = @"@Microsoft\.KeyVault\(SecretUri=([^)]+)\)";
+    var match = Regex.Match(configValue, keyVaultPattern);
+    
+    if (!match.Success)
+    {
+        // Not a Key Vault reference, return as-is
+        return configValue;
+    }
+
+    var secretUri = match.Groups[1].Value;
+    
+    try
+    {
+        // Parse the secret URI to extract vault URL and secret name
+        var uri = new Uri(secretUri);
+        var vaultUrl = $"{uri.Scheme}://{uri.Host}";
+        var pathParts = uri.AbsolutePath.Trim('/').Split('/');
+        
+        if (pathParts.Length < 2 || pathParts[0] != "secrets")
+        {
+            Console.WriteLine($"Invalid Key Vault secret URI format: {secretUri}");
+            return null;
+        }
+
+        var secretName = pathParts[1];
+        
+        // Use DefaultAzureCredential to authenticate (supports managed identity in Azure, CLI locally)
+        var secretClient = new SecretClient(new Uri(vaultUrl), new DefaultAzureCredential());
+        var secret = secretClient.GetSecret(secretName);
+        
+        Console.WriteLine($"Successfully resolved Key Vault secret: {secretName} from {vaultUrl}");
+        return secret.Value.Value;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Failed to resolve Key Vault reference '{secretUri}': {ex.Message}");
+        // Return null to indicate resolution failed - cache will work in L1-only mode
+        return null;
+    }
+}
 
 // Make Program class accessible for testing
 public partial class Program { }
