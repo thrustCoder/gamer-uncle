@@ -25,6 +25,11 @@ export class VoiceAudioService {
   private recording: Audio.Recording | null = null;
   private soundObject: Audio.Sound | null = null;
   private apiBaseUrl: string;
+  private isPausedState: boolean = false;
+  
+  // TTS state callbacks
+  private onTTSStartCallback?: () => void;
+  private onTTSEndCallback?: () => void;
   
   // Silence detection state
   private silenceConfig: SilenceDetectionConfig | null = null;
@@ -33,6 +38,14 @@ export class VoiceAudioService {
 
   constructor(apiBaseUrl: string) {
     this.apiBaseUrl = apiBaseUrl;
+  }
+
+  /**
+   * Set TTS state callbacks
+   */
+  setTTSCallbacks(onStart?: () => void, onEnd?: () => void): void {
+    this.onTTSStartCallback = onStart;
+    this.onTTSEndCallback = onEnd;
   }
 
   /**
@@ -257,13 +270,18 @@ export class VoiceAudioService {
     );
 
     this.soundObject = sound;
+    this.isPausedState = false;
     console.log('🟢 [AUDIO] Playing TTS audio...');
+    
+    // Notify TTS started
+    this.onTTSStartCallback?.();
 
     return new Promise((resolve, reject) => {
       sound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) {
           if (status.error) {
             console.error('🔴 [AUDIO] Playback error:', status.error);
+            this.onTTSEndCallback?.();
             reject(new Error(`Playback error: ${status.error}`));
           }
           return;
@@ -273,6 +291,9 @@ export class VoiceAudioService {
           console.log('🟢 [AUDIO] Playback finished');
           sound.unloadAsync();
           this.soundObject = null;
+          this.isPausedState = false;
+          // Notify TTS ended
+          this.onTTSEndCallback?.();
           resolve();
         }
       });
@@ -288,6 +309,33 @@ export class VoiceAudioService {
       await this.soundObject.stopAsync();
       await this.soundObject.unloadAsync();
       this.soundObject = null;
+      this.isPausedState = false;
+      // Notify TTS ended (interrupted)
+      this.onTTSEndCallback?.();
+    }
+  }
+
+  /**
+   * Pause audio playback
+   */
+  async pauseAudioPlayback(): Promise<void> {
+    if (this.soundObject && !this.isPausedState) {
+      console.log('⏸️ [AUDIO] Pausing playback...');
+      await this.soundObject.pauseAsync();
+      this.isPausedState = true;
+      console.log('🟢 [AUDIO] Playback paused');
+    }
+  }
+
+  /**
+   * Resume audio playback
+   */
+  async resumeAudioPlayback(): Promise<void> {
+    if (this.soundObject && this.isPausedState) {
+      console.log('▶️ [AUDIO] Resuming playback...');
+      await this.soundObject.playAsync();
+      this.isPausedState = false;
+      console.log('🟢 [AUDIO] Playback resumed');
     }
   }
 
@@ -295,6 +343,20 @@ export class VoiceAudioService {
    * Check if audio is currently playing
    */
   isPlaying(): boolean {
+    return this.soundObject !== null && !this.isPausedState;
+  }
+
+  /**
+   * Check if audio is paused
+   */
+  isPaused(): boolean {
+    return this.soundObject !== null && this.isPausedState;
+  }
+
+  /**
+   * Check if audio is loaded (playing or paused)
+   */
+  hasActiveAudio(): boolean {
     return this.soundObject !== null;
   }
 

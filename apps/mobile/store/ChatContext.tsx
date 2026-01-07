@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 // Message type definition
 export interface ChatMessage {
   id: string;
-  type: 'user' | 'system' | 'typing';
+  type: 'user' | 'system' | 'typing' | 'thinking';
   text: string;
   isVoiceMessage?: boolean;
 }

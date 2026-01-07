@@ -2,7 +2,7 @@
 
 This diagram outlines the high-level architecture of the MVP for the Gamer Uncle app.
 
-![Architecture Diagram](./gamer_uncle_architecture_v1.png)
+![Architecture Diagram](./Arch.png)
 
 ### Components
 

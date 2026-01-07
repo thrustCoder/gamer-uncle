@@ -22,11 +22,16 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly PersistentAgentsClient _agentsClient;
         private readonly string _agentId;
         private readonly ICosmosDbService _cosmosDbService;
+        private readonly ICriteriaCache? _criteriaCache;
         private readonly TelemetryClient? _telemetryClient;
         private readonly ILogger<AgentServiceClient> _logger;
-    private readonly int _maxLowQualityRetries;
+        private readonly int _maxLowQualityRetries;
 
-        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
+        // A5 Optimization: Adaptive polling intervals - start fast, slow down over time
+        // Saves 200-400ms per AI call by catching fast responses early
+        private static readonly int[] AdaptivePollDelaysMs = { 50, 100, 150, 200, 300, 400, 500 };
+
+        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             _agentId = config["AgentService:AgentId"] ?? throw new InvalidOperationException("Agent ID missing");
@@ -41,6 +46,7 @@ namespace GamerUncle.Api.Services.AgentService
             _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential(credentialOptions));
             _agentsClient = _projectClient.GetPersistentAgentsClient();
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
+            _criteriaCache = criteriaCache; // Optional: gracefully degrades if not configured
             _telemetryClient = telemetryClient;
             _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentServiceClient>.Instance;
             // Determine retry attempts for low-quality (fallback) responses. Allow override via config.
@@ -226,6 +232,32 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
         private async Task<GameQueryCriteria> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
         {
+            // A1 Optimization: Check cache first to skip AI call for repeat queries
+            if (_criteriaCache != null)
+            {
+                var cachedJson = await _criteriaCache.GetAsync(userInput);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    try
+                    {
+                        var cachedCriteria = JsonSerializer.Deserialize<GameQueryCriteria>(cachedJson);
+                        if (cachedCriteria != null)
+                        {
+                            _logger.LogInformation("Criteria cache hit for query: {Query}", userInput);
+                            _telemetryClient?.TrackEvent("CriteriaExtraction.CacheHit", new Dictionary<string, string>
+                            {
+                                ["UserInput"] = userInput.Substring(0, Math.Min(userInput.Length, 100))
+                            });
+                            return cachedCriteria;
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to deserialize cached criteria, falling through to AI");
+                    }
+                }
+            }
+
             var messages = new[]
             {
                 new {
@@ -264,6 +296,16 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
             // Use a direct agent call for criteria extraction, bypassing the JSON format modification
             var (json, _) = await RunAgentForCriteriaExtractionAsync(requestPayload, sessionId);
+
+            // A1 Optimization: Cache the result for future queries
+            if (_criteriaCache != null && !string.IsNullOrEmpty(json))
+            {
+                await _criteriaCache.SetAsync(userInput, json);
+                _telemetryClient?.TrackEvent("CriteriaExtraction.Cached", new Dictionary<string, string>
+                {
+                    ["UserInput"] = userInput.Substring(0, Math.Min(userInput.Length, 100))
+                });
+            }
 
             try
             {
@@ -348,10 +390,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
                 _logger.LogInformation("Started run {RunId} in thread {ThreadId}", run.Id, thread.Id);
 
+                // A5 Optimization: Adaptive polling - start fast to catch quick responses
                 int pollCount = 0;
                 do
                 {
-                    await Task.Delay(500);
+                    var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
+                    await Task.Delay(delayMs);
                     run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                     pollCount++;
                 } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
@@ -433,10 +477,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
 
+            // A5 Optimization: Adaptive polling - start fast to catch quick responses
             int pollCount = 0;
             do
             {
-                await Task.Delay(500);
+                var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
+                await Task.Delay(delayMs);
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);

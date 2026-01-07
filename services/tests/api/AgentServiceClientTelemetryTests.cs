@@ -49,7 +49,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange & Act
             var exception = Record.Exception(() => 
-                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, _telemetryClient, _mockLogger.Object));
+                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _telemetryClient, _mockLogger.Object));
 
             // Assert
             Assert.Null(exception);
@@ -60,7 +60,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange & Act
             var exception = Record.Exception(() => 
-                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _mockLogger.Object));
+                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, null, _mockLogger.Object));
 
             // Assert
             Assert.Null(exception);
@@ -71,7 +71,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange & Act
             var exception = Record.Exception(() => 
-                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, _telemetryClient, null));
+                new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _telemetryClient, null));
 
             // Assert
             Assert.Null(exception);
@@ -81,7 +81,7 @@ namespace GamerUncle.Api.Tests
         public void TelemetryClient_TrackEvent_ShouldNotThrowWhenNull()
         {
             // Arrange
-            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _mockLogger.Object);
+            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, null, _mockLogger.Object);
 
             // Act & Assert - This should not throw
             // The null telemetry client should be handled gracefully in the actual implementation
@@ -92,7 +92,7 @@ namespace GamerUncle.Api.Tests
         public void Logger_LogInformation_ShouldNotThrowWhenNull()
         {
             // Arrange
-            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, _telemetryClient, null);
+            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _telemetryClient, null);
 
             // Act & Assert - This should not throw
             // The null logger should be handled gracefully by using NullLogger
@@ -106,7 +106,7 @@ namespace GamerUncle.Api.Tests
         public void UserInput_Validation_ShouldAcceptValidInputs(string userInput)
         {
             // Arrange
-            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, _telemetryClient, _mockLogger.Object);
+            var client = new AgentServiceClient(_mockConfig.Object, _mockCosmosDbService.Object, null, _telemetryClient, _mockLogger.Object);
 
             // Act & Assert
             Assert.NotNull(userInput);
@@ -203,7 +203,7 @@ namespace GamerUncle.Api.Tests
 
             // Act & Assert
             Assert.Throws<InvalidOperationException>(() => 
-                new AgentServiceClient(emptyConfig.Object, _mockCosmosDbService.Object, _telemetryClient, _mockLogger.Object));
+                new AgentServiceClient(emptyConfig.Object, _mockCosmosDbService.Object, null, _telemetryClient, _mockLogger.Object));
         }
     }
 }

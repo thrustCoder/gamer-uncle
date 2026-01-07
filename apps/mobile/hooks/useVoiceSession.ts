@@ -42,8 +42,16 @@ export interface RecordingSafetyConfig {
   onAutoStop?: (reason: 'max-duration' | 'silence') => void;
 }
 
+// Extended voice response with TTS control events
+export interface VoiceResponseExtended {
+  responseText: string;
+  threadId?: string;
+  isUserMessage?: boolean;
+  eventType?: 'transcription' | 'thinking' | 'response' | 'tts-start' | 'tts-end';
+}
+
 export const useVoiceSession = (
-  onVoiceResponse?: (response: { responseText: string; threadId?: string; isUserMessage?: boolean }) => void,
+  onVoiceResponse?: (response: VoiceResponseExtended) => void,
   conversationId?: string | null,
   recordingSafetyConfig?: RecordingSafetyConfig
 ) => {
@@ -62,30 +70,20 @@ export const useVoiceSession = (
   // Voice audio service for simplified audio processing
   const voiceAudioServiceRef = useRef<VoiceAudioService>(new VoiceAudioService(getApiBaseUrl()));
   
+  // On-device STT transcription collected during recording
+  const onDeviceTranscriptionRef = useRef<string>('');
+  
   // 🚀 OPTIMIZATION: Pre-initialized state for faster startup
+  // Note: Permission request is deferred until user actually taps the mic button
+  // This provides a better UX by not prompting for permissions on screen load
   const [isPreInitialized, setIsPreInitialized] = useState(false);
 
-  // Pre-initialize audio permissions when hook is first used
+  // Mark as pre-initialized without requesting permissions
+  // Actual permission request happens when user taps mic button (on-demand)
   useEffect(() => {
-    const preInitialize = async () => {
-      try {
-        console.log('🟡 [DEBUG] Pre-initializing voice capabilities...');
-        
-        // Pre-request audio permissions (this is often the slowest part)
-        const stream = await requestAudioPermissions();
-        if (stream) {
-          // Store for later use but don't keep it active
-          stream.getTracks().forEach(track => track.stop());
-          setIsPreInitialized(true);
-          console.log('🟢 [DEBUG] Voice pre-initialization completed');
-        }
-      } catch (error) {
-        console.log('🟡 [DEBUG] Pre-initialization failed (will request on-demand):', error);
-        // Not critical - will fall back to on-demand initialization
-      }
-    };
-
-    preInitialize();
+    // No pre-initialization of audio permissions - defer until user action
+    // This avoids the permission popup appearing when user navigates to chat screen
+    console.log('🟡 [DEBUG] Voice capabilities ready (permissions will be requested on first mic tap)');
   }, []);
 
   const updateState = useCallback((updates: Partial<VoiceSessionState>) => {
@@ -356,7 +354,36 @@ export const useVoiceSession = (
     onAutoStopRef.current = recordingSafetyConfig?.onAutoStop;
   }, [recordingSafetyConfig?.onAutoStop]);
 
-  // Start/stop recording (for push-to-talk) - NEW: Using VoiceAudioService
+  // Callback ref for onVoiceResponse to avoid stale closures
+  const onVoiceResponseRef = useRef(onVoiceResponse);
+  useEffect(() => {
+    onVoiceResponseRef.current = onVoiceResponse;
+  }, [onVoiceResponse]);
+
+  // Setup TTS callbacks for managing UX modes
+  useEffect(() => {
+    const voiceService = voiceAudioServiceRef.current;
+    voiceService.setTTSCallbacks(
+      () => {
+        // TTS started
+        console.log('🔊 [VOICE] TTS started callback');
+        onVoiceResponseRef.current?.({
+          responseText: '',
+          eventType: 'tts-start',
+        });
+      },
+      () => {
+        // TTS ended
+        console.log('🔊 [VOICE] TTS ended callback');
+        onVoiceResponseRef.current?.({
+          responseText: '',
+          eventType: 'tts-end',
+        });
+      }
+    );
+  }, []);
+
+  // Start/stop recording (for push-to-talk) - NEW: Using VoiceAudioService with parallel STT
   const setRecording = useCallback(async (recording: boolean) => {
     const voiceService = voiceAudioServiceRef.current;
     
@@ -394,6 +421,31 @@ export const useVoiceSession = (
         
         await voiceService.startRecording();
         
+        // Start on-device STT simultaneously with audio recording
+        // This runs in parallel and collects transcription results as user speaks
+        onDeviceTranscriptionRef.current = ''; // Reset transcription
+        try {
+          const sttAvailable = await speechRecognitionService.checkPermissions();
+          if (sttAvailable) {
+            console.log('🎤 [VOICE] Starting on-device STT in parallel with recording...');
+            await speechRecognitionService.startListening({
+              onResult: (result: SpeechRecognitionResult) => {
+                console.log('🟢 [VOICE] On-device STT result:', result.transcription);
+                onDeviceTranscriptionRef.current = result.transcription;
+              },
+              onError: (error: string) => {
+                console.log('🟡 [VOICE] On-device STT error (non-fatal):', error);
+                // Non-fatal - backend STT will be used as fallback
+              }
+            });
+          } else {
+            console.log('🟡 [VOICE] On-device STT not available, will use backend STT only');
+          }
+        } catch (sttError) {
+          console.log('🟡 [VOICE] On-device STT failed to start (non-fatal):', sttError);
+          // Non-fatal - backend STT will be used as fallback
+        }
+        
         // Set up max duration timeout
         if (recordingSafetyConfig?.maxRecordingDurationMs) {
           console.log(`⏱️ [VOICE] Setting max recording duration: ${recordingSafetyConfig.maxRecordingDurationMs}ms`);
@@ -418,42 +470,92 @@ export const useVoiceSession = (
         maxDurationTimeoutRef.current = null;
       }
       
-      // Stop recording and process audio
+      // Stop recording and process audio with PROGRESSIVE FEEDBACK
       try {
         console.log('🟡 [VOICE] Stopping recording and processing audio...');
         console.log('🟡 [VOICE] Using conversationId for context:', conversationId || '(new conversation)');
         
-        // Show processing indicator (rotating dots will be handled by chat UI)
+        // STEP 1: Immediately show user "thinking" dots (will show for 3 seconds)
         if (onVoiceResponse) {
           onVoiceResponse({
             responseText: '🎤...',
             isUserMessage: true,
+            eventType: 'transcription',
           });
         }
         
-        // Stop recording and process through backend (STT → AI → TTS)
-        // Use conversationId from hook parameter to maintain conversation context
-        const response = await voiceService.stopRecordingAndProcess(conversationId || undefined);
+        // STEP 2: Stop on-device STT (was running during recording) and collect transcription
+        // The STT was started when recording began and has been collecting results
+        let transcriptionDisplayTimeout: NodeJS.Timeout | null = null;
         
-        console.log('🟢 [VOICE] Processing complete:', response);
+        // Stop on-device STT and get final transcription
+        try {
+          await speechRecognitionService.stopListening();
+          console.log('🟢 [VOICE] On-device STT stopped, transcription:', onDeviceTranscriptionRef.current || '(none)');
+        } catch (sttError) {
+          console.log('🟡 [VOICE] Error stopping on-device STT (non-fatal):', sttError);
+        }
         
-        // Update user message with transcribed text
-        if (onVoiceResponse && response.transcription) {
+        // Get the transcription collected during recording
+        const onDeviceTranscription = onDeviceTranscriptionRef.current;
+        
+        // Stop recording and start backend processing
+        console.log('🟡 [VOICE] Sending audio to backend for processing...');
+        const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined);
+        
+        // STEP 3: Wait 3 seconds, then show on-device transcription + system thinking dots
+        transcriptionDisplayTimeout = setTimeout(() => {
+          console.log('🟡 [VOICE] 3 second delay complete, displaying on-device transcription');
+          
+          if (onVoiceResponse) {
+            // Update user bubble with on-device transcription (or keep dots if none)
+            if (onDeviceTranscription.trim()) {
+              onVoiceResponse({
+                responseText: onDeviceTranscription,
+                isUserMessage: true,
+                eventType: 'transcription',
+              });
+            }
+            
+            // Show system "thinking" indicator
+            onVoiceResponse({
+              responseText: '🤔...',
+              eventType: 'thinking',
+            });
+          }
+        }, 3000);
+        
+        // STEP 4: Wait for backend response
+        const response = await backendProcessingPromise;
+        
+        console.log('🟢 [VOICE] Backend processing complete:', response);
+        
+        // Clear the display timeout if it hasn't fired yet
+        if (transcriptionDisplayTimeout) {
+          clearTimeout(transcriptionDisplayTimeout);
+        }
+        
+        // STEP 5: Update user message with transcription
+        // Use on-device transcription if available, otherwise backend transcription
+        const finalTranscription = onDeviceTranscription.trim() || response.transcription;
+        if (onVoiceResponse && finalTranscription) {
           onVoiceResponse({
-            responseText: response.transcription,
+            responseText: finalTranscription,
             isUserMessage: true,
+            eventType: 'transcription',
           });
         }
         
-        // Add AI response to chat
+        // STEP 6: Replace thinking indicator with AI response
         if (onVoiceResponse && response.responseText) {
           onVoiceResponse({
             responseText: response.responseText,
             threadId: response.conversationId,
+            eventType: 'response',
           });
         }
         
-        // Play TTS audio response
+        // STEP 7: Play TTS audio response (callbacks will handle UX mode changes)
         if (response.audioData) {
           console.log('🔊 [VOICE] Playing TTS audio response...');
           await voiceService.playAudioResponse(response.audioData);
@@ -623,6 +725,36 @@ export const useVoiceSession = (
     }
   }, []);
 
+  // Pause TTS audio playback
+  const pauseAudioPlayback = useCallback(async () => {
+    try {
+      await voiceAudioServiceRef.current.pauseAudioPlayback();
+      console.log('🟢 [VOICE] Audio playback paused');
+    } catch (error: any) {
+      console.error('🔴 [VOICE] Failed to pause audio playback:', error);
+    }
+  }, []);
+
+  // Resume TTS audio playback
+  const resumeAudioPlayback = useCallback(async () => {
+    try {
+      await voiceAudioServiceRef.current.resumeAudioPlayback();
+      console.log('🟢 [VOICE] Audio playback resumed');
+    } catch (error: any) {
+      console.error('🔴 [VOICE] Failed to resume audio playback:', error);
+    }
+  }, []);
+
+  // Check if TTS is currently paused
+  const isAudioPaused = useCallback(() => {
+    return voiceAudioServiceRef.current.isPaused();
+  }, []);
+
+  // Check if TTS has active audio (playing or paused)
+  const hasActiveAudio = useCallback(() => {
+    return voiceAudioServiceRef.current.hasActiveAudio();
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -661,10 +793,14 @@ export const useVoiceSession = (
     stopVoiceSession,
     setRecording,
     stopAudioPlayback,
+    pauseAudioPlayback,
+    resumeAudioPlayback,
     clearError,
     retryVoiceSession,
     
     // Utilities
     isSupported: !!(mediaDevices && RTCPeerConnection),
+    isAudioPaused,
+    hasActiveAudio,
   };
 };
