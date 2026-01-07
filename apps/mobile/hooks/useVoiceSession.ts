@@ -503,9 +503,9 @@ export const useVoiceSession = (
         console.log('🟡 [VOICE] Sending audio to backend for processing...');
         const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined);
         
-        // STEP 3: Wait 5 seconds, then show on-device transcription + system thinking dots
+        // STEP 3: Wait 3 seconds, then show on-device transcription + system thinking dots
         transcriptionDisplayTimeout = setTimeout(() => {
-          console.log('🟡 [VOICE] 5 second delay complete, displaying on-device transcription');
+          console.log('🟡 [VOICE] 3 second delay complete, displaying on-device transcription');
           
           if (onVoiceResponse) {
             // Update user bubble with on-device transcription (or keep dots if none)
@@ -523,7 +523,7 @@ export const useVoiceSession = (
               eventType: 'thinking',
             });
           }
-        }, 5000);
+        }, 3000);
         
         // STEP 4: Wait for backend response
         const response = await backendProcessingPromise;

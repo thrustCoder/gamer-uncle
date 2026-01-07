@@ -27,6 +27,10 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly ILogger<AgentServiceClient> _logger;
         private readonly int _maxLowQualityRetries;
 
+        // A5 Optimization: Adaptive polling intervals - start fast, slow down over time
+        // Saves 200-400ms per AI call by catching fast responses early
+        private static readonly int[] AdaptivePollDelaysMs = { 50, 100, 150, 200, 300, 400, 500 };
+
         public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
@@ -386,10 +390,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
                 _logger.LogInformation("Started run {RunId} in thread {ThreadId}", run.Id, thread.Id);
 
+                // A5 Optimization: Adaptive polling - start fast to catch quick responses
                 int pollCount = 0;
                 do
                 {
-                    await Task.Delay(500);
+                    var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
+                    await Task.Delay(delayMs);
                     run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                     pollCount++;
                 } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
@@ -471,10 +477,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
 
+            // A5 Optimization: Adaptive polling - start fast to catch quick responses
             int pollCount = 0;
             do
             {
-                await Task.Delay(500);
+                var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
+                await Task.Delay(delayMs);
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);

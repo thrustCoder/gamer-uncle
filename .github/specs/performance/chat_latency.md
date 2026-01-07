@@ -68,7 +68,7 @@ Mobile App → /api/voice/process
 | A2 | [Response Streaming](#a2-response-streaming) | **~3s perceived** | All queries | Medium | ⬜ Not Started |
 | A3 | [Smaller Model for Criteria](#a3-smaller-model-for-criteria) | **1-2s** | All queries | Medium | ⬜ Not Started |
 | A4 | [Simplified Criteria Prompt](#a4-simplified-criteria-prompt) | **500ms-1s** | All queries | Low | ⬜ Not Started |
-| A5 | [Adaptive Polling Interval](#a5-adaptive-polling-interval) | **400-800ms** | All queries | Low | ⬜ Not Started |
+| A5 | [Adaptive Polling Interval](#a5-adaptive-polling-interval) | **400-800ms** | All queries | Low | ✅ Done |
 | A6 | [Parallel Cosmos + Top Games Prefetch](#a6-parallel-cosmos--top-games-prefetch) | 100-300ms | All queries | Low | ⬜ Not Started |
 | A7 | [Thread Pool Warmup](#a7-thread-pool-warmup) | 100-300ms | Cold starts only | Low | ⬜ Not Started |
 | A8 | [Cosmos Result Caching](#a8-cosmos-result-caching) | 50-150ms | Repeat criteria | Low | ⬜ Not Started |
