@@ -1,33 +1,37 @@
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
-import { PermissionsAndroid } from 'react-native';
 import { mediaDevices } from 'react-native-webrtc';
 
 // Mock Platform with a mutable OS property
 let mockPlatformOS = 'ios';
-jest.mock('react-native/Libraries/Utilities/Platform', () => ({
-  get OS() {
-    return mockPlatformOS;
+
+// Mock react-native completely
+jest.mock('react-native', () => ({
+  Platform: {
+    get OS() {
+      return mockPlatformOS;
+    },
+    set OS(value) {
+      mockPlatformOS = value;
+    },
+    select: jest.fn((obj) => obj[mockPlatformOS]),
   },
-  set OS(value) {
-    mockPlatformOS = value;
+  PermissionsAndroid: {
+    PERMISSIONS: {
+      RECORD_AUDIO: 'android.permission.RECORD_AUDIO',
+      CAMERA: 'android.permission.CAMERA',
+    },
+    RESULTS: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      NEVER_ASK_AGAIN: 'never_ask_again',
+    },
+    check: jest.fn(),
+    request: jest.fn(),
   },
-  select: jest.fn((obj) => obj[mockPlatformOS]),
 }));
 
-// Mock PermissionsAndroid
-jest.mock('react-native/Libraries/PermissionsAndroid/PermissionsAndroid', () => ({
-  PERMISSIONS: {
-    RECORD_AUDIO: 'android.permission.RECORD_AUDIO',
-    CAMERA: 'android.permission.CAMERA',
-  },
-  RESULTS: {
-    GRANTED: 'granted',
-    DENIED: 'denied',
-    NEVER_ASK_AGAIN: 'never_ask_again',
-  },
-  check: jest.fn(),
-  request: jest.fn(),
-}));
+// Re-export for test usage
+const { PermissionsAndroid } = require('react-native');
 
 // Mock react-native-webrtc
 jest.mock('react-native-webrtc', () => ({
@@ -223,7 +227,7 @@ describe('PermissionChecker', () => {
         });
         
         // Should stop the stream
-        expect(mockStream.getTracks()[0].stop).toHaveBeenCalled();
+        expect(mockStopFn).toHaveBeenCalled();
       });
 
       it('should return false when getUserMedia fails', async () => {

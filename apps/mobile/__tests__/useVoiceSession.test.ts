@@ -49,21 +49,19 @@ jest.mock('react-native-webrtc', () => ({
 }));
 
 // Mock axios
+const mockAxiosPost = jest.fn();
+const mockAxiosDelete = jest.fn();
+const mockAxiosIsError = jest.fn();
+
 jest.mock('axios', () => ({
   create: jest.fn(() => ({
-    post: jest.fn(() => Promise.resolve({ 
-      data: { 
-        SessionId: 'test-session-123',
-        WebRtcToken: 'test-token',
-        FoundryConnectionUrl: 'wss://test-foundry.com',
-        ExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-        ConversationId: 'test-conversation-456',
-        InitialResponse: 'Hello! How can I help you with board games today?'
-      } 
-    })),
-    delete: jest.fn(() => Promise.resolve()),
+    post: mockAxiosPost,
+    delete: mockAxiosDelete,
+    defaults: {
+      baseURL: 'http://localhost:5001/api/',
+    },
   })),
-  isAxiosError: jest.fn(),
+  isAxiosError: (error: any) => mockAxiosIsError(error),
 }));
 
 // Import the hook after mocking dependencies  
@@ -76,6 +74,21 @@ describe('useVoiceSession Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
+    
+    // Reset to default successful response
+    mockAxiosPost.mockResolvedValue({ 
+      data: { 
+        SessionId: 'test-session-123',
+        WebRtcToken: 'test-token',
+        FoundryConnectionUrl: 'wss://test-foundry.com',
+        ExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+        ConversationId: 'test-conversation-456',
+        InitialResponse: 'Hello! How can I help you with board games today?'
+      } 
+    });
+    mockAxiosDelete.mockResolvedValue({});
+    // Make isAxiosError check if error has response property
+    mockAxiosIsError.mockImplementation((error: any) => error && error.response !== undefined);
   });
 
   afterEach(() => {
@@ -430,11 +443,7 @@ describe('useVoiceSession Hook', () => {
 
   describe('Network Error Handling', () => {
     it('should handle session creation failures', async () => {
-      const axios = require('axios');
-      axios.create.mockReturnValueOnce({
-        post: jest.fn(() => Promise.reject(new Error('Network error'))),
-        delete: jest.fn(() => Promise.resolve()),
-      });
+      mockAxiosPost.mockRejectedValueOnce(new Error('Network error'));
       
       const { result } = renderHook(() => useVoiceSession());
       
@@ -446,17 +455,14 @@ describe('useVoiceSession Hook', () => {
       
       // Should set error state
       expect(result.current.error).toBeTruthy();
+      expect(result.current.error).toContain('Failed to start voice session');
     });
 
     it('should handle 429 rate limit errors specifically', async () => {
-      const axios = require('axios');
       const error: any = new Error('Rate limited');
       error.response = { status: 429 };
       
-      axios.create.mockReturnValueOnce({
-        post: jest.fn(() => Promise.reject(error)),
-        delete: jest.fn(() => Promise.resolve()),
-      });
+      mockAxiosPost.mockRejectedValue(error);
       
       const { result } = renderHook(() => useVoiceSession());
       
@@ -464,6 +470,7 @@ describe('useVoiceSession Hook', () => {
         await result.current.startVoiceSession({
           Query: 'Test query',
         });
+        await new Promise(resolve => setTimeout(resolve, 100));
       });
       
       // Should show rate limit specific message
@@ -471,14 +478,10 @@ describe('useVoiceSession Hook', () => {
     });
 
     it('should handle 500 server errors', async () => {
-      const axios = require('axios');
       const error: any = new Error('Server error');
       error.response = { status: 500 };
       
-      axios.create.mockReturnValueOnce({
-        post: jest.fn(() => Promise.reject(error)),
-        delete: jest.fn(() => Promise.resolve()),
-      });
+      mockAxiosPost.mockRejectedValue(error);
       
       const { result } = renderHook(() => useVoiceSession());
       
@@ -486,20 +489,17 @@ describe('useVoiceSession Hook', () => {
         await result.current.startVoiceSession({
           Query: 'Test query',
         });
+        await new Promise(resolve => setTimeout(resolve, 100));
       });
       
       expect(result.current.error).toContain('temporarily unavailable');
     });
 
     it('should handle 404 not found errors', async () => {
-      const axios = require('axios');
       const error: any = new Error('Not found');
       error.response = { status: 404 };
       
-      axios.create.mockReturnValueOnce({
-        post: jest.fn(() => Promise.reject(error)),
-        delete: jest.fn(() => Promise.resolve()),
-      });
+      mockAxiosPost.mockRejectedValue(error);
       
       const { result } = renderHook(() => useVoiceSession());
       
@@ -507,6 +507,7 @@ describe('useVoiceSession Hook', () => {
         await result.current.startVoiceSession({
           Query: 'Test query',
         });
+        await new Promise(resolve => setTimeout(resolve, 100));
       });
       
       expect(result.current.error).toContain('not available');

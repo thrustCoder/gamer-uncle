@@ -34,14 +34,25 @@ import { speechRecognitionService, SpeechRecognitionService, SpeechRecognitionRe
 
 describe('SpeechRecognitionService', () => {
   beforeEach(() => {
+    // Clear all mocks
     jest.clearAllMocks();
+    
     // Reset handlers
     Object.keys(voiceHandlers).forEach(key => {
       delete voiceHandlers[key as keyof VoiceHandlers];
     });
-    // Re-create service to get fresh handlers
-    // Force re-instantiation
+    
+    // Reset service instance to force re-instantiation
     (SpeechRecognitionService as any).instance = undefined;
+    
+    // Re-mock Voice methods to ensure they're fresh
+    (Voice.start as jest.Mock).mockClear();
+    (Voice.stop as jest.Mock).mockClear();
+    (Voice.cancel as jest.Mock).mockClear();
+    (Voice.isAvailable as jest.Mock).mockResolvedValue(true);
+    (Voice.start as jest.Mock).mockResolvedValue(undefined);
+    (Voice.stop as jest.Mock).mockResolvedValue(undefined);
+    (Voice.cancel as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe('startListening', () => {

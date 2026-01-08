@@ -179,6 +179,9 @@ describe('VoiceAudioService', () => {
 
   describe('Recording and Processing', () => {
     it('should handle stopRecordingAndProcess successfully', async () => {
+      // Must start recording first
+      await service.startRecording();
+      
       const response = await service.stopRecordingAndProcess();
       
       expect(response).toBeDefined();
@@ -191,6 +194,8 @@ describe('VoiceAudioService', () => {
       const axios = require('axios');
       const testConversationId = 'test-conversation-123';
       
+      // Must start recording first
+      await service.startRecording();
       await service.stopRecordingAndProcess(testConversationId);
       
       expect(axios.post).toHaveBeenCalledWith(
@@ -223,11 +228,23 @@ describe('VoiceAudioService', () => {
   describe('Audio Playback Lifecycle', () => {
     it('should play audio response successfully', async () => {
       const base64Audio = btoa('test audio data');
-      
-      const playPromise = service.playAudioResponse(base64Audio);
-      
-      // Should not throw
-      await expect(playPromise).resolves.not.toThrow();
+      const mockSound = {
+        setOnPlaybackStatusUpdate: jest.fn((callback: any) => {
+          // Immediately call back with finished status
+          Promise.resolve().then(() => callback({ isLoaded: true, isPlaying: false, didJustFinish: true }));
+        }),
+        playAsync: jest.fn().mockResolvedValue({}),
+        unloadAsync: jest.fn().mockResolvedValue({}),
+      };
+      const Audio = require('expo-av').Audio;
+      Audio.Sound.createAsync.mockResolvedValue({ sound: mockSound });
+
+      await service.playAudioResponse(base64Audio);
+
+      expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ uri: expect.stringContaining('data:audio/') })
+      );
+      expect(mockSound.playAsync).toHaveBeenCalled();
     });
 
     it('should handle playback errors gracefully', async () => {
@@ -236,10 +253,10 @@ describe('VoiceAudioService', () => {
       // Mock playback error
       const mockSound = {
         setOnPlaybackStatusUpdate: jest.fn((callback) => {
-          // Simulate error
-          setTimeout(() => {
+          // Immediately simulate error
+          Promise.resolve().then(() => {
             callback({ isLoaded: false, error: 'Playback failed' });
-          }, 10);
+          });
         }),
         unloadAsync: jest.fn(() => Promise.resolve()),
         stopAsync: jest.fn(() => Promise.resolve()),
@@ -307,8 +324,8 @@ describe('VoiceAudioService', () => {
 
       await service.startRecording();
 
-      // Advance timers past silence duration
-      jest.advanceTimersByTime(1200);
+      // Advance timers and flush promises
+      await jest.advanceTimersByTimeAsync(1200);
 
       expect(onSilenceDetected).toHaveBeenCalled();
     });
@@ -343,9 +360,9 @@ describe('VoiceAudioService', () => {
       await service.startRecording();
 
       // Advance timers but with audio interruptions
-      jest.advanceTimersByTime(500); // Some silence
-      jest.advanceTimersByTime(500); // Audio detected - should reset
-      jest.advanceTimersByTime(500); // More silence (not enough yet)
+      await jest.advanceTimersByTimeAsync(500); // Some silence
+      await jest.advanceTimersByTimeAsync(500); // Audio detected - should reset
+      await jest.advanceTimersByTimeAsync(500); // More silence (not enough yet)
 
       // Should not have been called yet
       expect(onSilenceDetected).not.toHaveBeenCalled();
@@ -376,7 +393,7 @@ describe('VoiceAudioService', () => {
       await service.startRecording();
 
       // Advance timers
-      jest.advanceTimersByTime(2000);
+      await jest.advanceTimersByTimeAsync(2000);
 
       // Should not detect silence
       expect(onSilenceDetected).not.toHaveBeenCalled();
@@ -397,7 +414,7 @@ describe('VoiceAudioService', () => {
       await service.cleanup();
 
       // Advance timers after cleanup
-      jest.advanceTimersByTime(1000);
+      await jest.advanceTimersByTimeAsync(1000);
 
       // Should not be called after cleanup
       expect(onSilenceDetected).not.toHaveBeenCalled();
@@ -414,8 +431,8 @@ describe('VoiceAudioService', () => {
       const Audio = require('expo-av').Audio;
       const mockSound = {
         setOnPlaybackStatusUpdate: jest.fn((callback) => {
-          // Simulate playback starting
-          setTimeout(() => callback({ isLoaded: true, isPlaying: true }), 10);
+          // Immediately call with finished status to complete the test
+          Promise.resolve().then(() => callback({ isLoaded: true, didJustFinish: true }));
         }),
         unloadAsync: jest.fn(() => Promise.resolve()),
         stopAsync: jest.fn(() => Promise.resolve()),
@@ -423,10 +440,9 @@ describe('VoiceAudioService', () => {
       
       Audio.Sound.createAsync.mockResolvedValueOnce({ sound: mockSound });
       
-      const playPromise = service.playAudioResponse(btoa('test audio'));
+      await service.playAudioResponse(btoa('test audio'));
       
-      // TTS callbacks are called internally
-      // onStart should be called immediately
+      // TTS callbacks should have been called
       expect(onStart).toHaveBeenCalled();
     });
 
@@ -439,8 +455,8 @@ describe('VoiceAudioService', () => {
       const Audio = require('expo-av').Audio;
       const mockSound = {
         setOnPlaybackStatusUpdate: jest.fn((callback) => {
-          // Simulate playback finishing
-          setTimeout(() => callback({ isLoaded: true, didJustFinish: true }), 10);
+          // Immediately resolve with finished status
+          Promise.resolve().then(() => callback({ isLoaded: true, didJustFinish: true }));
         }),
         unloadAsync: jest.fn(() => Promise.resolve()),
         stopAsync: jest.fn(() => Promise.resolve()),
