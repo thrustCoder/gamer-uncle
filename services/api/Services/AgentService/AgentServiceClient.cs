@@ -20,7 +20,8 @@ namespace GamerUncle.Api.Services.AgentService
         private static readonly ConcurrentDictionary<string, string> _conversationThreadMap = new();
         private readonly AIProjectClient _projectClient;
         private readonly PersistentAgentsClient _agentsClient;
-        private readonly string _agentId;
+        private readonly string _criteriaAgentId; // A3: Fast model for criteria extraction (gpt-4.1-mini)
+        private readonly string _responseAgentId; // A3: Main model for responses (gpt-4.1)
         private readonly ICosmosDbService _cosmosDbService;
         private readonly ICriteriaCache? _criteriaCache;
         private readonly TelemetryClient? _telemetryClient;
@@ -34,7 +35,9 @@ namespace GamerUncle.Api.Services.AgentService
         public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
-            _agentId = config["AgentService:AgentId"] ?? throw new InvalidOperationException("Agent ID missing");
+            // A3: Use separate agents for criteria extraction (fast) and main responses (quality)
+            _criteriaAgentId = config["AgentService:CriteriaAgentId"] ?? config["AgentService:AgentId"] ?? throw new InvalidOperationException("Criteria Agent ID missing");
+            _responseAgentId = config["AgentService:ResponseAgentId"] ?? config["AgentService:AgentId"] ?? throw new InvalidOperationException("Response Agent ID missing");
             var tenantId = config["CosmosDb:TenantId"] ?? config["AgentService:TenantId"];
 
             // Uses DefaultAzureCredential with explicit TenantId to avoid multi-tenant credential issues
@@ -322,8 +325,9 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         {
             try
             {
-                PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
-                _logger.LogInformation("Retrieved agent {AgentId} successfully", _agentId);
+                // A3: Use main quality agent for response generation
+                PersistentAgent agent = _agentsClient.Administration.GetAgent(_responseAgentId);
+                _logger.LogInformation("Retrieved agent {AgentId} successfully", _responseAgentId);
 
                 string? originalId = threadId;
                 string? internalThreadId = threadId;
@@ -428,7 +432,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
         private async Task<(string? response, string threadId)> RunAgentForCriteriaExtractionAsync(object requestPayload, string? threadId)
         {
-            PersistentAgent agent = _agentsClient.Administration.GetAgent(_agentId);
+            // A3: Use dedicated fast agent for criteria extraction
+            PersistentAgent agent = _agentsClient.Administration.GetAgent(_criteriaAgentId);
 
             string? originalId = threadId;
             string? internalThreadId = threadId;

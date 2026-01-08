@@ -113,6 +113,32 @@ const SystemThinkingIndicator = () => {
   );
 };
 
+// User thinking indicator component (rotating dots for text message processing - matches voice UX)
+const UserThinkingIndicator = () => {
+  const [dots, setDots] = useState('.');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => {
+        if (prev === '...') return '.';
+        return prev + '.';
+      });
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View 
+      style={styles.userBubble} 
+      testID="user-thinking-indicator"
+      {...(Platform.OS === 'web' && { 'data-testid': 'user-thinking-indicator' })}
+    >
+      <Text style={styles.bubbleText}>✏️{dots}</Text>
+    </View>
+  );
+};
+
 export default function ChatScreen() {
   // Use ChatContext for persisted state
   const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
@@ -138,10 +164,10 @@ export default function ChatScreen() {
     voiceUXModeRef.current = voiceUXMode;
   }, [voiceUXMode]);
   
-  // Clean up stale 'thinking' and 'typing' messages on screen load
+  // Clean up stale 'thinking', 'typing', and 'user-thinking' messages on screen load
   // These are transient indicators that should not persist across navigation
   useEffect(() => {
-    setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing'));
+    setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing' && msg.type !== 'user-thinking'));
   }, []); // Only run once on mount
   
   const flatListRef = useRef<FlatList>(null);
@@ -675,17 +701,20 @@ export default function ChatScreen() {
     }
     
     const userMessage = input.trim();
-    const userMessageObj: ChatMessage = { 
-      id: Date.now().toString(), 
-      type: 'user', 
-      text: userMessage 
+    const userThinkingId = `user-thinking-${Date.now()}`;
+    
+    // STEP 1: Immediately show user "thinking" dots (will show for 3 seconds - matches voice UX)
+    const userThinkingMessage: ChatMessage = { 
+      id: userThinkingId, 
+      type: 'user-thinking', 
+      text: '' 
     };
     
-    setMessages(prev => [...prev, userMessageObj]);
+    setMessages(prev => [...prev, userThinkingMessage]);
     
     // More aggressive input clearing for button press
     setInput('');
-    textInputRef.current?.clear(); // Add this line
+    textInputRef.current?.clear();
     textInputRef.current?.blur();
     setTimeout(() => {
       textInputRef.current?.focus();
@@ -693,10 +722,28 @@ export default function ChatScreen() {
     
     setIsLoading(true);
 
-    // Add typing indicator
+    // STEP 2: Wait 3 seconds, then show actual user message + system typing indicator (matches voice UX)
     const typingId = `typing-${Date.now()}`;
-    const typingMessage: ChatMessage = { id: typingId, type: 'typing', text: '' };
-    setMessages(prev => [...prev, typingMessage]);
+    
+    await new Promise<void>(resolve => setTimeout(() => {
+      // Replace user thinking indicator with actual user message
+      const userMessageObj: ChatMessage = { 
+        id: userThinkingId, 
+        type: 'user', 
+        text: userMessage 
+      };
+      
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== userThinkingId);
+        return [...filtered, userMessageObj];
+      });
+      
+      // Add system typing indicator
+      const typingMessage: ChatMessage = { id: typingId, type: 'typing', text: '' };
+      setMessages(prev => [...prev, typingMessage]);
+      
+      resolve();
+    }, 3000));
 
     try {
       // FIX: Use PascalCase keys to match backend
@@ -749,6 +796,11 @@ export default function ChatScreen() {
     // Show system thinking indicator for "thinking" type messages
     if (item.type === 'thinking') {
       return <SystemThinkingIndicator />;
+    }
+    
+    // Show user thinking indicator for text-initiated messages (matches voice UX)
+    if (item.type === 'user-thinking') {
+      return <UserThinkingIndicator />;
     }
     
     // Show voice processing indicator for "🎤..." messages
@@ -945,34 +997,52 @@ export default function ChatScreen() {
           {/* Voice Mode Overlay - centered mic with status text underneath */}
           {/* Only show overlay for recording modes, NOT during TTS (TTS controls are inline in message bubbles) */}
           {(voiceUXMode === 'recording-mode' || voiceUXMode === 'active-recording' || voiceUXMode === 'processing') && (
-            <View style={voiceStyles.voiceModeOverlay}>
-              <Animated.View 
-                style={{
-                  transform: [{ 
-                    scale: voiceUXMode === 'active-recording' 
-                      ? Animated.multiply(micScale, pulseAnim) 
-                      : (voiceUXMode === 'processing' ? pulseAnim : micScale)
-                  }]
-                }}
-              >
-                <TouchableOpacity
-                  style={[
-                    voiceStyles.micButtonLarge,
-                    voiceUXMode === 'active-recording' && voiceStyles.micButtonLargeRecording,
-                    voiceUXMode === 'processing' && voiceStyles.micButtonLargeProcessing,
-                    voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={handleMicButtonPress}
-                  testID="mic-button-large"
+            <TouchableOpacity 
+              style={voiceStyles.voiceModeOverlayTouchable}
+              activeOpacity={1}
+              onPress={async () => {
+                // Tap anywhere to dismiss voice mode and return to default
+                console.log('👆 [CHAT] Overlay tapped - dismissing voice mode');
+                
+                // Stop recording if active
+                if (voiceUXMode === 'active-recording') {
+                  await setRecording(false);
+                }
+                
+                // Stop voice session and return to default
+                await handleStopVoice();
+                setVoiceUXMode('default');
+              }}
+            >
+              <View style={voiceStyles.voiceModeOverlay}>
+                <Animated.View 
+                  style={{
+                    transform: [{ 
+                      scale: voiceUXMode === 'active-recording' 
+                        ? Animated.multiply(micScale, pulseAnim) 
+                        : (voiceUXMode === 'processing' ? pulseAnim : micScale)
+                    }]
+                  }}
                 >
-                  <Text style={voiceStyles.micIconLarge}>{getMicButtonIcon()}</Text>
-                </TouchableOpacity>
-              </Animated.View>
-              <Text style={voiceStyles.voiceModeStatusText}>
-                {getVoiceStatusText()}
-              </Text>
-            </View>
+                  <TouchableOpacity
+                    style={[
+                      voiceStyles.micButtonLarge,
+                      voiceUXMode === 'active-recording' && voiceStyles.micButtonLargeRecording,
+                      voiceUXMode === 'processing' && voiceStyles.micButtonLargeProcessing,
+                      voiceUXMode === 'recording-mode' && voiceStyles.micButtonLargeReady,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={handleMicButtonPress}
+                    testID="mic-button-large"
+                  >
+                    <Text style={voiceStyles.micIconLarge}>{getMicButtonIcon()}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+                <Text style={voiceStyles.voiceModeStatusText}>
+                  {getVoiceStatusText()}
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
 
         </View>
