@@ -254,4 +254,262 @@ describe('SpeechRecognitionService', () => {
       expect(instance1).toBe(instance2);
     });
   });
+
+  describe('checkPermissions', () => {
+    it('should return true when voice is available', async () => {
+      (Voice.isAvailable as jest.Mock).mockResolvedValue(true);
+      const service = SpeechRecognitionService.getInstance();
+
+      const available = await service.checkPermissions();
+
+      expect(available).toBe(true);
+      expect(Voice.isAvailable).toHaveBeenCalled();
+    });
+
+    it('should return false when voice is not available', async () => {
+      (Voice.isAvailable as jest.Mock).mockResolvedValue(false);
+      const service = SpeechRecognitionService.getInstance();
+
+      const available = await service.checkPermissions();
+
+      expect(available).toBe(false);
+    });
+
+    it('should handle numeric return values from isAvailable', async () => {
+      // Some platforms return 1/0 instead of true/false
+      (Voice.isAvailable as jest.Mock).mockResolvedValue(1);
+      const service = SpeechRecognitionService.getInstance();
+
+      const available = await service.checkPermissions();
+
+      expect(available).toBe(true);
+    });
+
+    it('should handle zero numeric value as false', async () => {
+      (Voice.isAvailable as jest.Mock).mockResolvedValue(0);
+      const service = SpeechRecognitionService.getInstance();
+
+      const available = await service.checkPermissions();
+
+      expect(available).toBe(false);
+    });
+
+    it('should return false on exception', async () => {
+      (Voice.isAvailable as jest.Mock).mockRejectedValue(new Error('Check failed'));
+      const service = SpeechRecognitionService.getInstance();
+
+      const available = await service.checkPermissions();
+
+      expect(available).toBe(false);
+    });
+  });
+
+  describe('cancelListening', () => {
+    it('should cancel active listening session', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      await service.cancelListening();
+
+      expect(Voice.cancel).toHaveBeenCalled();
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+
+    it('should not throw when cancelling without active session', async () => {
+      const service = SpeechRecognitionService.getInstance();
+
+      await expect(service.cancelListening()).resolves.not.toThrow();
+    });
+
+    it('should handle cancel errors gracefully', async () => {
+      (Voice.cancel as jest.Mock).mockRejectedValue(new Error('Cancel failed'));
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      await service.cancelListening();
+
+      // Should set isListening to false even on error
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should remove all voice listeners', () => {
+      const service = SpeechRecognitionService.getInstance();
+
+      service.cleanup();
+
+      expect(Voice.removeAllListeners).toHaveBeenCalled();
+    });
+
+    it('should stop active listening on cleanup', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      service.cleanup();
+
+      // Should stop any active listening
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle empty partial results', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      const onResult = jest.fn();
+      await service.startListening({ onResult, onError: jest.fn() });
+
+      voiceHandlers.onSpeechPartialResults?.({ value: [] });
+
+      // Should not crash
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it('should handle null partial results', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      const onResult = jest.fn();
+      await service.startListening({ onResult, onError: jest.fn() });
+
+      voiceHandlers.onSpeechPartialResults?.({ value: null });
+
+      // Should not crash
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty final results', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      const onResult = jest.fn();
+      await service.startListening({ onResult, onError: jest.fn() });
+
+      voiceHandlers.onSpeechResults?.({ value: [] });
+
+      // Should not crash
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple rapid start/stop cycles', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      const onResult = jest.fn();
+      const onError = jest.fn();
+
+      // Rapid start/stop cycles
+      for (let i = 0; i < 5; i++) {
+        await service.startListening({ onResult, onError });
+        await service.stopListening();
+      }
+
+      // Should not crash and final state should be consistent
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+
+    it('should handle concurrent stop calls', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      // Call stop multiple times concurrently
+      const promises = [
+        service.stopListening(),
+        service.stopListening(),
+        service.stopListening(),
+      ];
+
+      await Promise.all(promises);
+
+      // Should handle gracefully
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+
+    it('should handle error with no error callback', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn() } as any);
+
+      // Trigger error without callback
+      voiceHandlers.onSpeechError?.({ error: { message: 'Test error' } });
+
+      // Should not crash
+      expect(service.isCurrentlyListening()).toBe(false);
+    });
+
+    it('should handle result with no result callback', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onError: jest.fn() } as any);
+
+      // Trigger result without callback
+      voiceHandlers.onSpeechResults?.({ value: ['test'] });
+
+      // Should not crash
+    });
+
+    it('should track transcription from mixed partial and final results', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      // Partial results come in
+      voiceHandlers.onSpeechPartialResults?.({ value: ['hello'] });
+      expect(service.getLatestTranscription()).toBe('hello');
+
+      voiceHandlers.onSpeechPartialResults?.({ value: ['hello world'] });
+      expect(service.getLatestTranscription()).toBe('hello world');
+
+      // Final results override
+      voiceHandlers.onSpeechResults?.({ value: ['hello world!'] });
+      expect(service.getLatestTranscription()).toBe('hello world!');
+    });
+
+    it('should clear transcription when starting new session', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      
+      // First session
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+      voiceHandlers.onSpeechResults?.({ value: ['first session'] });
+      await service.stopListening();
+
+      // Second session
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+      
+      // Transcription should be cleared
+      const transcription = service.getLatestTranscription();
+      expect(transcription).toBe('');
+    });
+  });
+
+  describe('platform-specific behavior', () => {
+    it('should pass language code to voice start', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      expect(Voice.start).toHaveBeenCalledWith(
+        'en-US',
+        expect.objectContaining({
+          locale: 'en-US',
+          maxResults: 1,
+          partialResults: true,
+        })
+      );
+    });
+
+    it('should configure partial results for streaming transcription', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      expect(Voice.start).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          partialResults: true,
+        })
+      );
+    });
+
+    it('should limit max results to avoid memory issues', async () => {
+      const service = SpeechRecognitionService.getInstance();
+      await service.startListening({ onResult: jest.fn(), onError: jest.fn() });
+
+      expect(Voice.start).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          maxResults: 1,
+        })
+      );
+    });
+  });
 });
