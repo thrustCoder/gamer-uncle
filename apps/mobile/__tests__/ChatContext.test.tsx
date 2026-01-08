@@ -129,11 +129,13 @@ describe('ChatContext', () => {
       const systemMessage: ChatMessage = { id: '2', type: 'system', text: 'Hi' };
       const typingMessage: ChatMessage = { id: '3', type: 'typing', text: '' };
       const thinkingMessage: ChatMessage = { id: '4', type: 'thinking', text: '' };
+      const userThinkingMessage: ChatMessage = { id: '5', type: 'user-thinking', text: '' };
       
       expect(userMessage.type).toBe('user');
       expect(systemMessage.type).toBe('system');
       expect(typingMessage.type).toBe('typing');
       expect(thinkingMessage.type).toBe('thinking');
+      expect(userThinkingMessage.type).toBe('user-thinking');
     });
 
     it('should support optional isVoiceMessage property', () => {
@@ -154,6 +156,17 @@ describe('ChatContext', () => {
       
       expect(thinkingMessage.type).toBe('thinking');
       expect(thinkingMessage.isVoiceMessage).toBe(true);
+    });
+
+    it('should support user-thinking message type for text message processing indicator', () => {
+      const userThinkingMessage: ChatMessage = { 
+        id: 'user-thinking-123', 
+        type: 'user-thinking', 
+        text: ''
+      };
+      
+      expect(userThinkingMessage.type).toBe('user-thinking');
+      expect(userThinkingMessage.isVoiceMessage).toBeUndefined();
     });
   });
 });

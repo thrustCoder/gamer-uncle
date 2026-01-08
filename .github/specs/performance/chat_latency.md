@@ -66,12 +66,11 @@ Mobile App → /api/voice/process
 |---|--------------|-----------------|------------|------------|--------|
 | A1 | [Criteria Extraction Caching](#a1-criteria-extraction-caching) | **2-4s** | Repeat queries | Low | ✅ Done |
 | A2 | [Response Streaming](#a2-response-streaming) | **~3s perceived** | All queries | Medium | ⬜ Not Started |
-| A3 | [Smaller Model for Criteria](#a3-smaller-model-for-criteria) | **1-2s** | All queries | Medium | ⬜ Not Started |
-| A4 | [Simplified Criteria Prompt](#a4-simplified-criteria-prompt) | **500ms-1s** | All queries | Low | ⬜ Not Started |
-| A5 | [Adaptive Polling Interval](#a5-adaptive-polling-interval) | **400-800ms** | All queries | Low | ✅ Done |
-| A6 | [Parallel Cosmos + Top Games Prefetch](#a6-parallel-cosmos--top-games-prefetch) | 100-300ms | All queries | Low | ⬜ Not Started |
-| A7 | [Thread Pool Warmup](#a7-thread-pool-warmup) | 100-300ms | Cold starts only | Low | ⬜ Not Started |
-| A8 | [Cosmos Result Caching](#a8-cosmos-result-caching) | 50-150ms | Repeat criteria | Low | ⬜ Not Started |
+| A3 | [Smaller Model for Criteria](#a3-smaller-model-for-criteria) | **1-2s** | All queries | Medium | ✅ Done |
+| A4 | [Adaptive Polling Interval](#a4-adaptive-polling-interval) | **400-800ms** | All queries | Low | ✅ Done |
+| A5 | [Parallel Cosmos + Top Games Prefetch](#a5-parallel-cosmos--top-games-prefetch) | 100-300ms | All queries | Low | ⬜ Not Started |
+| A6 | [Thread Pool Warmup](#a6-thread-pool-warmup) | 100-300ms | Cold starts only | Low | ⬜ Not Started |
+| A7 | [Cosmos Result Caching](#a7-cosmos-result-caching) | 50-150ms | Repeat criteria | Low | ⬜ Not Started |
 
 ### Option B: Modify Architecture (Higher Impact)
 
@@ -373,35 +372,7 @@ public class AgentServiceClient
 
 ---
 
-### A4. Simplified Criteria Prompt
-
-**Problem**: The criteria extraction prompt may be overly complex, causing the model to take longer to process.
-
-**Solution**: Simplify the prompt to extract ONLY essential fields with a minimal response schema:
-
-**Current Prompt** (hypothetical):
-```
-You are an expert at analyzing board game queries. Extract the following criteria...
-[Long detailed instructions]
-```
-
-**Simplified Prompt**:
-```csharp
-private const string CRITERIA_EXTRACTION_PROMPT = @"
-Extract game criteria from the user query. Return JSON only.
-Schema: {""minPlayers"":int,""maxPlayers"":int,""minPlaytime"":int,""maxPlaytime"":int,""mechanics"":[],""categories"":[],""name"":string}
-If no criteria found, return empty object: {}
-Query: ";
-```
-
-**Files to Modify**:
-- `services/api/Services/AgentService/AgentServiceClient.cs`
-
-**Estimated Savings**: 500ms-1s (shorter prompt = faster processing)
-
----
-
-### A5. Adaptive Polling Interval
+### A4. Adaptive Polling Interval
 
 **Problem**: Fixed 500ms polling interval wastes time on fast responses. Since we make TWO AI calls, this waste is doubled.
 
@@ -437,7 +408,7 @@ private async Task<Run> WaitForRunCompletionAsync(AgentThread thread, ThreadRun 
 
 ---
 
-### A6. Parallel Cosmos + Top Games Prefetch
+### A5. Parallel Cosmos + Top Games Prefetch
 
 **Problem**: Cosmos query waits for criteria extraction to complete.
 
@@ -477,7 +448,7 @@ public async Task<AgentResponse> GetRecommendationsAsync(string userInput, strin
 
 ---
 
-### A7. Thread Pool Warmup
+### A6. Thread Pool Warmup
 
 **Problem**: First request of the day has cold-start latency for AI agent threads.
 
@@ -508,7 +479,7 @@ public class AgentThreadWarmupService : IHostedService
 
 ---
 
-### A8. Cosmos Result Caching
+### A7. Cosmos Result Caching
 
 **Problem**: Repeated queries for same criteria hit Cosmos every time.
 
@@ -570,15 +541,14 @@ public class CachedCosmosDbService : ICosmosDbService
 | 🥇 1 | A1. Criteria Caching | 2-4s (repeats) | Low | Huge win for repeat queries |
 | 🥈 2 | A2. Response Streaming | Perceived 3s | Medium | Best UX improvement |
 | 🥉 3 | A3. Smaller Model | 1-2s | Medium | High impact on ALL queries |
-| 4 | A4. Simplified Prompt | 500ms-1s | Low | Easy config change |
-| 5 | A5. Adaptive Polling | 400-800ms | Low | Quick win, benefits BOTH AI calls |
-| 6 | A6. Parallel Cosmos | 100-300ms | Low | Simple async improvement |
-| 7 | A7. Thread Warmup | 100-300ms (cold) | Low | Nice-to-have |
-| 8 | A8. Cosmos Caching | 50-150ms | Low | Standard cache pattern |
+| 4 | A4. Adaptive Polling | 400-800ms | Low | Quick win, benefits BOTH AI calls |
+| 5 | A5. Parallel Cosmos | 100-300ms | Low | Simple async improvement |
+| 6 | A6. Thread Warmup | 100-300ms (cold) | Low | Nice-to-have |
+| 7 | A7. Cosmos Caching | 50-150ms | Low | Standard cache pattern |
 
 ### Cumulative Impact Estimate
 
-Implementing A1-A5 together:
+Implementing A1-A4 together:
 
 | Scenario | Before | After (Best Case) |
 |----------|--------|-------------------|

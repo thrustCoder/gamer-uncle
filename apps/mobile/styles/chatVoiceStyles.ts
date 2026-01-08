@@ -420,9 +420,21 @@ export const chatVoiceStyles = StyleSheet.create({
     backgroundColor: Colors.timerOrange,
   },
 
+  // Voice mode overlay touchable - fullscreen tap-to-dismiss area
+  voiceModeOverlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+
   // Voice mode overlay - fullscreen centered mic layout
   voiceModeOverlay: {
-    position: 'absolute',
+    position: 'relative',
     bottom: 0,
     left: 0,
     right: 0,
