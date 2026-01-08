@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 export interface SpeechRecognitionResult {
   transcription: string;
   confidence: number;
+  isFinal?: boolean;
 }
 
 export class SpeechRecognitionService {
@@ -11,6 +12,12 @@ export class SpeechRecognitionService {
   private isListening = false;
   private onResult?: (result: SpeechRecognitionResult) => void;
   private onError?: (error: string) => void;
+  
+  // Track the latest transcription and whether we've received final results
+  private latestTranscription: string = '';
+  private hasFinalResult: boolean = false;
+  private finalResultResolver?: (transcription: string) => void;
+  private finalResultTimeout?: NodeJS.Timeout;
 
   static getInstance(): SpeechRecognitionService {
     if (!SpeechRecognitionService.instance) {
@@ -35,6 +42,14 @@ export class SpeechRecognitionService {
     Voice.onSpeechEnd = () => {
       console.log('🟡 [SPEECH] Speech recognition ended');
       this.isListening = false;
+      
+      // When speech ends, resolve with the latest transcription if we have a pending resolver
+      // This handles the case where final results come after stop is called
+      if (this.finalResultResolver && this.latestTranscription) {
+        console.log('🟢 [SPEECH] Resolving with transcription on speech end:', this.latestTranscription);
+        this.finalResultResolver(this.latestTranscription);
+        this.finalResultResolver = undefined;
+      }
     };
 
     Voice.onSpeechError = (error: any) => {
@@ -42,23 +57,56 @@ export class SpeechRecognitionService {
       this.isListening = false;
       const errorMessage = error?.error?.message || 'Speech recognition failed';
       this.onError?.(errorMessage);
+      
+      // Resolve with whatever we have on error
+      if (this.finalResultResolver) {
+        this.finalResultResolver(this.latestTranscription);
+        this.finalResultResolver = undefined;
+      }
     };
 
     Voice.onSpeechResults = (event: any) => {
-      console.log('🟢 [SPEECH] Speech results:', event.value);
+      console.log('🟢 [SPEECH] Speech results (FINAL):', event.value);
       if (event.value && event.value.length > 0) {
         const transcription = event.value[0];
         const confidence = 0.9; // Voice API doesn't provide confidence scores
         
+        // Store as the latest (and final) transcription
+        this.latestTranscription = transcription;
+        this.hasFinalResult = true;
+        
         this.onResult?.({
           transcription,
-          confidence
+          confidence,
+          isFinal: true
         });
+        
+        // If we have a pending resolver waiting for final results, resolve it now
+        if (this.finalResultResolver) {
+          console.log('🟢 [SPEECH] Resolving pending final result:', transcription);
+          this.finalResultResolver(transcription);
+          this.finalResultResolver = undefined;
+          if (this.finalResultTimeout) {
+            clearTimeout(this.finalResultTimeout);
+            this.finalResultTimeout = undefined;
+          }
+        }
       }
     };
 
     Voice.onSpeechPartialResults = (event: any) => {
       console.log('🟡 [SPEECH] Partial results:', event.value);
+      // Store partial results as they come in (these update progressively)
+      if (event.value && event.value.length > 0) {
+        this.latestTranscription = event.value[0];
+        
+        // Notify callback with partial results
+        this.onResult?.({
+          transcription: this.latestTranscription,
+          confidence: 0.7, // Lower confidence for partial results
+          isFinal: false
+        });
+      }
     };
   }
 
@@ -74,6 +122,15 @@ export class SpeechRecognitionService {
 
       this.onResult = options?.onResult;
       this.onError = options?.onError;
+      
+      // Reset transcription state for new session
+      this.latestTranscription = '';
+      this.hasFinalResult = false;
+      this.finalResultResolver = undefined;
+      if (this.finalResultTimeout) {
+        clearTimeout(this.finalResultTimeout);
+        this.finalResultTimeout = undefined;
+      }
 
       console.log('🟡 [SPEECH] Starting speech recognition...');
       
@@ -108,18 +165,62 @@ export class SpeechRecognitionService {
     }
   }
 
-  async stopListening(): Promise<void> {
+  /**
+   * Stop speech recognition and wait for final transcription result.
+   * Returns a promise that resolves with the final transcription.
+   */
+  async stopListening(): Promise<string> {
     try {
       if (this.isListening) {
-        console.log('🟡 [SPEECH] Stopping speech recognition...');
+        console.log('🟡 [SPEECH] Stopping speech recognition and waiting for final result...');
+        
+        // Create a promise that will be resolved when we get the final result
+        const finalResultPromise = new Promise<string>((resolve) => {
+          // If we already have a final result, resolve immediately
+          if (this.hasFinalResult && this.latestTranscription) {
+            console.log('🟢 [SPEECH] Already have final result:', this.latestTranscription);
+            resolve(this.latestTranscription);
+            return;
+          }
+          
+          // Otherwise, set up resolver to be called when final result arrives
+          this.finalResultResolver = resolve;
+          
+          // Set a timeout to avoid waiting forever (500ms should be enough for final results)
+          this.finalResultTimeout = setTimeout(() => {
+            console.log('🟡 [SPEECH] Final result timeout, using latest transcription:', this.latestTranscription);
+            if (this.finalResultResolver) {
+              this.finalResultResolver(this.latestTranscription);
+              this.finalResultResolver = undefined;
+            }
+          }, 500);
+        });
+        
+        // Stop Voice recognition - this triggers onSpeechEnd and potentially final onSpeechResults
         await Voice.stop();
         this.isListening = false;
-        console.log('🟢 [SPEECH] Speech recognition stopped');
+        
+        // Wait for the final result
+        const finalTranscription = await finalResultPromise;
+        console.log('🟢 [SPEECH] Speech recognition stopped with final result:', finalTranscription);
+        
+        return finalTranscription;
       }
+      
+      // Not listening, return whatever we have
+      return this.latestTranscription;
     } catch (error) {
       console.error('🔴 [SPEECH] Failed to stop speech recognition:', error);
       this.isListening = false;
+      return this.latestTranscription;
     }
+  }
+
+  /**
+   * Get the latest transcription without stopping
+   */
+  getLatestTranscription(): string {
+    return this.latestTranscription;
   }
 
   async cancelListening(): Promise<void> {

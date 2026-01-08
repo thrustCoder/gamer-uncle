@@ -484,20 +484,27 @@ export const useVoiceSession = (
           });
         }
         
-        // STEP 2: Stop on-device STT (was running during recording) and collect transcription
-        // The STT was started when recording began and has been collecting results
-        let transcriptionDisplayTimeout: NodeJS.Timeout | null = null;
-        
-        // Stop on-device STT and get final transcription
+        // STEP 2: Stop on-device STT and wait for final transcription
+        // The stopListening() method now waits for final results before returning
+        let onDeviceTranscription = '';
         try {
-          await speechRecognitionService.stopListening();
-          console.log('🟢 [VOICE] On-device STT stopped, transcription:', onDeviceTranscriptionRef.current || '(none)');
+          // stopListening now returns the final transcription directly
+          onDeviceTranscription = await speechRecognitionService.stopListening();
+          console.log('🟢 [VOICE] On-device STT stopped with final transcription:', onDeviceTranscription || '(none)');
         } catch (sttError) {
           console.log('🟡 [VOICE] Error stopping on-device STT (non-fatal):', sttError);
+          // Fall back to whatever was captured in the ref
+          onDeviceTranscription = onDeviceTranscriptionRef.current;
         }
         
-        // Get the transcription collected during recording
-        const onDeviceTranscription = onDeviceTranscriptionRef.current;
+        // Also check the ref in case the callback updated it more recently
+        if (!onDeviceTranscription && onDeviceTranscriptionRef.current) {
+          onDeviceTranscription = onDeviceTranscriptionRef.current;
+          console.log('🟡 [VOICE] Using transcription from ref:', onDeviceTranscription);
+        }
+        
+        // Start backend processing (runs in parallel)
+        let transcriptionDisplayTimeout: NodeJS.Timeout | null = null;
         
         // Stop recording and start backend processing
         console.log('🟡 [VOICE] Sending audio to backend for processing...');
@@ -529,15 +536,20 @@ export const useVoiceSession = (
         const response = await backendProcessingPromise;
         
         console.log('🟢 [VOICE] Backend processing complete:', response);
+        console.log('🟢 [VOICE] Backend transcription:', response.transcription);
+        console.log('🟢 [VOICE] On-device transcription:', onDeviceTranscription);
         
         // Clear the display timeout if it hasn't fired yet
         if (transcriptionDisplayTimeout) {
           clearTimeout(transcriptionDisplayTimeout);
         }
         
-        // STEP 5: Update user message with transcription
-        // Use on-device transcription if available, otherwise backend transcription
-        const finalTranscription = onDeviceTranscription.trim() || response.transcription;
+        // STEP 5: Update user message with the BEST transcription
+        // Prefer backend transcription when available, as it processes the full audio
+        // Only fall back to on-device if backend didn't return anything
+        const finalTranscription = response.transcription?.trim() || onDeviceTranscription.trim();
+        console.log('🟢 [VOICE] Final transcription selected:', finalTranscription);
+        
         if (onVoiceResponse && finalTranscription) {
           onVoiceResponse({
             responseText: finalTranscription,
