@@ -30,9 +30,13 @@ namespace GamerUncle.Pipeline.Tests
             Assert.True(pipelineContent.Contains("stage: FunctionalTestsProd"), 
                 "Pipeline should have FunctionalTestsProd stage");
             
-            // Verify mobile tests have continueOnError
-            Assert.True(pipelineContent.Contains("continueOnError: true"), 
-                "Pipeline should have continueOnError for appropriate stages");
+            // Verify mobile tests are configured to fail the build on test failures
+            Assert.True(pipelineContent.Contains("displayName: 'Run Mobile Tests'"), 
+                "Pipeline should have mobile tests step");
+            
+            // Ensure mobile tests don't have continueOnError (tests should fail the build)
+            Assert.False(pipelineContent.Contains("Run Mobile Tests'") && pipelineContent.Contains("continueOnError: true"), 
+                "Mobile tests should not have continueOnError - test failures should fail the build");
         }
 
         /// <summary>

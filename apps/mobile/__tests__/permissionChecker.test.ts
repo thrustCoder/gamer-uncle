@@ -211,9 +211,10 @@ describe('PermissionChecker', () => {
       });
 
       it('should return true when getUserMedia succeeds', async () => {
+        const mockStopFn = jest.fn();
         const mockStream = {
           getTracks: jest.fn(() => [
-            { stop: jest.fn() },
+            { stop: mockStopFn },
           ]),
         };
         (mediaDevices.getUserMedia as jest.Mock).mockResolvedValue(mockStream);
