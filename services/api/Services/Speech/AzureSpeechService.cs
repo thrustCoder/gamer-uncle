@@ -93,28 +93,77 @@ public class AzureSpeechService : IAzureSpeechService
             // Create speech recognizer
             using var recognizer = new SpeechRecognizer(_speechConfig, audioInput);
 
-            // Perform recognition
-            var result = await recognizer.RecognizeOnceAsync();
-
-            if (result.Reason == ResultReason.RecognizedSpeech)
+            // Use continuous recognition to capture ALL utterances in the audio (not just the first)
+            // RecognizeOnceAsync only captures a single utterance and stops at the first pause
+            var transcriptionBuilder = new System.Text.StringBuilder();
+            var recognitionCompleted = new TaskCompletionSource<bool>();
+            
+            recognizer.Recognized += (s, e) =>
             {
-                _logger.LogInformation("STT successful. Transcription: {Transcription}", result.Text);
-                return result.Text;
-            }
-            else if (result.Reason == ResultReason.NoMatch)
+                if (e.Result.Reason == ResultReason.RecognizedSpeech)
+                {
+                    _logger.LogDebug("Recognized segment: {Text}", e.Result.Text);
+                    if (!string.IsNullOrWhiteSpace(e.Result.Text))
+                    {
+                        if (transcriptionBuilder.Length > 0)
+                        {
+                            transcriptionBuilder.Append(' ');
+                        }
+                        transcriptionBuilder.Append(e.Result.Text);
+                    }
+                }
+                else if (e.Result.Reason == ResultReason.NoMatch)
+                {
+                    _logger.LogDebug("No match in segment");
+                }
+            };
+
+            recognizer.Canceled += (s, e) =>
+            {
+                _logger.LogDebug("Recognition canceled. Reason: {Reason}", e.Reason);
+                if (e.Reason == CancellationReason.EndOfStream)
+                {
+                    // Normal end of audio - this is expected
+                    recognitionCompleted.TrySetResult(true);
+                }
+                else if (e.Reason == CancellationReason.Error)
+                {
+                    _logger.LogError("Recognition error. ErrorCode: {ErrorCode}, ErrorDetails: {ErrorDetails}",
+                        e.ErrorCode, e.ErrorDetails);
+                    recognitionCompleted.TrySetException(
+                        new InvalidOperationException($"Speech recognition error: {e.ErrorDetails}"));
+                }
+                else
+                {
+                    recognitionCompleted.TrySetResult(true);
+                }
+            };
+
+            recognizer.SessionStopped += (s, e) =>
+            {
+                _logger.LogDebug("Recognition session stopped");
+                recognitionCompleted.TrySetResult(true);
+            };
+
+            // Start continuous recognition
+            await recognizer.StartContinuousRecognitionAsync();
+            
+            // Wait for recognition to complete (audio end or error)
+            await recognitionCompleted.Task;
+            
+            // Stop recognition
+            await recognizer.StopContinuousRecognitionAsync();
+
+            var fullTranscription = transcriptionBuilder.ToString().Trim();
+            
+            if (string.IsNullOrEmpty(fullTranscription))
             {
                 _logger.LogWarning("STT: No speech could be recognized");
                 throw new InvalidOperationException("No speech could be recognized in the audio");
             }
-            else if (result.Reason == ResultReason.Canceled)
-            {
-                var cancellation = CancellationDetails.FromResult(result);
-                _logger.LogError("STT canceled. Reason: {Reason}, ErrorCode: {ErrorCode}, ErrorDetails: {ErrorDetails}",
-                    cancellation.Reason, cancellation.ErrorCode, cancellation.ErrorDetails);
-                throw new InvalidOperationException($"Speech recognition was canceled: {cancellation.ErrorDetails}");
-            }
 
-            throw new InvalidOperationException($"Unexpected speech recognition result: {result.Reason}");
+            _logger.LogInformation("STT successful. Transcription: {Transcription}", fullTranscription);
+            return fullTranscription;
         }
         catch (Exception ex)
         {

@@ -230,6 +230,15 @@ export default function ChatScreen() {
     }
     
     // Handle voice response by adding it to chat messages
+    // Special case: empty responseText with transcription event means clear processing indicator
+    if (voiceResponse.responseText === '' && voiceResponse.eventType === 'transcription' && voiceResponse.isUserMessage) {
+      console.log('🧹 [CHAT] Clearing user processing indicator (empty transcription event)');
+      setMessages(prev => prev.filter(
+        msg => !(msg.type === 'user' && msg.isVoiceMessage && (msg.text === '🎤...' || msg.text?.startsWith('🎤.')))
+      ));
+      return;
+    }
+    
     if (voiceResponse.responseText) {
       const messageType = voiceResponse.isUserMessage ? 'user' : 'system';
       
@@ -287,20 +296,52 @@ export default function ChatScreen() {
           }];
         });
       } else if (!voiceResponse.isUserMessage) {
-        // For AI response or other system messages, replace thinking indicator and add system message
+        // For AI response or other system messages
+        // Check event type to determine how to handle
+        const isSimpleNotification = voiceResponse.eventType === 'transcription';
+        const isDirectMessage = voiceResponse.eventType === 'direct-message';
+        
         const newMessageId = Date.now().toString();
         setMessages(prev => {
-          // Remove thinking indicator if present
-          const filtered = prev.filter(msg => msg.type !== 'thinking');
-          return [...filtered, {
-            id: newMessageId,
-            type: 'system',
-            text: voiceResponse.responseText,
-            isVoiceMessage: true
-          }];
+          if (isSimpleNotification || isDirectMessage) {
+            // For simple notifications and direct messages (like "I didn't catch that")
+            // Just add the message - don't remove thinking indicators or process other cleanup
+            return [...prev, {
+              id: newMessageId,
+              type: 'system',
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            }];
+          } else {
+            // For AI responses, remove thinking indicator and add system message
+            const filtered = prev.filter(msg => msg.type !== 'thinking');
+            // Also remove any orphaned user processing indicators (🎤...) for error responses
+            const cleanedFiltered = filtered.filter(
+              msg => !(msg.type === 'user' && msg.isVoiceMessage && (msg.text === '🎤...' || msg.text?.startsWith('🎤.')))
+            );
+            return [...cleanedFiltered, {
+              id: newMessageId,
+              type: 'system',
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            }];
+          }
         });
-        // Track this message for TTS playback controls
-        setActiveTTSMessageId(newMessageId);
+        
+        // Track this message for TTS playback controls (only for AI responses, not simple notifications/direct messages)
+        if (!isSimpleNotification && !isDirectMessage) {
+          setActiveTTSMessageId(newMessageId);
+        }
+        if (!isSimpleNotification) {
+          setActiveTTSMessageId(newMessageId);
+        }
+        
+        // Return to default mode when we receive a response (handles error responses)
+        // Only reset if currently in processing mode
+        if (voiceUXModeRef.current === 'processing') {
+          console.log('🔄 [CHAT] Received system response - returning to default mode');
+          setVoiceUXMode('default');
+        }
       } else {
         // For processing indicator, just add
         const newMessage: ChatMessage = {
@@ -416,6 +457,22 @@ export default function ChatScreen() {
     }
   }, [isVoiceActive, isVoiceConnecting, voiceUXMode]);
 
+  // Monitor isRecording - if it becomes false while in active-recording mode, reset to default
+  // This handles cases where recording fails to start (e.g., permission denied)
+  useEffect(() => {
+    if (voiceUXMode === 'active-recording' && !isRecording) {
+      // Small delay to avoid race conditions during normal recording start/stop
+      const timeout = setTimeout(() => {
+        // Double-check state hasn't changed
+        if (voiceUXModeRef.current === 'active-recording' && !isRecording) {
+          console.log('🔄 [CHAT] Recording stopped unexpectedly (possibly permission denied) - returning to default mode');
+          setVoiceUXMode('default');
+        }
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isRecording, voiceUXMode]);
+
   // Processing timeout - return to default if no AI response within 15 seconds
   useEffect(() => {
     if (voiceUXMode === 'processing') {
@@ -450,9 +507,19 @@ export default function ChatScreen() {
     };
   }, [stopAudioPlayback]);
 
-  // Show voice errors to user
+  // Show voice errors to user and reset UX state
   useEffect(() => {
     if (voiceError) {
+      // Reset to default mode when voice error occurs
+      console.log('⚠️ [CHAT] Voice error occurred - resetting to default mode');
+      setVoiceUXMode('default');
+      
+      // Clean up any orphaned processing indicators
+      setMessages(prev => prev.filter(
+        msg => !(msg.type === 'user' && msg.isVoiceMessage && (msg.text === '🎤...' || msg.text?.startsWith('🎤.')))
+          && msg.type !== 'thinking'
+      ));
+      
       Alert.alert(
         'Voice Error',
         voiceError,
@@ -464,26 +531,33 @@ export default function ChatScreen() {
         ]
       );
     }
-  }, [voiceError, clearVoiceError]);
+  }, [voiceError, clearVoiceError, setMessages]);
 
   // Voice session handlers
   const handleStartVoice = async () => {
     try {
+      console.log('🎤 [CHAT] handleStartVoice - checking permissions...');
+      
       // Check permissions first
       const permStatus = await PermissionChecker.checkPermissions();
       setPermissionStatus(permStatus);
       
       // Request permissions if not granted
       if (permStatus.microphone !== 'granted') {
+        console.log('🎤 [CHAT] Microphone permission not granted, requesting...');
         const requested = await PermissionChecker.requestMicrophonePermission();
         if (!requested) {
-          Alert.alert("Permission Required", "Microphone permission is required for voice chat.");
+          // User denied permission - silently return to let them use text chat
+          // Don't show an alert - just reset to default mode
+          console.log('🎤 [CHAT] Permission denied - returning to default mode');
+          setVoiceUXMode('default');
           return;
         }
         
         // Update permission status after request
         const newStatus = await PermissionChecker.checkPermissions();
         setPermissionStatus(newStatus);
+        console.log('🎤 [CHAT] Permission granted, new status:', newStatus);
       }
       
       // Voice recording works directly without needing to start a session
@@ -491,11 +565,10 @@ export default function ChatScreen() {
       setShowVoiceInstructions(false);
     } catch (error) {
       console.error('Failed to prepare voice:', error);
-      Alert.alert(
-        'Voice Setup Failed',
-        'Failed to prepare voice functionality. Please check your microphone permissions and try again.',
-        [{ text: 'OK' }]
-      );
+      // Don't show alert for permission-related errors during first setup
+      // Just reset to default mode
+      console.log('🎤 [CHAT] Error during voice setup - returning to default mode');
+      setVoiceUXMode('default');
     }
   };
 
@@ -531,13 +604,21 @@ export default function ChatScreen() {
         console.log('🎤 [CHAT] Default mode - entering recording mode');
         setVoiceUXMode('recording-mode');
         await handleStartVoice();
+        // If handleStartVoice fails (permission denied), voiceUXMode is reset to default inside it
         break;
         
       case 'recording-mode':
         // Second tap: Start recording
         console.log('🎤 [CHAT] Recording mode - starting active recording');
-        setVoiceUXMode('active-recording');
-        await setRecording(true);
+        try {
+          setVoiceUXMode('active-recording');
+          await setRecording(true);
+          // Check if recording actually started - if not, reset to default
+          // Note: setRecording doesn't throw on permission error anymore, but it sets isRecording to false
+        } catch (error) {
+          console.log('🎤 [CHAT] Failed to start recording - returning to default mode');
+          setVoiceUXMode('default');
+        }
         break;
         
       case 'active-recording':
@@ -722,9 +803,15 @@ export default function ChatScreen() {
     
     setIsLoading(true);
 
-    // STEP 2: Wait 3 seconds, then show actual user message + system typing indicator (matches voice UX)
+    // STEP 2: Start backend call immediately (in background)
     const typingId = `typing-${Date.now()}`;
-    
+    const responsePromise = getRecommendations({
+      Query: userMessage,
+      UserId: userId,
+      ConversationId: conversationId
+    });
+
+    // STEP 3: Wait 3 seconds before showing user message (masks backend latency)
     await new Promise<void>(resolve => setTimeout(() => {
       // Replace user thinking indicator with actual user message
       const userMessageObj: ChatMessage = { 
@@ -746,12 +833,8 @@ export default function ChatScreen() {
     }, 3000));
 
     try {
-      // FIX: Use PascalCase keys to match backend
-      const response = await getRecommendations({
-        Query: userMessage,
-        UserId: userId,
-        ConversationId: conversationId
-      });
+      // Wait for backend response that was started earlier
+      const response = await responsePromise;
 
       setMessages(prev => prev.filter(msg => msg.id !== typingId));
 
@@ -1001,16 +1084,24 @@ export default function ChatScreen() {
               style={voiceStyles.voiceModeOverlayTouchable}
               activeOpacity={1}
               onPress={async () => {
-                // Tap anywhere to dismiss voice mode and return to default
-                console.log('👆 [CHAT] Overlay tapped - dismissing voice mode');
+                console.log('👆 [CHAT] Overlay tapped - Current mode:', voiceUXMode);
                 
-                // Stop recording if active
+                // If actively recording, stop and submit (same as tapping mic button)
                 if (voiceUXMode === 'active-recording') {
+                  console.log('👆 [CHAT] Overlay tapped during recording - stopping and submitting');
+                  setVoiceUXMode('processing');
                   await setRecording(false);
+                  return; // Let the normal processing flow handle the rest
                 }
                 
-                // Stop voice session and return to default
-                await handleStopVoice();
+                // For other modes (recording-mode or processing), dismiss and return to default
+                console.log('👆 [CHAT] Overlay tapped - dismissing voice mode');
+                
+                // Stop voice session if needed
+                if (voiceUXMode === 'recording-mode') {
+                  await handleStopVoice();
+                }
+                
                 setVoiceUXMode('default');
               }}
             >

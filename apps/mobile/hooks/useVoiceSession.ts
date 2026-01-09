@@ -47,7 +47,7 @@ export interface VoiceResponseExtended {
   responseText: string;
   threadId?: string;
   isUserMessage?: boolean;
-  eventType?: 'transcription' | 'thinking' | 'response' | 'tts-start' | 'tts-end';
+  eventType?: 'transcription' | 'thinking' | 'response' | 'tts-start' | 'tts-end' | 'direct-message';
 }
 
 export const useVoiceSession = (
@@ -458,10 +458,20 @@ export const useVoiceSession = (
         console.log('🟢 [VOICE] Recording started successfully');
       } catch (error: any) {
         console.error('🔴 [VOICE] Failed to start recording:', error);
-        updateState({ 
-          isRecording: false, 
-          error: error.message || 'Failed to start recording. Please check your microphone permissions.' 
-        });
+        
+        // Check if this is a permission error - handle gracefully without showing error alert
+        if (error.isPermissionError) {
+          console.log('🔴 [VOICE] Permission denied - not showing error popup');
+          updateState({ 
+            isRecording: false, 
+            error: null  // Don't set error to avoid showing alert
+          });
+        } else {
+          updateState({ 
+            isRecording: false, 
+            error: error.message || 'Failed to start recording. Please check your microphone permissions.' 
+          });
+        }
       }
     } else {
       // Clear max duration timeout
@@ -475,7 +485,7 @@ export const useVoiceSession = (
         console.log('🟡 [VOICE] Stopping recording and processing audio...');
         console.log('🟡 [VOICE] Using conversationId for context:', conversationId || '(new conversation)');
         
-        // STEP 1: Immediately show user "thinking" dots (will show for 3 seconds)
+        // STEP 1: Immediately show user "thinking" dots (will be replaced after 3.8 seconds)
         if (onVoiceResponse) {
           onVoiceResponse({
             responseText: '🎤...',
@@ -484,13 +494,20 @@ export const useVoiceSession = (
           });
         }
         
-        // STEP 2: Stop on-device STT and wait for final transcription
-        // The stopListening() method now waits for final results before returning
+        // STEP 2: Wait a bit for on-device STT to catch up with the last ~1 second of speech
+        // IMPORTANT: Wait BEFORE stopping recording to ensure full audio is captured
+        console.log('🟡 [VOICE] Waiting 800ms for on-device STT to finalize...');
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // STEP 3: Now stop recording and send COMPLETE audio to backend
+        console.log('🟡 [VOICE] Stopping recording and sending full audio to backend...');
+        const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined);
+        
         let onDeviceTranscription = '';
         try {
-          // stopListening now returns the final transcription directly
+          // Stop listening and get whatever transcription we have (should be more complete now)
           onDeviceTranscription = await speechRecognitionService.stopListening();
-          console.log('🟢 [VOICE] On-device STT stopped with final transcription:', onDeviceTranscription || '(none)');
+          console.log('🟢 [VOICE] On-device STT stopped with transcription:', onDeviceTranscription || '(none)');
         } catch (sttError) {
           console.log('🟡 [VOICE] Error stopping on-device STT (non-fatal):', sttError);
           // Fall back to whatever was captured in the ref
@@ -503,54 +520,45 @@ export const useVoiceSession = (
           console.log('🟡 [VOICE] Using transcription from ref:', onDeviceTranscription);
         }
         
-        // Start backend processing (runs in parallel)
-        let transcriptionDisplayTimeout: NodeJS.Timeout | null = null;
+        // STEP 4: Wait 3 seconds before showing the transcription
+        // This gives a smooth UX with a consistent delay before displaying user's text
+        console.log('🟡 [VOICE] Waiting 3 seconds before displaying transcription...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Stop recording and start backend processing
-        console.log('🟡 [VOICE] Sending audio to backend for processing...');
-        const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined);
+        // STEP 5: Show the on-device transcription in user bubble (after 3.8 seconds total)
+        if (onVoiceResponse && onDeviceTranscription.trim()) {
+          console.log('🟢 [VOICE] Displaying on-device transcription in user bubble:', onDeviceTranscription);
+          onVoiceResponse({
+            responseText: onDeviceTranscription.trim(),
+            isUserMessage: true,
+            eventType: 'transcription',
+          });
+        }
         
-        // STEP 3: Wait 3 seconds, then show on-device transcription + system thinking dots
-        transcriptionDisplayTimeout = setTimeout(() => {
-          console.log('🟡 [VOICE] 3 second delay complete, displaying on-device transcription');
-          
-          if (onVoiceResponse) {
-            // Update user bubble with on-device transcription (or keep dots if none)
-            if (onDeviceTranscription.trim()) {
-              onVoiceResponse({
-                responseText: onDeviceTranscription,
-                isUserMessage: true,
-                eventType: 'transcription',
-              });
-            }
-            
-            // Show system "thinking" indicator
-            onVoiceResponse({
-              responseText: '🤔...',
-              eventType: 'thinking',
-            });
-          }
-        }, 3000);
+        // STEP 6: Show system thinking indicator immediately after user transcription
+        if (onVoiceResponse) {
+          console.log('🟡 [VOICE] Showing thinking indicator for AI processing');
+          onVoiceResponse({
+            responseText: '🤔...',
+            eventType: 'thinking',
+          });
+        }
         
-        // STEP 4: Wait for backend response
+        // STEP 7: Wait for backend response
         const response = await backendProcessingPromise;
         
         console.log('🟢 [VOICE] Backend processing complete:', response);
         console.log('🟢 [VOICE] Backend transcription:', response.transcription);
         console.log('🟢 [VOICE] On-device transcription:', onDeviceTranscription);
         
-        // Clear the display timeout if it hasn't fired yet
-        if (transcriptionDisplayTimeout) {
-          clearTimeout(transcriptionDisplayTimeout);
-        }
+        // STEP 8: Update user message with backend transcription if it's better/more complete
+        // Backend processes the full audio file, so it should capture everything including the last second
+        const finalTranscription = response.transcription?.trim();
+        console.log('🟢 [VOICE] Backend transcription received:', finalTranscription || '(none)');
         
-        // STEP 5: Update user message with the BEST transcription
-        // Prefer backend transcription when available, as it processes the full audio
-        // Only fall back to on-device if backend didn't return anything
-        const finalTranscription = response.transcription?.trim() || onDeviceTranscription.trim();
-        console.log('🟢 [VOICE] Final transcription selected:', finalTranscription);
-        
+        // Always update with backend transcription if available (it's more accurate and complete)
         if (onVoiceResponse && finalTranscription) {
+          console.log('🟢 [VOICE] Updating user bubble with complete backend transcription');
           onVoiceResponse({
             responseText: finalTranscription,
             isUserMessage: true,
@@ -558,7 +566,7 @@ export const useVoiceSession = (
           });
         }
         
-        // STEP 6: Replace thinking indicator with AI response
+        // STEP 9: Replace thinking indicator with AI response
         if (onVoiceResponse && response.responseText) {
           onVoiceResponse({
             responseText: response.responseText,
@@ -567,7 +575,7 @@ export const useVoiceSession = (
           });
         }
         
-        // STEP 7: Play TTS audio response (callbacks will handle UX mode changes)
+        // STEP 10: Play TTS audio response (callbacks will handle UX mode changes)
         if (response.audioData) {
           console.log('🔊 [VOICE] Playing TTS audio response...');
           await voiceService.playAudioResponse(response.audioData);
@@ -591,17 +599,38 @@ export const useVoiceSession = (
         if (isNoSpeechError) {
           console.log('🔇 [VOICE] No speech detected - showing friendly message');
           
-          // Replace the processing indicator with a friendly message
+          // Show empty user bubble (indicates voice attempted but not discernible)
+          // Then show system message directly without thinking indicator
           if (onVoiceResponse) {
+            // First, replace the processing indicator with empty user message
+            onVoiceResponse({
+              responseText: '(no speech detected)',
+              isUserMessage: true,
+              eventType: 'transcription',
+            });
+            
+            // Then add the friendly system message directly (no thinking indicator)
+            // Use a special event type that signals this is a direct message (no cleanup needed)
             onVoiceResponse({
               responseText: "I didn't catch that. Please tap the mic and try speaking again.",
-              isUserMessage: false, // Show as system message
+              isUserMessage: false,
+              eventType: 'direct-message', // New event type for direct system messages
             });
           }
           
           updateState({ isRecording: false });
         } else {
           // For other errors, show the error state
+          // First, signal to clear any pending indicators
+          if (onVoiceResponse) {
+            // Send event to clear user processing indicator
+            onVoiceResponse({
+              responseText: '',
+              isUserMessage: true,
+              eventType: 'transcription',
+            });
+          }
+          
           updateState({ 
             isRecording: false, 
             error: error.response?.data?.message || error.message || 'Failed to process voice message. Please try again.' 
