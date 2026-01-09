@@ -72,7 +72,7 @@ export default function LandingScreen() {
         </ScrollView>
 
         <Text style={styles.versionText}>
-          App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '2.2.8'}
+          App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '2.2.9'}
         </Text>
         <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
       </View>
