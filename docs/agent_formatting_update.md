@@ -191,15 +191,15 @@ No code changes needed - the TTS sanitizer gracefully handles plain text.
 ## Checklist
 
 ### Phase 1: Development
-- [ ] Update `gamer-uncle-dev-agent` instructions in Azure AI Foundry
-- [ ] Test chat responses show emojis and formatting
-- [ ] Test voice responses speak clean text (no emoji sounds)
-- [ ] Run verification script
-- [ ] Get approval to proceed to Phase 2
+- [x] Update `gamer-uncle-dev-agent` instructions in Azure AI Foundry
+- [x] Test chat responses show emojis and formatting
+- [x] Test voice responses speak clean text (no emoji sounds)
+- [x] Run verification script
+- [x] Get approval to proceed to Phase 2
 
 ### Phase 2: Production
-- [ ] Update `gamer-uncle-prod-agent` instructions in Azure AI Foundry
-- [ ] Test production chat responses
-- [ ] Test production voice responses
-- [ ] Run production verification script
+- [x] Update `gamer-uncle-prod-agent` instructions in Azure AI Foundry
+- [x] Test production chat responses
+- [x] Test production voice responses
+- [x] Run production verification script
 - [ ] Monitor for user feedback
