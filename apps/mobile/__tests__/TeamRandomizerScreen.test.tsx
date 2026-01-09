@@ -1,6 +1,47 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { Animated } from 'react-native';
 import TeamRandomizerScreen from '../screens/TeamRandomizerScreen';
+
+// Override Animated methods that may not be mocked by jest-expo
+const originalAnimatedSequence = Animated.sequence;
+const originalAnimatedParallel = Animated.parallel;
+const originalAnimatedSpring = Animated.spring;
+const originalAnimatedTiming = Animated.timing;
+const originalAnimatedLoop = Animated.loop;
+
+const mockAnimation = () => ({
+  start: jest.fn((callback) => callback && callback({ finished: true })),
+  stop: jest.fn(),
+  reset: jest.fn(),
+});
+
+beforeAll(() => {
+  // @ts-ignore
+  Animated.sequence = jest.fn(() => mockAnimation());
+  // @ts-ignore
+  Animated.parallel = jest.fn(() => mockAnimation());
+  // @ts-ignore  
+  Animated.spring = jest.fn(() => mockAnimation());
+  // @ts-ignore
+  Animated.timing = jest.fn(() => mockAnimation());
+  // @ts-ignore
+  Animated.loop = jest.fn(() => mockAnimation());
+});
+
+afterAll(() => {
+  // Restore original functions
+  // @ts-ignore
+  Animated.sequence = originalAnimatedSequence;
+  // @ts-ignore
+  Animated.parallel = originalAnimatedParallel;
+  // @ts-ignore
+  Animated.spring = originalAnimatedSpring;
+  // @ts-ignore
+  Animated.timing = originalAnimatedTiming;
+  // @ts-ignore
+  Animated.loop = originalAnimatedLoop;
+});
 
 // Mock dependencies
 jest.mock('expo-av', () => ({
@@ -33,9 +74,17 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
   },
 }));
 
+// Use fake timers to control setTimeout calls
+jest.useFakeTimers();
+
 describe('TeamRandomizerScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // Run any pending timers and clear them to avoid interference with other tests
+    jest.runOnlyPendingTimers();
   });
 
   it('should allow clearing player names without auto-populating', async () => {

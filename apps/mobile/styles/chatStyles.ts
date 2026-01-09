@@ -39,7 +39,8 @@ export const chatStyles = StyleSheet.create({
   systemBubble: {
     backgroundColor: Colors.themeBrownDark,
     borderRadius: 24,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     marginVertical: 4,
     alignSelf: 'flex-start',
     maxWidth: '80%',
@@ -52,7 +53,8 @@ export const chatStyles = StyleSheet.create({
   userBubble: {
     backgroundColor: Colors.themeGreen,
     borderRadius: 24,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     marginVertical: 4,
     alignSelf: 'flex-end',
     maxWidth: '80%',

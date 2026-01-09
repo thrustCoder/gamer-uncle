@@ -62,7 +62,10 @@ export class VoiceAudioService {
     console.log('🎤 [AUDIO] Requesting audio permissions...');
     const { granted } = await Audio.requestPermissionsAsync();
     if (!granted) {
-      throw new Error('Audio permission not granted');
+      // Throw a specific error that can be handled gracefully
+      const error = new Error('Audio permission not granted');
+      (error as any).isPermissionError = true;
+      throw error;
     }
 
     console.log('🎤 [AUDIO] Setting audio mode for recording...');

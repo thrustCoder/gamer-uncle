@@ -3,6 +3,10 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/__tests__', '<rootDir>/screens', '<rootDir>/components'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/*.test.{ts,tsx}'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/__tests__/ci-e2e-test-discovery-fix.test.ts',  // Uses Playwright imports, not Jest
+  ],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
@@ -12,7 +16,7 @@ module.exports = {
     '^.+\\.(js|jsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|expo|@expo|expo-modules-core|react-native-vector-icons|react-native-svg|react-native-reanimated|react-native-gesture-handler|react-native-webrtc)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|expo|@expo|expo-modules-core|react-native-vector-icons|react-native-svg|react-native-reanimated|react-native-gesture-handler|react-native-webrtc|react-native-markdown-display)/)',
   ],
   collectCoverageFrom: [
     'screens/**/*.{ts,tsx}',

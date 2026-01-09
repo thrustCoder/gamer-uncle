@@ -698,14 +698,9 @@ stages:
         export CI=true
         export NODE_ENV=test
         
-        # Run tests with proper error handling
-        if npm test -- --watchAll=false --coverage=false --passWithNoTests; then
-          echo "✅ Mobile tests passed"
-        else
-          echo "⚠️ Mobile tests completed with issues (this may be expected for new projects)"
-        fi
+        # Run tests - fail the build if tests fail
+        npm test -- --watchAll=false --coverage=false
       displayName: 'Run Mobile Tests'
-      continueOnError: true
 
 - stage: FunctionalTestsPR
   displayName: 'PR Functional Tests'

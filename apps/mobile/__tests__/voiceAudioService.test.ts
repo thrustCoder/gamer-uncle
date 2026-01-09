@@ -233,7 +233,6 @@ describe('VoiceAudioService', () => {
           // Immediately call back with finished status
           Promise.resolve().then(() => callback({ isLoaded: true, isPlaying: false, didJustFinish: true }));
         }),
-        playAsync: jest.fn().mockResolvedValue({}),
         unloadAsync: jest.fn().mockResolvedValue({}),
       };
       const Audio = require('expo-av').Audio;
@@ -241,10 +240,14 @@ describe('VoiceAudioService', () => {
 
       await service.playAudioResponse(base64Audio);
 
+      // The implementation uses shouldPlay: true, so audio starts automatically when created
       expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ uri: expect.stringContaining('data:audio/') })
+        expect.objectContaining({ uri: expect.stringContaining('data:audio/') }),
+        expect.objectContaining({ shouldPlay: true, volume: 1 }),
+        expect.any(Function)
       );
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      // Sound finishes and unloads
+      expect(mockSound.unloadAsync).toHaveBeenCalled();
     });
 
     it('should handle playback errors gracefully', async () => {

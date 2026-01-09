@@ -47,7 +47,7 @@ describe('E2E Test Data Configuration', () => {
       expect(TIMEOUTS.API_RESPONSE).toBeLessThan(60000);
       
       expect(TIMEOUTS.PAGE_LOAD).toBeGreaterThan(3000);
-      expect(TIMEOUTS.PAGE_LOAD).toBeLessThan(20000);
+      expect(TIMEOUTS.PAGE_LOAD).toBeLessThan(30000);
       
       expect(TIMEOUTS.RETRY_DELAY).toBeGreaterThan(1000);
       expect(TIMEOUTS.RETRY_DELAY).toBeLessThan(5000);

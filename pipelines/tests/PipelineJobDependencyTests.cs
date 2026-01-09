@@ -111,15 +111,31 @@ namespace GamerUncle.Pipeline.Tests
             var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
             // Act & Assert
-            // Mobile unit tests should continue on error
-            var mobileTestPattern = @"Running mobile unit tests[\s\S]*?continueOnError:\s*true";
-            Assert.IsTrue(Regex.IsMatch(pipelineContent, mobileTestPattern),
-                "Mobile unit tests should have continueOnError: true");
+            // Mobile unit tests should NOT have continueOnError - test failures should fail the build
+            var mobileTestSection = GetSectionAfter(pipelineContent, "Running mobile unit tests");
+            Assert.IsFalse(mobileTestSection.Contains("continueOnError: true"),
+                "Mobile unit tests should NOT have continueOnError: true - test failures should fail the build");
+            
+            // Verify mobile tests step exists
+            Assert.IsTrue(pipelineContent.Contains("displayName: 'Run Mobile Tests'"),
+                "Pipeline should have mobile tests step");
                 
             // Note: E2E tests have been removed due to reliability issues
             // Verify the removal is documented
             Assert.IsTrue(pipelineContent.Contains("E2E Tests removed due to reliability issues"),
                 "Pipeline should document that E2E tests were removed");
+        }
+        
+        /// <summary>
+        /// Gets the content after a marker string, up to the next stage or 200 characters
+        /// </summary>
+        private string GetSectionAfter(string content, string marker)
+        {
+            var index = content.IndexOf(marker);
+            if (index == -1) return string.Empty;
+            
+            var endIndex = Math.Min(index + 500, content.Length);
+            return content.Substring(index, endIndex - index);
         }
     }
 }
