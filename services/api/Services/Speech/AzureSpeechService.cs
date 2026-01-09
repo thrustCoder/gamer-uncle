@@ -184,6 +184,12 @@ public class AzureSpeechService : IAzureSpeechService
 
         try
         {
+            // Sanitize text for TTS - remove emojis and markdown formatting
+            // These are great for visual display but shouldn't be spoken
+            var sanitizedText = TtsTextSanitizer.SanitizeForTts(text);
+            _logger.LogDebug("Sanitized text for TTS. Original length: {Original}, Sanitized length: {Sanitized}", 
+                text.Length, sanitizedText.Length);
+
             // Configure voice
             _speechConfig.SpeechSynthesisVoiceName = selectedVoice;
 
@@ -191,7 +197,7 @@ public class AzureSpeechService : IAzureSpeechService
             using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
 
             // Create SSML for natural speech with controlled rate and pauses
-            var ssml = CreateNaturalSpeechSSML(text, selectedVoice);
+            var ssml = CreateNaturalSpeechSSML(sanitizedText, selectedVoice);
             _logger.LogDebug("Generated SSML: {SSML}", ssml);
 
             // Synthesize speech using SSML for better control

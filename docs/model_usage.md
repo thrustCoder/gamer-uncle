@@ -118,3 +118,4 @@ This document provides an inventory of all Azure AI models and agents used acros
 3. **Cost Considerations**: `gpt-4.1-mini` is cheaper and faster than `gpt-4.1` for simple tasks like JSON extraction.
 
 4. **Manual Cleanup**: Old agent `asst_opExT22aV38EAlL689mEZ6Vc` in dev can be deleted via the Azure AI Foundry portal under the project's Agents section.
+5. **Emoji & Formatting Support**: Response agents include instructions for emojis (🎲🌟👥) and markdown formatting. The TTS service (`TtsTextSanitizer.cs`) automatically strips these for voice output. See [agent_formatting_update.md](agent_formatting_update.md) for update instructions.

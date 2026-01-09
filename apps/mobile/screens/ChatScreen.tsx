@@ -18,6 +18,7 @@ import { chatStyles as styles } from '../styles/chatStyles';
 import { chatVoiceStyles as voiceStyles } from '../styles/chatVoiceStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import MarkdownText from '../components/MarkdownText';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
@@ -169,6 +170,11 @@ export default function ChatScreen() {
   useEffect(() => {
     setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing' && msg.type !== 'user-thinking'));
   }, []); // Only run once on mount
+
+  // Check if we're in a thinking/processing state (disable input during this time)
+  const isProcessing = useMemo(() => {
+    return messages.some(msg => msg.type === 'thinking' || msg.type === 'typing' || msg.type === 'user-thinking');
+  }, [messages]);
   
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
@@ -303,10 +309,20 @@ export default function ChatScreen() {
         
         const newMessageId = Date.now().toString();
         setMessages(prev => {
-          if (isSimpleNotification || isDirectMessage) {
-            // For simple notifications and direct messages (like "I didn't catch that")
-            // Just add the message - don't remove thinking indicators or process other cleanup
+          if (isSimpleNotification) {
+            // For simple notifications (like transcription updates)
+            // Just add the message - don't remove thinking indicators
             return [...prev, {
+              id: newMessageId,
+              type: 'system',
+              text: voiceResponse.responseText,
+              isVoiceMessage: true
+            }];
+          } else if (isDirectMessage) {
+            // For direct messages (like "I didn't catch that" - error responses)
+            // Remove thinking indicators since this is an error/final response
+            const filtered = prev.filter(msg => msg.type !== 'thinking');
+            return [...filtered, {
               id: newMessageId,
               type: 'system',
               text: voiceResponse.responseText,
@@ -902,7 +918,22 @@ export default function ChatScreen() {
       return null;
     };
     
-    return (
+    // Determine if this message should render markdown (system AI responses)
+    const shouldRenderMarkdown = item.type === 'system' && item.text && item.text.length > 0;
+    
+    // Get the icon to display (mic for voice, or TTS controls)
+    const getIcon = () => {
+      if (!item.isVoiceMessage) return null;
+      if (item.type === 'system' && isActiveTTSMessage) {
+        return getTTSControlIcon();
+      }
+      return '🎤';
+    };
+    
+    const icon = getIcon();
+    
+    // Wrap system bubble in TouchableOpacity if it's the active TTS message
+    const bubbleContent = (
       <View 
         style={item.type === 'user' ? styles.userBubble : styles.systemBubble}
         testID={item.type === 'user' ? 'user-message' : 'system-message'}
@@ -910,22 +941,31 @@ export default function ChatScreen() {
           'data-testid': item.type === 'user' ? 'user-message' : 'system-message' 
         })}
       >
-        <Text style={styles.bubbleText}>
-          {/* For system voice messages with active TTS, show pause/play control instead of mic */}
-          {item.type === 'system' && item.isVoiceMessage && isActiveTTSMessage ? (
-            <Text 
-              style={[styles.voiceIcon, voiceStyles.inlineTTSControl]}
-              onPress={handleTTSControlPress}
-            >
-              {getTTSControlIcon()}{' '}
-            </Text>
-          ) : (
-            item.isVoiceMessage && <Text style={styles.voiceIcon}>🎤 </Text>
-          )}
-          {item.text}
-        </Text>
+        {/* Render markdown for system messages with icon inline */}
+        {shouldRenderMarkdown ? (
+          <MarkdownText 
+            text={icon ? `${icon} ${item.text || ''}` : (item.text || '')} 
+            isUserMessage={false}
+          />
+        ) : (
+          <Text style={styles.bubbleText}>
+            {icon && <Text style={styles.voiceIcon}>{icon} </Text>}
+            {item.text}
+          </Text>
+        )}
       </View>
     );
+
+    // Make the bubble tappable for TTS control when it's the active TTS message
+    if (item.type === 'system' && isActiveTTSMessage) {
+      return (
+        <TouchableOpacity onPress={handleTTSControlPress} activeOpacity={0.7}>
+          {bubbleContent}
+        </TouchableOpacity>
+      );
+    }
+
+    return bubbleContent;
   };
 
   return (
@@ -1038,7 +1078,7 @@ export default function ChatScreen() {
                 placeholder="Message"
                 placeholderTextColor={Colors.grayPlaceholder}
                 style={styles.input}
-                editable={!isLoading}
+                editable={!isLoading && !isProcessing}
                 maxLength={500}
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
@@ -1057,6 +1097,7 @@ export default function ChatScreen() {
                     style={getMicButtonStyle()}
                     activeOpacity={0.8}
                     onPress={handleMicButtonPress}
+                    disabled={isProcessing}
                     testID="mic-button"
                     {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
                   >
@@ -1067,8 +1108,8 @@ export default function ChatScreen() {
 
               <TouchableOpacity 
                 onPress={handleSend} 
-                style={[styles.sendButton, isLoading && { opacity: 0.6 }]}
-                disabled={isLoading}
+                style={styles.sendButton}
+                disabled={isLoading || isProcessing}
                 testID="send-button"
                 {...(Platform.OS === 'web' && { 'data-testid': 'send-button' })}
               >
