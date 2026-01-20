@@ -16,12 +16,14 @@ public interface IAudioProcessingService
     /// <param name="audioBase64">Base64-encoded audio data from user</param>
     /// <param name="format">Audio format (Wav or Pcm16)</param>
     /// <param name="conversationId">Optional conversation ID to link with existing text conversation</param>
+    /// <param name="gameContext">Optional game context to prepend to the query (from GameSetup screen)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Complete audio processing result with transcription, AI response text, and TTS audio</returns>
     Task<AudioProcessingResult> ProcessAudioAsync(
         string audioBase64,
         AudioFormat format,
         string? conversationId = null,
+        string? gameContext = null,
         CancellationToken cancellationToken = default);
 }
 

@@ -53,40 +53,48 @@ export const landingStyles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10, // Increased bottom padding
   },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
+    paddingTop: 10,
+    gap: 10,
+  },
   iconButtonTurn: {
-    width: 166,
-    height: 166,
+    width: 110,
+    height: 110,
     aspectRatio: 1,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginLeft: 15
   },
   iconButtonTeam: {
-    width: 160,
-    height: 160,
+    width: 110,
+    height: 110,
     aspectRatio: 1,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginTop: 5,
-    marginRight: 13
-  },
-  iconButtonDice: {
-    width: 128,
-    height: 128,
-    aspectRatio: 1,
-    borderRadius: 15,
-    overflow: 'hidden',
-    marginLeft: 23,
-    marginTop: 22
   },
   iconButtonTimer: {
-    width: 160,
-    height: 160,
+    width: 110,
+    height: 110,
     aspectRatio: 1,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginTop: 5,
-    marginRight: 2
+  },
+  iconButtonDice: {
+    width: 110,
+    height: 110,
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  iconButtonSetup: {
+    width: 110,
+    height: 110,
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   iconFull: {
     width: '100%',

@@ -32,7 +32,8 @@ export default function LandingScreen() {
             />
           </TouchableOpacity>
 
-          <View style={styles.grid}>
+          {/* Row 1: Turn, Team, Timer (3 icons) */}
+          <View style={styles.gridRow}>
             <TouchableOpacity 
               style={styles.iconButtonTurn} 
               onPress={() => navigation.navigate('Turn')}
@@ -52,6 +53,18 @@ export default function LandingScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity 
+              style={styles.iconButtonTimer} 
+              onPress={() => navigation.navigate('Timer')}
+              testID="timer-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'timer-button' })}
+            >
+              <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Row 2: Dice, Game Setup (2 icons) */}
+          <View style={styles.gridRow}>
+            <TouchableOpacity 
               style={styles.iconButtonDice} 
               onPress={() => navigation.navigate('Dice')}
               testID="dice-button"
@@ -61,12 +74,12 @@ export default function LandingScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.iconButtonTimer} 
-              onPress={() => navigation.navigate('Timer')}
-              testID="timer-button"
-              {...(Platform.OS === 'web' && { 'data-testid': 'timer-button' })}
+              style={styles.iconButtonSetup} 
+              onPress={() => navigation.navigate('GameSetup')}
+              testID="setup-button"
+              {...(Platform.OS === 'web' && { 'data-testid': 'setup-button' })}
             >
-              <Image source={require('../assets/images/timer_icon.png')} style={styles.iconFull} />
+              <Image source={require('../assets/images/dice_icon.png')} style={styles.iconFull} />
             </TouchableOpacity>
           </View>
         </ScrollView>

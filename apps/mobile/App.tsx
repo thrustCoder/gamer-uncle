@@ -10,6 +10,7 @@ import DiceRollerScreen from './screens/DiceRollerScreen';
 import TimerScreen from './screens/TimerScreen';
 import TurnSelectorScreen from './screens/TurnSelectorScreen';
 import TeamRandomizerScreen from './screens/TeamRandomizerScreen';
+import GameSetupScreen from './screens/GameSetupScreen';
 
 const Stack = createStackNavigator();
 
@@ -26,6 +27,7 @@ export default function App() {
               <Stack.Screen name="Timer" component={TimerScreen} />
               <Stack.Screen name="Turn" component={TurnSelectorScreen} />
               <Stack.Screen name="Team" component={TeamRandomizerScreen} />
+              <Stack.Screen name="GameSetup" component={GameSetupScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </TimerProvider>
