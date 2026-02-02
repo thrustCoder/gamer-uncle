@@ -9,6 +9,9 @@ const isTablet = screenWidth >= 768;
 // Detect landscape orientation (width > height)
 const isLandscape = screenWidth > screenHeight;
 
+// Calculate center avatar size based on screen
+const avatarSize = Math.min(screenWidth, screenHeight) * 0.28;
+
 export const landingStyles = StyleSheet.create({
   background: {
     flex: 1,
@@ -17,41 +20,128 @@ export const landingStyles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    position: 'relative',
   },
+  // Tappable center circle (transparent overlay)
+  centerCircleTouchable: {
+    position: 'absolute',
+    zIndex: 1,
+  },
+  // Center Uncle Avatar styles
+  centerAvatar: {
+    position: 'absolute',
+    left: screenWidth / 2 - avatarSize / 2,
+    top: screenHeight / 2 - avatarSize / 2 - 40, // Slightly above center
+    width: avatarSize,
+    height: avatarSize,
+    borderRadius: avatarSize / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 10,
+  },
+  avatarImage: {
+    width: avatarSize * 0.85,
+    height: avatarSize * 0.85,
+    borderRadius: (avatarSize * 0.85) / 2,
+  },
+  // Feature button styles (no circular container)
+  featureButton: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  // Legacy circular icon button (kept for backward compatibility)
+  circularIconButton: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 5,
+  },
+  iconLabel: {
+    fontSize: 18,
+    color: '#000000',
+    textAlign: 'center',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  // Version container at bottom
+  versionContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontSize: 14,
+    color: Colors.white,
+    textAlign: 'center',
+    paddingVertical: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  aiModelText: {
+    fontSize: 14,
+    color: Colors.white,
+    textAlign: 'center',
+    paddingVertical: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Legacy styles kept for backward compatibility
   scrollView: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 20, // Add bottom padding to prevent clipping
+    paddingBottom: 20,
   },
   topCard: {
     width: '100%',
     height: isLandscape
-      ? screenHeight * 0.7 // Larger percentage for landscape devices
+      ? screenHeight * 0.7
       : isTablet 
-        ? screenHeight * 0.6 // Smaller percentage for tablets in portrait
+        ? screenHeight * 0.6
         : screenHeight < 740 
-          ? screenHeight * 0.45 // Reduced for small phones
-          : screenHeight * 0.3, // Standard for regular phones
+          ? screenHeight * 0.45
+          : screenHeight * 0.3,
     marginTop: isLandscape
-      ? 30 // Moderate top margin for landscape devices
+      ? 30
       : isTablet 
-        ? 80 // Larger top margin for tablets (status bar + safe area)
+        ? 80
         : screenHeight < 740 
-          ? 75 // Increased for small phones like iPhone SE
-          : 110, // Standard for regular phones
-    marginBottom: 0, // Increased bottom margin
+          ? 75
+          : 110,
+    marginBottom: 0,
     marginHorizontal: 0,
     paddingHorizontal: 0,
   },
   grid: {
     flexDirection: 'row',
-    flexWrap: isLandscape ? 'nowrap' : 'wrap', // Single row in landscape
+    flexWrap: isLandscape ? 'nowrap' : 'wrap',
     justifyContent: isLandscape ? 'space-around' : 'space-around',
     marginHorizontal: 10,
     paddingTop: 20,
-    paddingBottom: 10, // Increased bottom padding
+    paddingBottom: 10,
   },
   gridRow: {
     flexDirection: 'row',
@@ -99,20 +189,5 @@ export const landingStyles = StyleSheet.create({
   iconFull: {
     width: '100%',
     height: '100%',
-  },
-  versionText: {
-    fontSize: 14,
-    color: Colors.white,
-    textAlign: 'center',
-    paddingVertical: 1,
-    paddingBottom: 3, // Reduced bottom padding since AI model text will follow
-  },
-  aiModelText: {
-    fontSize: 14,
-    color: Colors.white,
-    textAlign: 'center',
-    paddingVertical: 1,
-    paddingTop: 0, // No top padding since it follows version text
-    paddingBottom: 30, // Extra bottom padding for safe area
   },
 });
