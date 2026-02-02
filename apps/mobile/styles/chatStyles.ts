@@ -19,9 +19,9 @@ export const chatStyles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     borderWidth: 3,
     borderColor: Colors.themeYellow,
     marginTop: -5,

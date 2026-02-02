@@ -20,7 +20,7 @@ const features = [
   { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Game\nSearch', screen: null, icon: 'search', iconType: 'ionicon' },
-  { key: 'team', label: 'Team\nRandomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
+  { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
   { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
   { key: 'setup', label: 'Game\nSetup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
@@ -54,6 +54,11 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   // Timer and Turn Selector move slightly downward
   if (featureKey === 'timer' || featureKey === 'turn') {
     verticalOffset = 10;
+  }
+  
+  // Team Randomizer moves slightly higher
+  if (featureKey === 'team') {
+    verticalOffset = 5; // Reduced from 15 to move it higher
   }
   
   // Horizontal offset for Dice Roller to move it right
@@ -135,7 +140,7 @@ export default function LandingScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >
               {renderIcon(feature)}
-              <Text style={styles.iconLabel}>{feature.label}</Text>
+              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2, width: 130 }]}>{feature.label}</Text>
             </TouchableOpacity>
           );
         })}
