@@ -16,7 +16,7 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * 0.35; // Size of 
 
 // Feature configuration for circular layout
 const features = [
-  { key: 'chat', label: 'Talk to\nUncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
+  { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Game\nSearch', screen: null, icon: 'search', iconType: 'ionicon' },
@@ -38,6 +38,8 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
     radiusAdjustment = -10;
   } else if (featureKey === 'timer') {
     radiusAdjustment = 5; // Move Timer outward
+  } else if (featureKey === 'chat') {
+    radiusAdjustment = -15; // Move Talk to Uncle closer to center
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   
@@ -46,7 +48,7 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   
   // Shift Talk to Uncle slightly higher towards top
   if (featureKey === 'chat') {
-    verticalOffset = -8;
+    verticalOffset = -15;
   }
   
   // Timer and Turn Selector move slightly downward
