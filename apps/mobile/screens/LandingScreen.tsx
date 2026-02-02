@@ -32,14 +32,22 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   const angleInDegrees = -90 + (index * 360) / total;
   const angleInRadians = (angleInDegrees * Math.PI) / 180;
   
-  // Radial offset for Timer and Turn Selector to move them inward, Timer moves outward
+  // Radial offset to move icons closer/further from center
   let radiusAdjustment = 0;
   if (featureKey === 'turn') {
-    radiusAdjustment = -10;
+    radiusAdjustment = -20; // Move Turn Selector closer to center
   } else if (featureKey === 'timer') {
-    radiusAdjustment = 5; // Move Timer outward
+    radiusAdjustment = -15; // Move Timer closer to center
   } else if (featureKey === 'chat') {
     radiusAdjustment = -15; // Move Talk to Uncle closer to center
+  } else if (featureKey === 'team') {
+    radiusAdjustment = -20; // Move Team Randomizer closer to center
+  } else if (featureKey === 'search') {
+    radiusAdjustment = -20; // Move Game Search closer to center
+  } else if (featureKey === 'dice') {
+    radiusAdjustment = -15; // Move Dice Roller closer to center
+  } else if (featureKey === 'setup') {
+    radiusAdjustment = -15; // Move Game Setup closer to center
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   
