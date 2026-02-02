@@ -18,11 +18,12 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * 0.35; // Size of 
 const features = [
   { key: 'chat', label: 'Talk to\nUncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
-  { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'swap-horizontal', iconType: 'ionicon' },
+  { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Game\nSearch', screen: null, icon: 'search', iconType: 'ionicon' },
   { key: 'team', label: 'Team\nRandomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
   { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
+  { key: 'setup', label: 'Game\nSetup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
 ];
 
 // Calculate position for each icon in a circle (starting from top, going clockwise)
@@ -31,8 +32,13 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   const angleInDegrees = -90 + (index * 360) / total;
   const angleInRadians = (angleInDegrees * Math.PI) / 180;
   
-  // Radial offset for Timer and Turn Selector to move them inward
-  const radiusAdjustment = (featureKey === 'timer' || featureKey === 'turn') ? -10 : 0;
+  // Radial offset for Timer and Turn Selector to move them inward, Timer moves outward
+  let radiusAdjustment = 0;
+  if (featureKey === 'turn') {
+    radiusAdjustment = -10;
+  } else if (featureKey === 'timer') {
+    radiusAdjustment = 5; // Move Timer outward
+  }
   const adjustedRadius = circleRadius + radiusAdjustment;
   
   // Add vertical offset for bottom icons (indices 3 and 4) to accommodate thicker ring base
@@ -48,15 +54,28 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
     verticalOffset = 10;
   }
   
+  // Horizontal offset for Dice Roller to move it right
+  let horizontalOffset = 0;
+  if (featureKey === 'dice') {
+    horizontalOffset = 10;
+  }
+  
   return {
-    left: centerX + adjustedRadius * Math.cos(angleInRadians) - iconSize / 2,
+    left: centerX + adjustedRadius * Math.cos(angleInRadians) - iconSize / 2 + horizontalOffset,
     top: centerY + adjustedRadius * Math.sin(angleInRadians) - iconSize / 2 + verticalOffset,
   };
 };
 
 const renderIcon = (feature: typeof features[0]) => {
-  // Score tracker icon is 20% smaller
-  const baseSize = feature.key === 'score' ? 48 : 60;
+  // Score tracker and Game Setup icons are 20% smaller, Turn Selector/Search are 10% smaller, Team is 10% larger
+  let baseSize = 60;
+  if (feature.key === 'score' || feature.key === 'setup') {
+    baseSize = 48;
+  } else if (feature.key === 'turn' || feature.key === 'search') {
+    baseSize = 54;
+  } else if (feature.key === 'team') {
+    baseSize = 66;
+  }
   const iconProps = { size: baseSize, color: '#000000' };
   
   switch (feature.iconType) {
