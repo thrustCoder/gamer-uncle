@@ -175,8 +175,8 @@ export default function ChatScreen() {
   // Track if we've already handled the prefill context (to avoid duplicate messages)
   const prefillHandledRef = useRef(false);
   
-  // Track if we've already handled the game context from GameSearch
-  const gameContextHandledRef = useRef(false);
+  // Track which game context we've already handled (to detect new game navigations)
+  const lastHandledGameContextRef = useRef<string | null>(null);
   
   // Store game context from GameSetup to prepend to first user message for AI context
   const gameContextRef = useRef<{ gameName: string; playerCount?: number } | null>(null);
@@ -202,8 +202,12 @@ export default function ChatScreen() {
 
   // Handle game context from GameSearch screen
   useEffect(() => {
-    if (gameContext?.fromGameSearch && !gameContextHandledRef.current) {
-      gameContextHandledRef.current = true;
+    // Only handle if this is a new game (different from last handled)
+    const currentGameName = gameContext?.gameName;
+    const isNewGame = gameContext?.fromGameSearch && currentGameName && currentGameName !== lastHandledGameContextRef.current;
+    
+    if (isNewGame) {
+      lastHandledGameContextRef.current = currentGameName;
       
       // Store game context for AI
       gameContextRef.current = {
@@ -217,11 +221,11 @@ export default function ChatScreen() {
         text: `What else would you like to know about **${gameContext.gameName}**? I can help with rules, strategies, setup, or any other questions! 🎲`
       };
       
-      // Replace initial message with context-aware message
+      // Replace all messages with context-aware message (clears previous chat)
       setMessages([contextMessage]);
       setConversationId(null); // Start fresh conversation
     }
-  }, [gameContext]);
+  }, [gameContext, setMessages, setConversationId]);
 
   // Handle prefill context from GameSetup screen
   useEffect(() => {
