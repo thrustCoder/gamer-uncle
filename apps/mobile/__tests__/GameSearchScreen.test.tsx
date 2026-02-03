@@ -195,24 +195,26 @@ describe('GameSearchScreen', () => {
     const input = getByTestId('game-search-input');
     fireEvent.changeText(input, 'catan');
     
+    // Advance timers for debounce and flush promises for async search
     await act(async () => {
       jest.advanceTimersByTime(300);
+      await Promise.resolve(); // Let the search promise resolve
     });
     
-    await waitFor(() => {
-      expect(getByText('Catan')).toBeTruthy();
-    });
+    // Verify search results appear
+    expect(getByText('Catan')).toBeTruthy();
 
     // Clear by setting empty text
+    fireEvent.changeText(input, '');
+    
+    // Advance timers for debounce to update, which triggers the effect to clear results
     await act(async () => {
-      fireEvent.changeText(input, '');
       jest.advanceTimersByTime(300);
     });
     
-    await waitFor(() => {
-      expect(queryByText('Catan')).toBeNull();
-    });
-  }, 15000);
+    // Results should be cleared (less than 3 chars triggers setSearchResults([]))
+    expect(queryByText('Catan')).toBeNull();
+  });
 
   it('navigates to chat with game context on "Ask Uncle" button', async () => {
     mockSearchGames.mockResolvedValue({
