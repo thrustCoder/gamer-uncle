@@ -20,12 +20,27 @@ import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import MarkdownText from '../components/MarkdownText';
 import { getRecommendations } from '../services/ApiClient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
 import { useChat, ChatMessage } from '../store/ChatContext';
+
+// Define route params type for Chat screen
+type ChatRouteParams = {
+  Chat: {
+    prefillContext?: {
+      gameName: string;
+      playerCount: number;
+      previousSetupQuery: boolean;
+    };
+    gameContext?: {
+      gameName: string;
+      fromGameSearch: boolean;
+    };
+  };
+};
 
 // Generate a unique user ID that persists for the session
 const generateUserId = () => {
@@ -141,6 +156,11 @@ const UserThinkingIndicator = () => {
 };
 
 export default function ChatScreen() {
+  // Get route params for prefill context from GameSetup or GameSearch
+  const route = useRoute<RouteProp<ChatRouteParams, 'Chat'>>();
+  const prefillContext = route.params?.prefillContext;
+  const gameContext = route.params?.gameContext;
+  
   // Use ChatContext for persisted state
   const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
   const [input, setInput] = useState('');
@@ -151,6 +171,15 @@ export default function ChatScreen() {
     microphone: 'undetermined',
     camera: 'undetermined'
   });
+  
+  // Track if we've already handled the prefill context (to avoid duplicate messages)
+  const prefillHandledRef = useRef(false);
+  
+  // Track which game context we've already handled (to detect new game navigations)
+  const lastHandledGameContextRef = useRef<string | null>(null);
+  
+  // Store game context from GameSetup to prepend to first user message for AI context
+  const gameContextRef = useRef<{ gameName: string; playerCount?: number } | null>(null);
   
   // New UX states - tap-to-start/tap-to-stop pattern with TTS controls
   const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing' | 'tts-playing' | 'tts-paused'>('default');
@@ -170,6 +199,57 @@ export default function ChatScreen() {
   useEffect(() => {
     setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing' && msg.type !== 'user-thinking'));
   }, []); // Only run once on mount
+
+  // Handle game context from GameSearch screen
+  useEffect(() => {
+    // Only handle if this is a new game (different from last handled)
+    const currentGameName = gameContext?.gameName;
+    const isNewGame = gameContext?.fromGameSearch && currentGameName && currentGameName !== lastHandledGameContextRef.current;
+    
+    if (isNewGame) {
+      lastHandledGameContextRef.current = currentGameName;
+      
+      // Store game context for AI
+      gameContextRef.current = {
+        gameName: gameContext.gameName
+      };
+      
+      // Clear previous chat and add contextual system message
+      const contextMessage: ChatMessage = {
+        id: `context-${Date.now()}`,
+        type: 'system',
+        text: `What else would you like to know about **${gameContext.gameName}**? I can help with rules, strategies, setup, or any other questions! 🎲`
+      };
+      
+      // Replace all messages with context-aware message (clears previous chat)
+      setMessages([contextMessage]);
+      setConversationId(null); // Start fresh conversation
+    }
+  }, [gameContext, setMessages, setConversationId]);
+
+  // Handle prefill context from GameSetup screen
+  useEffect(() => {
+    if (prefillContext?.previousSetupQuery && !prefillHandledRef.current) {
+      prefillHandledRef.current = true;
+      
+      // Store game context to prepend to first user message for AI
+      gameContextRef.current = {
+        gameName: prefillContext.gameName,
+        playerCount: prefillContext.playerCount
+      };
+      
+      // Clear previous chat and add contextual system message
+      const contextMessage: ChatMessage = {
+        id: `context-${Date.now()}`,
+        type: 'system',
+        text: `What else would you like to know about setting up **${prefillContext.gameName}** for ${prefillContext.playerCount} player${prefillContext.playerCount > 1 ? 's' : ''}? I can help with rules clarification, strategy tips, or anything else about this game! 🎲`
+      };
+      
+      // Replace initial message with context-aware message
+      setMessages([contextMessage]);
+      setConversationId(null); // Start fresh conversation
+    }
+  }, [prefillContext]);
 
   // Check if we're in a thinking/processing state (disable input during this time)
   const isProcessing = useMemo(() => {
@@ -206,7 +286,13 @@ export default function ChatScreen() {
     onAutoStop: handleRecordingAutoStop,
   }), [handleRecordingAutoStop]);
 
-  // Voice session hook with new audio processing pipeline - pass conversationId for context
+  // Build game context string for voice messages (computed directly, not memoized)
+  // This needs to be computed every render so it picks up changes to gameContextRef
+  const gameContextString = (gameContextRef.current && !conversationId) 
+    ? `[Context: The user was just setting up the board game "${gameContextRef.current.gameName}" for ${gameContextRef.current.playerCount} players and needs more help.]`
+    : null;
+
+  // Voice session hook with new audio processing pipeline - pass conversationId and game context
   const voiceSession = useVoiceSession((voiceResponse) => {
     // Handle TTS events for UX mode changes
     if (voiceResponse.eventType === 'tts-start') {
@@ -372,9 +458,14 @@ export default function ChatScreen() {
       // Update conversation ID if provided (only for system responses)
       if (!voiceResponse.isUserMessage && voiceResponse.threadId) {
         setConversationId(voiceResponse.threadId);
+        // Clear game context after first voice message is processed (context was already sent with that message)
+        if (gameContextRef.current) {
+          console.log('🎮 [CHAT] Clearing game context after voice message processed');
+          gameContextRef.current = null;
+        }
       }
     }
-  }, conversationId, recordingSafetyConfig); // Pass conversationId and safety config for maintaining conversation context
+  }, conversationId, recordingSafetyConfig, gameContextString); // Pass conversationId, safety config, and game context
   
   // Extract voice properties
   const { isActive: isVoiceActive, isConnecting: isVoiceConnecting, isRecording, error: voiceError, isSupported: isVoiceSupported, setRecording, stopAudioPlayback, pauseAudioPlayback, resumeAudioPlayback, isAudioPaused, clearError: clearVoiceError, startVoiceSession, stopVoiceSession } = voiceSession;
@@ -821,8 +912,18 @@ export default function ChatScreen() {
 
     // STEP 2: Start backend call immediately (in background)
     const typingId = `typing-${Date.now()}`;
+    
+    // Prepend game context to first message if coming from GameSetup
+    let queryWithContext = userMessage;
+    if (gameContextRef.current && !conversationId) {
+      const { gameName, playerCount } = gameContextRef.current;
+      queryWithContext = `[Context: The user was just setting up the board game "${gameName}" for ${playerCount} players and needs more help.] ${userMessage}`;
+      // Clear context after first use - subsequent messages will use conversationId
+      gameContextRef.current = null;
+    }
+    
     const responsePromise = getRecommendations({
-      Query: userMessage,
+      Query: queryWithContext,
       UserId: userId,
       ConversationId: conversationId
     });

@@ -23,4 +23,11 @@ public class AudioRequest
     /// Optional conversation ID to link with existing text conversation
     /// </summary>
     public string? ConversationId { get; set; }
+
+    /// <summary>
+    /// Optional game context to prepend to the transcribed query.
+    /// Used when user navigates from GameSetup screen via "Need more help?" button.
+    /// This provides AI with context about which game the user was setting up.
+    /// </summary>
+    public string? GameContext { get; set; }
 }

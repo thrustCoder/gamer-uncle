@@ -59,11 +59,12 @@ public class AudioProcessingService : IAudioProcessingService
         string audioBase64,
         AudioFormat format,
         string? conversationId = null,
+        string? gameContext = null,
         CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
-        _logger.LogInformation("Starting audio processing pipeline. ConversationId: {ConversationId}, Format: {Format}", 
-            conversationId, format);
+        _logger.LogInformation("Starting audio processing pipeline. ConversationId: {ConversationId}, Format: {Format}, HasGameContext: {HasGameContext}", 
+            conversationId, format, !string.IsNullOrEmpty(gameContext));
 
         // Increment request counter
         _audioRequestCounter.Add(1, new KeyValuePair<string, object?>("format", format.ToString()));
@@ -86,10 +87,19 @@ public class AudioProcessingService : IAudioProcessingService
                 throw new InvalidOperationException("Speech recognition returned empty transcription");
             }
 
+            // Prepend game context to transcription if provided (from GameSetup screen)
+            var queryForAgent = transcription;
+            if (!string.IsNullOrWhiteSpace(gameContext))
+            {
+                queryForAgent = $"{gameContext} {transcription}";
+                _logger.LogInformation("Prepended game context to query. Original: {Original}, WithContext: {WithContext}", 
+                    transcription, queryForAgent);
+            }
+
             // Step 2: Get AI response from agent
             var agentStartTime = DateTime.UtcNow;
             var agentResponse = await _agentService.GetRecommendationsAsync(
-                transcription, 
+                queryForAgent, 
                 conversationId);
             var agentDuration = (DateTime.UtcNow - agentStartTime).TotalMilliseconds;
             

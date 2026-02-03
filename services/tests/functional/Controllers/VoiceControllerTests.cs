@@ -301,6 +301,55 @@ namespace GamerUncle.Api.FunctionalTests.Controllers
             _output.WriteLine($"✓ Second response: {secondContentResult}");
         }
 
+        [Fact]
+        public async Task ProcessAudio_WithGameContext_AcceptsContextField()
+        {
+            // Skip test if voice functionality is not available
+            if (_skipVoiceTests)
+            {
+                _output.WriteLine("⏭️ Skipping voice test: Azure Speech Service credentials not configured");
+                return;
+            }
+
+            // Arrange
+            var testAudioBase64 = GenerateTestWavAudioBase64();
+            var audioRequest = new AudioRequest
+            {
+                AudioData = testAudioBase64,
+                Format = AudioFormat.Wav,
+                ConversationId = Guid.NewGuid().ToString(),
+                GameContext = "[Context: The user was just setting up the board game \"Catan\" for 4 players and needs more help.]"
+            };
+
+            _output.WriteLine($"Testing voice processing with game context from GameSetup screen");
+            _output.WriteLine($"GameContext: {audioRequest.GameContext}");
+
+            // Act
+            var content = new StringContent(
+                JsonConvert.SerializeObject(audioRequest),
+                Encoding.UTF8,
+                "application/json");
+            
+            var response = await _httpClient.PostAsync("/api/voice/process", content);
+
+            // Assert
+            _output.WriteLine($"Response status: {response.StatusCode}");
+            var responseContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Response content: {responseContent}");
+
+            // Test audio is silence, so expecting BadRequest with "no speech detected"
+            // The important thing is that the endpoint accepts the GameContext field without error
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            
+            var errorResponse = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseContent);
+            Assert.NotNull(errorResponse);
+            Assert.True(errorResponse!.ContainsKey("error"));
+            // Should still be a "no speech" error, not a validation error about unknown fields
+            Assert.Contains("speech", errorResponse["error"].ToLower());
+            
+            _output.WriteLine($"✓ Endpoint accepted GameContext field and processed audio correctly");
+        }
+
         /// <summary>
         /// Generates a minimal valid WAV file (24kHz, mono, 16-bit PCM) with 1 second of silence
         /// This is approximately 48KB of data

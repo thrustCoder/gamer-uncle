@@ -97,6 +97,7 @@ export class LandingPage {
     await this.waitForElementWithRetries('[data-testid="team-button"]', 'Team Button');
     await this.waitForElementWithRetries('[data-testid="dice-button"]', 'Dice Button');
     await this.waitForElementWithRetries('[data-testid="timer-button"]', 'Timer Button');
+    await this.waitForElementWithRetries('[data-testid="setup-button"]', 'Setup Button');
     
     console.log('✅ All main elements verified');
   }

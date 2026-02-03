@@ -6,6 +6,7 @@ export interface AudioProcessingRequest {
   audioData: string; // Base64
   format: 'Wav' | 'Pcm16';
   conversationId?: string;
+  gameContext?: string; // Optional game context from GameSetup screen
 }
 
 export interface AudioProcessingResponse {
@@ -184,8 +185,10 @@ export class VoiceAudioService {
 
   /**
    * Stop recording and send audio to backend for processing
+   * @param conversationId - Optional conversation ID for context
+   * @param gameContext - Optional game context from GameSetup screen
    */
-  async stopRecordingAndProcess(conversationId?: string): Promise<AudioProcessingResponse> {
+  async stopRecordingAndProcess(conversationId?: string, gameContext?: string): Promise<AudioProcessingResponse> {
     // Stop silence detection first
     this.stopSilenceDetection();
 
@@ -194,6 +197,7 @@ export class VoiceAudioService {
     }
 
     console.log('🎤 [AUDIO] Stopping recording...');
+    console.log('🎤 [AUDIO] Game context:', gameContext || '(none)');
     await this.recording.stopAndUnloadAsync();
     const uri = this.recording.getURI();
     if (!uri) {
@@ -219,6 +223,7 @@ export class VoiceAudioService {
           audioData: base64Audio,
           format: 'Wav',
           conversationId,
+          gameContext,
         } as AudioProcessingRequest,
         {
           timeout: 30000, // 30 second timeout for audio processing

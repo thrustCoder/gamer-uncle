@@ -53,7 +53,8 @@ export interface VoiceResponseExtended {
 export const useVoiceSession = (
   onVoiceResponse?: (response: VoiceResponseExtended) => void,
   conversationId?: string | null,
-  recordingSafetyConfig?: RecordingSafetyConfig
+  recordingSafetyConfig?: RecordingSafetyConfig,
+  gameContext?: string | null
 ) => {
   const [state, setState] = useState<VoiceSessionState>({
     isActive: false,
@@ -501,7 +502,8 @@ export const useVoiceSession = (
         
         // STEP 3: Now stop recording and send COMPLETE audio to backend
         console.log('🟡 [VOICE] Stopping recording and sending full audio to backend...');
-        const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined);
+        console.log('🎮 [VOICE] Game context to send:', gameContext || '(none)');
+        const backendProcessingPromise = voiceService.stopRecordingAndProcess(conversationId || undefined, gameContext || undefined);
         
         let onDeviceTranscription = '';
         try {

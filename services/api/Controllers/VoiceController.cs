@@ -49,11 +49,12 @@ namespace GamerUncle.Api.Controllers
             // Add tags to activity for better observability
             activity?.SetTag("voice.conversation_id", request.ConversationId);
             activity?.SetTag("voice.audio_format", request.Format.ToString());
+            activity?.SetTag("voice.has_game_context", !string.IsNullOrEmpty(request.GameContext));
             activity?.SetTag("http.client_ip", clientIp);
             activity?.SetTag("http.user_agent", userAgent);
             
-            _logger.LogInformation("Audio processing request from IP: {ClientIp}, UserAgent: {UserAgent}, ConversationId: {ConversationId}, Format: {Format}", 
-                clientIp, userAgent, request.ConversationId, request.Format);
+            _logger.LogInformation("Audio processing request from IP: {ClientIp}, UserAgent: {UserAgent}, ConversationId: {ConversationId}, Format: {Format}, HasGameContext: {HasGameContext}", 
+                clientIp, userAgent, request.ConversationId, request.Format, !string.IsNullOrEmpty(request.GameContext));
 
             try
             {
@@ -81,6 +82,7 @@ namespace GamerUncle.Api.Controllers
                     request.AudioData,
                     request.Format,
                     request.ConversationId,
+                    request.GameContext,
                     HttpContext.RequestAborted);
 
                 activity?.SetTag("voice.transcription_length", result.TranscribedText.Length);

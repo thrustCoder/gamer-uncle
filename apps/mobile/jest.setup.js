@@ -82,6 +82,16 @@ jest.mock('react-native-svg', () => ({
   Text: 'Text',
 }));
 
+// Mock @expo/vector-icons
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+  MaterialIcons: 'MaterialIcons',
+  FontAwesome: 'FontAwesome',
+  Feather: 'Feather',
+  MaterialCommunityIcons: 'MaterialCommunityIcons',
+  AntDesign: 'AntDesign',
+}));
+
 // Mock expo-av
 jest.mock('expo-av', () => ({
   Audio: {
@@ -141,6 +151,15 @@ jest.mock('react-native-reanimated', () => ({
     In: 'In',
   },
 }));
+
+// Mock KeyboardAvoidingView
+jest.mock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return function MockKeyboardAvoidingView(props) {
+    return React.createElement(View, { ...props, testID: props.testID || 'keyboard-avoiding-view' }, props.children);
+  };
+});
 
 // Mock expo-av
 jest.mock('expo-av', () => ({
