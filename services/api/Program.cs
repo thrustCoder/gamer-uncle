@@ -95,6 +95,15 @@ builder.Services.AddRateLimiter(options =>
             configure.QueueLimit = 1000;
         });
 
+        // Very permissive Game Search limits for testing
+        options.AddFixedWindowLimiter("GameSearch", configure =>
+        {
+            configure.PermitLimit = 10000;
+            configure.Window = TimeSpan.FromMinutes(1);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 1000;
+        });
+
     }
     else if (isRateLimitTestEnvironment)
     {
@@ -115,6 +124,15 @@ builder.Services.AddRateLimiter(options =>
         options.AddFixedWindowLimiter("McpSsePolicy", configure =>
         {
             configure.PermitLimit = 1; // Very restrictive for testing
+            configure.Window = TimeSpan.FromSeconds(5);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 0;
+        });
+
+        // Strict Game Search limits for rate limit testing
+        options.AddFixedWindowLimiter("GameSearch", configure =>
+        {
+            configure.PermitLimit = 1;
             configure.Window = TimeSpan.FromSeconds(5);
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 0;
@@ -141,6 +159,15 @@ builder.Services.AddRateLimiter(options =>
             configure.QueueLimit = 1;
         });
 
+        // Game Search rate limiting (30 requests per minute per IP)
+        options.AddFixedWindowLimiter("GameSearch", configure =>
+        {
+            configure.PermitLimit = 30; // 30 requests per minute
+            configure.Window = TimeSpan.FromMinutes(1);
+            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            configure.QueueLimit = 5;
+        });
+
     }
 
     options.OnRejected = async (context, token) =>
@@ -153,6 +180,9 @@ builder.Services.AddRateLimiter(options =>
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
 builder.Services.AddScoped<IGameDataService, GameDataService>();
+
+// Register Game Search Service
+builder.Services.AddScoped<IGameSearchService, GamerUncle.Api.Services.GameSearch.GameSearchService>();
 
 // Register Azure Speech Services
 builder.Services.AddSingleton<IAzureSpeechService, AzureSpeechService>();
