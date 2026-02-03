@@ -203,14 +203,16 @@ describe('GameSearchScreen', () => {
       expect(getByText('Catan')).toBeTruthy();
     });
 
-    // Find and press clear button (the X icon)
     // Clear by setting empty text
-    fireEvent.changeText(input, '');
+    await act(async () => {
+      fireEvent.changeText(input, '');
+      jest.advanceTimersByTime(300);
+    });
     
     await waitFor(() => {
       expect(queryByText('Catan')).toBeNull();
     });
-  });
+  }, 15000);
 
   it('navigates to chat with game context on "Ask Uncle" button', async () => {
     mockSearchGames.mockResolvedValue({

@@ -1,6 +1,17 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+
+// Mock KeyboardAvoidingView by mocking the specific component path
+jest.mock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: (props: any) => React.createElement(View, props, props.children),
+  };
+});
+
 import GameSetupScreen from '../screens/GameSetupScreen';
 
 // Mock navigation
@@ -90,7 +101,7 @@ describe('GameSetupScreen', () => {
 
   it('calls API with correct params when submitting', async () => {
     mockGetRecommendations.mockResolvedValueOnce({
-      response: 'Setup instructions for Catan...',
+      responseText: 'Setup instructions for Catan...',
     });
 
     const { getByTestId } = render(<GameSetupScreen />);
@@ -117,7 +128,7 @@ describe('GameSetupScreen', () => {
   it('displays response after successful API call', async () => {
     const mockResponse = 'Setup instructions for Catan with 4 players:\n1. Place the board...';
     mockGetRecommendations.mockResolvedValueOnce({
-      response: mockResponse,
+      responseText: mockResponse,
     });
 
     const { getByTestId, getByText } = render(<GameSetupScreen />);
@@ -138,7 +149,7 @@ describe('GameSetupScreen', () => {
 
   it('shows "Need more help" button after response', async () => {
     mockGetRecommendations.mockResolvedValueOnce({
-      response: 'Setup instructions...',
+      responseText: 'Setup instructions...',
     });
 
     const { getByTestId } = render(<GameSetupScreen />);
@@ -154,7 +165,7 @@ describe('GameSetupScreen', () => {
 
   it('navigates to Chat with prefill context when "Need more help" is pressed', async () => {
     mockGetRecommendations.mockResolvedValueOnce({
-      response: 'Setup instructions...',
+      responseText: 'Setup instructions...',
     });
 
     const { getByTestId } = render(<GameSetupScreen />);
@@ -195,7 +206,7 @@ describe('GameSetupScreen', () => {
 
   it('resets form when "New Game" button is pressed', async () => {
     mockGetRecommendations.mockResolvedValueOnce({
-      response: 'Setup instructions...',
+      responseText: 'Setup instructions...',
     });
 
     const { getByTestId, queryByTestId } = render(<GameSetupScreen />);
@@ -235,7 +246,7 @@ describe('GameSetupScreen', () => {
     expect(getByText('Getting Setup...')).toBeTruthy();
     
     // Resolve the promise
-    resolvePromise!({ response: 'Done' });
+    resolvePromise!({ responseText: 'Done' });
     
     await waitFor(() => {
       expect(getByText('🎲 Get Game Setup')).toBeTruthy();
@@ -244,7 +255,7 @@ describe('GameSetupScreen', () => {
 
   it('handles singular player count correctly', async () => {
     mockGetRecommendations.mockResolvedValueOnce({
-      response: 'Single player setup...',
+      responseText: 'Single player setup...',
     });
 
     const { getByTestId, getByText } = render(<GameSetupScreen />);
@@ -258,9 +269,13 @@ describe('GameSetupScreen', () => {
     const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
     const buttons = alertCall[2];
     const onePlayerButton = buttons.find((b: any) => b.text === '1');
-    if (onePlayerButton?.onPress) {
-      onePlayerButton.onPress();
-    }
+    
+    // Wrap the state update in act()
+    await act(async () => {
+      if (onePlayerButton?.onPress) {
+        onePlayerButton.onPress();
+      }
+    });
     
     // Verify the picker shows "1 Player" (singular)
     expect(getByText('1 Player')).toBeTruthy();
