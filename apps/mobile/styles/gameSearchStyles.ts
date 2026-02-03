@@ -19,6 +19,12 @@ export const gameSearchStyles = StyleSheet.create({
     paddingBottom: 40,
     flexGrow: 1,
   },
+  scrollContentDetails: {
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    flexGrow: 1,
+  },
   
   // Header/Title Section
   title: {
@@ -204,6 +210,50 @@ export const gameSearchStyles = StyleSheet.create({
   },
 
   // Game Details Section
+  detailsContainer: {
+    flex: 1,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 0,
+  },
+  detailsBackButton: {
+    backgroundColor: Colors.themeYellow,
+    borderRadius: 25,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  detailsBackArrow: {
+    fontSize: 30,
+    color: Colors.themeBrownDark,
+    fontWeight: '900',
+    lineHeight: 30,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  detailsSearchButton: {
+    backgroundColor: Colors.themeYellow,
+    borderRadius: 25,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
   detailsSection: {
     backgroundColor: Colors.themeBrownDark,
     borderRadius: 16,
@@ -213,16 +263,18 @@ export const gameSearchStyles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    marginBottom: 16,
   },
   gameImage: {
     width: '100%',
-    height: 200,
-    backgroundColor: Colors.grayLight,
+    height: 220,
+    marginBottom: 12,
+    resizeMode: 'contain',
   },
   gameImagePlaceholder: {
     width: '100%',
-    height: 200,
-    backgroundColor: Colors.themePurpleDark,
+    height: 220,
+    marginBottom: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -230,7 +282,9 @@ export const gameSearchStyles = StyleSheet.create({
     opacity: 0.6,
   },
   detailsContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   gameName: {
     fontSize: 26,
@@ -282,7 +336,7 @@ export const gameSearchStyles = StyleSheet.create({
     color: Colors.themeYellow,
     lineHeight: 22,
     opacity: 0.95,
-    marginBottom: 16,
+    marginBottom: 4,
   },
 
   // Stats Section
@@ -292,42 +346,49 @@ export const gameSearchStyles = StyleSheet.create({
     marginBottom: 16,
     marginHorizontal: -6,
   },
+  statsGridOutside: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   statItem: {
-    width: '50%',
-    paddingHorizontal: 6,
-    marginBottom: 12,
+    flex: 1,
+    paddingHorizontal: 4,
   },
   statBox: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.themeBrownDark,
     borderRadius: 10,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   statIcon: {
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: Colors.themeYellow,
     marginBottom: 2,
+    textAlign: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: Colors.themeYellow,
     opacity: 0.8,
+    textAlign: 'center',
   },
 
   // Rules Link
   rulesButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.themePurple,
     borderRadius: 12,
     paddingVertical: 14,
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingHorizontal: 16,
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -343,11 +404,14 @@ export const gameSearchStyles = StyleSheet.create({
 
   // Question Button
   questionButton: {
+    flex: 1,
+    flexDirection: 'row',
     backgroundColor: Colors.themeGreen,
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -355,12 +419,24 @@ export const gameSearchStyles = StyleSheet.create({
     elevation: 6,
   },
   questionButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: Colors.themeYellow,
+    textAlign: 'center',
+    marginLeft: 8,
   },
 
-  // Back to Search Button (in details view)
+  // Buttons container for details view
+  detailsButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingTop: 16,
+    gap: 12,
+  },
+
+  // Back to Search Button (legacy - no longer used but kept for reference)
   backToSearchButton: {
     position: 'absolute',
     top: 16,

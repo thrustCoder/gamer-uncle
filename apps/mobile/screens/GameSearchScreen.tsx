@@ -293,13 +293,30 @@ export default function GameSearchScreen() {
     if (!selectedGame) return null;
 
     return (
-      <View style={styles.detailsSection}>
-        {/* Game Image */}
+      <View style={styles.detailsContainer}>
+        {/* Header Row with Back Button and Search Icon */}
+        <View style={styles.detailsHeader}>
+          <TouchableOpacity
+            style={styles.detailsBackButton}
+            onPress={handleBackToSearch}
+            testID="back-to-search"
+          >
+            <Text style={styles.detailsBackArrow}>←</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.detailsSearchButton}
+            onPress={handleBackToSearch}
+          >
+            <Ionicons name="search" size={22} color={Colors.themeBrownDark} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Game Image - Outside the dark container */}
         {selectedGame.imageUrl ? (
           <Image
             source={{ uri: selectedGame.imageUrl }}
             style={styles.gameImage}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         ) : (
           <View style={styles.gameImagePlaceholder}>
@@ -312,95 +329,92 @@ export default function GameSearchScreen() {
           </View>
         )}
 
-        {/* Back to Search Button */}
-        <TouchableOpacity
-          style={styles.backToSearchButton}
-          onPress={handleBackToSearch}
-          testID="back-to-search"
-        >
-          <Ionicons name="search" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        {/* Main Content Container (dark brown background) */}
+        <View style={styles.detailsSection}>
+          <View style={styles.detailsContent}>
+            {/* Game Name */}
+            <Text style={styles.gameName}>{selectedGame.name}</Text>
 
-        <View style={styles.detailsContent}>
-          {/* Game Name */}
-          <Text style={styles.gameName}>{selectedGame.name}</Text>
+            {/* Average Rating */}
+            <View style={styles.ratingsRow}>
+              <StarRating 
+                rating={selectedGame.averageRating} 
+                size={20}
+                showValue={true}
+              />
+              <Text style={styles.votesText}>
+                ({formatNumber(selectedGame.numVotes)} votes)
+              </Text>
+            </View>
 
-          {/* Average Rating */}
-          <View style={styles.ratingsRow}>
-            <StarRating 
-              rating={selectedGame.averageRating} 
-              size={20}
-              showValue={true}
-            />
-            <Text style={styles.votesText}>
-              ({formatNumber(selectedGame.numVotes)} votes)
-            </Text>
+            {/* BGG Rating */}
+            <View style={[styles.ratingsRow, styles.bggRatingRow]}>
+              <Text style={styles.ratingsLabel}>BGG Rating:</Text>
+              <StarRating 
+                rating={selectedGame.bggRating} 
+                size={16}
+                showValue={true}
+              />
+            </View>
+
+            {/* Overview */}
+            {selectedGame.overview && (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="document-text" size={18} color={Colors.themeYellow} style={styles.sectionIcon} />
+                  <Text style={styles.sectionTitle}>Overview</Text>
+                </View>
+                <Text style={styles.overviewText}>{selectedGame.overview}</Text>
+              </>
+            )}
           </View>
+        </View>
 
-          {/* BGG Rating */}
-          <View style={[styles.ratingsRow, styles.bggRatingRow]}>
-            <Text style={styles.ratingsLabel}>BGG Rating:</Text>
-            <StarRating 
-              rating={selectedGame.bggRating} 
-              size={16}
-              showValue={true}
-            />
-          </View>
-
-          {/* Overview */}
-          {selectedGame.overview && (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Ionicons name="document-text" size={18} color={Colors.themeYellow} style={styles.sectionIcon} />
-                <Text style={styles.sectionTitle}>Overview</Text>
-              </View>
-              <Text style={styles.overviewText}>{selectedGame.overview}</Text>
-            </>
-          )}
-
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <View style={styles.statBox}>
-                <Ionicons name="people" size={24} color={Colors.themeYellow} style={styles.statIcon} />
-                <Text style={styles.statValue}>
-                  {selectedGame.minPlayers === selectedGame.maxPlayers 
-                    ? selectedGame.minPlayers 
-                    : `${selectedGame.minPlayers}-${selectedGame.maxPlayers}`}
-                </Text>
-                <Text style={styles.statLabel}>Players</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statBox}>
-                <Ionicons name="person" size={24} color={Colors.themeYellow} style={styles.statIcon} />
-                <Text style={styles.statValue}>{selectedGame.ageRequirement}+</Text>
-                <Text style={styles.statLabel}>Age</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statBox}>
-                <Ionicons name="time" size={24} color={Colors.themeYellow} style={styles.statIcon} />
-                <Text style={styles.statValue}>
-                  {selectedGame.minPlaytime === selectedGame.maxPlaytime
-                    ? `${selectedGame.minPlaytime}`
-                    : `${selectedGame.minPlaytime}-${selectedGame.maxPlaytime}`}
-                </Text>
-                <Text style={styles.statLabel}>Minutes</Text>
-              </View>
-            </View>
-
-            <View style={styles.statItem}>
-              <View style={styles.statBox}>
-                <MaterialCommunityIcons name="weight" size={24} color={Colors.themeYellow} style={styles.statIcon} />
-                <Text style={styles.statValue}>{selectedGame.weight.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>Complexity</Text>
-              </View>
+        {/* Stats Grid - Outside the dark container */}
+        <View style={styles.statsGridOutside}>
+          <View style={styles.statItem}>
+            <View style={styles.statBox}>
+              <Ionicons name="people" size={24} color={Colors.themeYellow} style={styles.statIcon} />
+              <Text style={styles.statValue}>
+                {selectedGame.minPlayers === selectedGame.maxPlayers 
+                  ? selectedGame.minPlayers 
+                  : `${selectedGame.minPlayers}-${selectedGame.maxPlayers}`}
+              </Text>
+              <Text style={styles.statLabel}>Players</Text>
             </View>
           </View>
 
+          <View style={styles.statItem}>
+            <View style={styles.statBox}>
+              <Ionicons name="person" size={24} color={Colors.themeYellow} style={styles.statIcon} />
+              <Text style={styles.statValue}>{selectedGame.ageRequirement}+</Text>
+              <Text style={styles.statLabel}>Age</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statBox}>
+              <Ionicons name="time" size={24} color={Colors.themeYellow} style={styles.statIcon} />
+              <Text style={styles.statValue}>
+                {selectedGame.minPlaytime === selectedGame.maxPlaytime
+                  ? `${selectedGame.minPlaytime}`
+                  : `${selectedGame.minPlaytime}-${selectedGame.maxPlaytime}`}
+              </Text>
+              <Text style={styles.statLabel}>Minutes</Text>
+            </View>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statBox}>
+              <MaterialCommunityIcons name="weight" size={24} color={Colors.themeYellow} style={styles.statIcon} />
+              <Text style={styles.statValue}>{selectedGame.weight.toFixed(1)}</Text>
+              <Text style={styles.statLabel}>Complexity</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Buttons - Outside the dark container */}
+        <View style={styles.detailsButtonsContainer}>
           {/* Rules Link */}
           {selectedGame.rulesUrl && (
             <TouchableOpacity
@@ -419,9 +433,8 @@ export default function GameSearchScreen() {
             onPress={() => handleAskUncle(selectedGame.name)}
             testID="ask-questions-button"
           >
-            <Text style={styles.questionButtonText}>
-              Have questions about this game?
-            </Text>
+            <Ionicons name="chatbubble-outline" size={20} color={Colors.themeYellow} />
+            <Text style={styles.questionButtonText}>Have a question?</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -434,7 +447,8 @@ export default function GameSearchScreen() {
       style={styles.container}
       resizeMode="cover"
     >
-      <BackButton />
+      {/* Only show global BackButton in search view */}
+      {viewState === 'search' && <BackButton />}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -442,7 +456,7 @@ export default function GameSearchScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={viewState === 'details' ? styles.scrollContentDetails : styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

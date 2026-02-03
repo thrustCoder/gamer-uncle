@@ -31,7 +31,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   maxRating = 10,
   size = 16,
   filledColor = Colors.themeYellow,
-  emptyColor = Colors.grayDark,
+  emptyColor = Colors.white,
   showValue = true,
   decimalPlaces = 1,
   label,
