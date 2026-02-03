@@ -35,6 +35,10 @@ type ChatRouteParams = {
       playerCount: number;
       previousSetupQuery: boolean;
     };
+    gameContext?: {
+      gameName: string;
+      fromGameSearch: boolean;
+    };
   };
 };
 
@@ -152,9 +156,10 @@ const UserThinkingIndicator = () => {
 };
 
 export default function ChatScreen() {
-  // Get route params for prefill context from GameSetup
+  // Get route params for prefill context from GameSetup or GameSearch
   const route = useRoute<RouteProp<ChatRouteParams, 'Chat'>>();
   const prefillContext = route.params?.prefillContext;
+  const gameContext = route.params?.gameContext;
   
   // Use ChatContext for persisted state
   const { messages, setMessages, conversationId, setConversationId, clearChat } = useChat();
@@ -170,8 +175,11 @@ export default function ChatScreen() {
   // Track if we've already handled the prefill context (to avoid duplicate messages)
   const prefillHandledRef = useRef(false);
   
+  // Track if we've already handled the game context from GameSearch
+  const gameContextHandledRef = useRef(false);
+  
   // Store game context from GameSetup to prepend to first user message for AI context
-  const gameContextRef = useRef<{ gameName: string; playerCount: number } | null>(null);
+  const gameContextRef = useRef<{ gameName: string; playerCount?: number } | null>(null);
   
   // New UX states - tap-to-start/tap-to-stop pattern with TTS controls
   const [voiceUXMode, setVoiceUXMode] = useState<'default' | 'recording-mode' | 'active-recording' | 'processing' | 'tts-playing' | 'tts-paused'>('default');
@@ -191,6 +199,29 @@ export default function ChatScreen() {
   useEffect(() => {
     setMessages(prev => prev.filter(msg => msg.type !== 'thinking' && msg.type !== 'typing' && msg.type !== 'user-thinking'));
   }, []); // Only run once on mount
+
+  // Handle game context from GameSearch screen
+  useEffect(() => {
+    if (gameContext?.fromGameSearch && !gameContextHandledRef.current) {
+      gameContextHandledRef.current = true;
+      
+      // Store game context for AI
+      gameContextRef.current = {
+        gameName: gameContext.gameName
+      };
+      
+      // Clear previous chat and add contextual system message
+      const contextMessage: ChatMessage = {
+        id: `context-${Date.now()}`,
+        type: 'system',
+        text: `What else would you like to know about **${gameContext.gameName}**? I can help with rules, strategies, setup, or any other questions! 🎲`
+      };
+      
+      // Replace initial message with context-aware message
+      setMessages([contextMessage]);
+      setConversationId(null); // Start fresh conversation
+    }
+  }, [gameContext]);
 
   // Handle prefill context from GameSetup screen
   useEffect(() => {

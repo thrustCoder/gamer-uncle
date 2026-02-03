@@ -19,7 +19,7 @@ const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
-  { key: 'search', label: 'Game\nSearch', screen: null, icon: 'search', iconType: 'ionicon' },
+  { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search', iconType: 'ionicon' },
   { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
   { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
