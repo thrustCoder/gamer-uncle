@@ -47,7 +47,7 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   } else if (featureKey === 'dice') {
     radiusAdjustment = -15; // Move Dice Roller closer to center
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -15; // Move Game Setup closer to center
+    radiusAdjustment = -8; // Game Setup slightly away from center
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   
