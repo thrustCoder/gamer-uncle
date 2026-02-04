@@ -5,11 +5,14 @@
  * - 'local': Local development server
  * - 'dev': Azure Dev environment
  * - 'prod': Azure Production environment
+ * 
+ * App keys are loaded from environment variables (set in .env.local, which is gitignored).
+ * Run "testit" command to automatically fetch keys from Azure Key Vault and create .env.local.
  */
 
 // Configure which API endpoint to use
 export type ApiEnvironment = 'local' | 'dev' | 'prod';
-export const API_ENVIRONMENT = 'prod' as ApiEnvironment; // Change this to switch endpoints
+export const API_ENVIRONMENT = 'dev' as ApiEnvironment; // Change this to switch endpoints
 
 // API endpoint URLs
 const LOCAL_API_URL = 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
@@ -17,10 +20,10 @@ const AZURE_DEV_API_URL = 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03
 const AZURE_PROD_API_URL = 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/'; // Azure prod endpoint
 
 // Game Search App Keys (for API authentication)
-// In production, these would be bundled securely or fetched from a config service
-const LOCAL_APP_KEY = 'dev-gamer-uncle-app-key-2026';
-const DEV_APP_KEY = 'dev-gamer-uncle-app-key-2026'; // Will be replaced with Key Vault value in CI/CD
-const PROD_APP_KEY = 'prod-gamer-uncle-app-key-2026'; // Will be replaced with Key Vault value in CI/CD
+// Keys are loaded from environment variables, with fallback to placeholders for CI/CD
+const LOCAL_APP_KEY = process.env.EXPO_PUBLIC_LOCAL_APP_KEY || 'dev-gamer-uncle-app-key-2026';
+const DEV_APP_KEY = process.env.EXPO_PUBLIC_DEV_APP_KEY || 'dev-gamer-uncle-app-key-2026';
+const PROD_APP_KEY = process.env.EXPO_PUBLIC_PROD_APP_KEY || 'prod-gamer-uncle-app-key-2026';
 
 /**
  * Get the API base URL based on environment configuration
