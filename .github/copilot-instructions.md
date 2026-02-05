@@ -284,7 +284,7 @@ On **Windows**, the local API server is started for local development.
 
 **Important Notes for Windows "testit"**:
 - The API server MUST run in a separate PowerShell window to avoid blocking
-- App keys AND Speech API keys are fetched from Azure Key Vault and written to `.env.local` (gitignored)
+- App keys are fetched from Azure Key Vault and written to `.env.local` (gitignored)
 - The mobile app reads keys from environment variables via `.env.local`
 - Use `--clear` flag with Expo to ensure a fresh cache start
 - Existing dotnet and Metro/Node processes are killed to prevent port conflicts
