@@ -7,12 +7,20 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-ico
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Calculate circle layout parameters
+// Detect tablet/iPad (screen width >= 768 is typically tablet)
+const isTablet = Math.min(screenWidth, screenHeight) >= 768;
+
+// Scale multiplier: 3x for tablets, 1x for phones
+const scaleMultiplier = isTablet ? 3 : 1;
+// Label scale multiplier: 1.5x for tablets (half of icon scale), 1x for phones
+const labelScaleMultiplier = isTablet ? 1.5 : 1;
+
+// Calculate circle layout parameters (scaled for tablets)
 const centerX = screenWidth / 2;
 const centerY = screenHeight / 2 - 20; // Center of screen
-const circleRadius = Math.min(screenWidth, screenHeight) * 0.45; // Even larger radius for more spread
-const iconSize = 100; // Larger icon touch area
-const centerCircleSize = Math.min(screenWidth, screenHeight) * 0.35; // Size of tappable center circle
+const circleRadius = Math.min(screenWidth, screenHeight) * (isTablet ? 0.38 : 0.45); // Adjust radius for tablets
+const iconSize = 100 * scaleMultiplier; // Larger icon touch area, scaled for tablets
+const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 : 0.35); // Size of tappable center circle
 
 // Feature configuration for circular layout
 const features = [
@@ -92,15 +100,16 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
 
 const renderIcon = (feature: typeof features[0]) => {
   // Score tracker and Game Setup icons are 20% smaller, Turn Selector/Search are 10% smaller, Team is 10% larger
-  let baseSize = 60;
+  // Base sizes scaled by multiplier for tablets (3x for tablets, 1x for phones)
+  let baseSize = 60 * scaleMultiplier;
   if (feature.key === 'score' || feature.key === 'setup') {
-    baseSize = 48;
+    baseSize = 48 * scaleMultiplier;
   } else if (feature.key === 'turn') {
-    baseSize = 54;
+    baseSize = 54 * scaleMultiplier;
   } else if (feature.key === 'search') {
-    baseSize = 65; // 20% larger than default 54
+    baseSize = 65 * scaleMultiplier; // 20% larger than default 54
   } else if (feature.key === 'team') {
-    baseSize = 66;
+    baseSize = 66 * scaleMultiplier;
   }
   const iconProps = { size: baseSize, color: '#000000' };
   
@@ -159,7 +168,7 @@ export default function LandingScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >
               {renderIcon(feature)}
-              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2, width: 130 }, feature.key === 'chat' && { width: 130 }]}>{feature.label}</Text>
+              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }, feature.key === 'chat' && { width: 130 * labelScaleMultiplier }]}>{feature.label}</Text>
             </TouchableOpacity>
           );
         })}

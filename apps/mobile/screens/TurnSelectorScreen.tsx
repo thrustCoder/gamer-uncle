@@ -148,7 +148,7 @@ export default function TurnSelectorScreen() {
     >
       <BackButton />
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40 }]} testID="turn-selector">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
