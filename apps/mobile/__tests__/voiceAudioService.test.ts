@@ -1,4 +1,13 @@
 import { VoiceAudioService, SilenceDetectionConfig } from '../services/voiceAudioService';
+import { Platform } from 'react-native';
+
+// Mock react-native Platform
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    Version: '17.0', // Default to iOS 17+ (uses data URI)
+  },
+}));
 
 // Mock expo-av
 jest.mock('expo-av', () => ({
@@ -33,11 +42,15 @@ jest.mock('expo-av', () => ({
 
 // Mock expo-file-system
 jest.mock('expo-file-system', () => ({
-  File: jest.fn().mockImplementation(() => ({
+  File: jest.fn().mockImplementation((path) => ({
     arrayBuffer: jest.fn(() => Promise.resolve(new ArrayBuffer(100))),
     delete: jest.fn(() => Promise.resolve()),
+    write: jest.fn(() => Promise.resolve()),
+    path: path,
   })),
-  Paths: {},
+  Paths: {
+    cache: '/tmp/cache',
+  },
 }));
 
 // Mock axios
@@ -226,7 +239,8 @@ describe('VoiceAudioService', () => {
   });
 
   describe('Audio Playback Lifecycle', () => {
-    it('should play audio response successfully', async () => {
+    it('should play audio response using data URI on iOS 17+', async () => {
+      // Platform is mocked to iOS 17.0 by default
       const base64Audio = btoa('test audio data');
       const mockSound = {
         setOnPlaybackStatusUpdate: jest.fn((callback: any) => {
@@ -240,14 +254,43 @@ describe('VoiceAudioService', () => {
 
       await service.playAudioResponse(base64Audio);
 
-      // The implementation uses shouldPlay: true, so audio starts automatically when created
+      // iOS 17+ uses data URI for elegant in-memory playback
       expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
-        expect.objectContaining({ uri: expect.stringContaining('data:audio/') }),
+        expect.objectContaining({ uri: expect.stringContaining('data:audio/wav;base64,') }),
         expect.objectContaining({ shouldPlay: true, volume: 1 }),
         expect.any(Function)
       );
       // Sound finishes and unloads
       expect(mockSound.unloadAsync).toHaveBeenCalled();
+    });
+
+    it('should play audio response using temp file on iOS 16.x (legacy compatibility)', async () => {
+      // Mock iOS 16 for this test
+      const platformMock = require('react-native').Platform;
+      const originalVersion = platformMock.Version;
+      platformMock.Version = '16.7.2';
+      
+      const base64Audio = btoa('test audio data');
+      const mockSound = {
+        setOnPlaybackStatusUpdate: jest.fn((callback: any) => {
+          Promise.resolve().then(() => callback({ isLoaded: true, isPlaying: false, didJustFinish: true }));
+        }),
+        unloadAsync: jest.fn().mockResolvedValue({}),
+      };
+      const Audio = require('expo-av').Audio;
+      Audio.Sound.createAsync.mockResolvedValue({ sound: mockSound });
+
+      await service.playAudioResponse(base64Audio);
+
+      // iOS 16.x uses temp file to avoid AVPlayerItem error -16041
+      expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ uri: expect.stringContaining('/tmp/cache/tts_audio_') }),
+        expect.objectContaining({ shouldPlay: true, volume: 1 }),
+        expect.any(Function)
+      );
+      
+      // Restore original version
+      platformMock.Version = originalVersion;
     });
 
     it('should handle playback errors gracefully', async () => {
