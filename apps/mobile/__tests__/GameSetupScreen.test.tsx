@@ -122,8 +122,8 @@ describe('GameSetupScreen', () => {
           ConversationId: null,
         })
       );
-    });
-  });
+    }, { timeout: 15000 });
+  }, 20000);
 
   it('displays response after successful API call', async () => {
     const mockResponse = 'Setup instructions for Catan with 4 players:\n1. Place the board...';

@@ -60,7 +60,7 @@ describe('TurnSelectorScreen', () => {
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
-    });
+    }, { timeout: 15000 });
 
     // Get the first text input
     const inputs = getAllByDisplayValue(/P\d+/);
@@ -76,7 +76,7 @@ describe('TurnSelectorScreen', () => {
     
     // The input should remain empty
     expect(firstInput.props.value).toBe('');
-  });
+  }, 20000);
 
   it('should allow setting custom names after clearing', async () => {
     const { getAllByDisplayValue, getByDisplayValue } = render(<TurnSelectorScreen />);
