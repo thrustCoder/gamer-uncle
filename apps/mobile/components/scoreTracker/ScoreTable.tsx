@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../../styles/scoreTrackerStyles';
 import { Colors } from '../../styles/colors';
 import ScoreTableRow from './ScoreTableRow';
+import { generateUniqueInitials } from '../../utils/initialsUtils';
 import type { GameInfo } from '../../types/scoreTracker';
 
 interface TableDataItem {
@@ -32,6 +33,12 @@ export default function ScoreTable({
   onEdit,
   onDelete,
 }: ScoreTableProps) {
+  // Generate initials for player names
+  const initials = useMemo(
+    () => generateUniqueInitials(playerNames),
+    [playerNames]
+  );
+
   // Calculate column width based on number of players
   const playerColumnWidth = Math.max(50, (100 - 25) / playerNames.length);
 
@@ -58,7 +65,7 @@ export default function ScoreTable({
             style={[styles.tableHeaderCell, { flex: 1 }]}
             numberOfLines={1}
           >
-            {name}
+            {initials[name]}
           </Text>
         ))}
       </View>

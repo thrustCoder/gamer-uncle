@@ -31,6 +31,9 @@ interface ScoreTrackerContextType {
   deleteLeaderboardEntry: (index: number) => void;
   clearLeaderboard: () => void;
 
+  // Player name sync
+  renamePlayer: (oldName: string, newName: string) => void;
+
   // Computed values
   getGameScoreRanking: () => PlayerRanking[];
   getLeaderboardRanking: () => PlayerRanking[];
@@ -168,6 +171,45 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLeaderboard([]);
   }, []);
 
+  // === Player Name Sync ===
+
+  /**
+   * Renames a player across all stored data (game score rounds and leaderboard entries).
+   * This ensures that when a player name changes in the top section, it reflects
+   * in all the data without losing scores.
+   */
+  const renamePlayer = useCallback((oldName: string, newName: string) => {
+    if (oldName === newName) return;
+
+    // Helper to remap scores object
+    const remapScores = (scores: Record<string, number>): Record<string, number> => {
+      const remapped: Record<string, number> = {};
+      Object.entries(scores).forEach(([key, value]) => {
+        const newKey = key === oldName ? newName : key;
+        remapped[newKey] = value;
+      });
+      return remapped;
+    };
+
+    // Update game score rounds
+    setGameScore((prev) => {
+      if (!prev) return prev;
+      const updatedRounds = prev.rounds.map((round) => ({
+        ...round,
+        scores: remapScores(round.scores),
+      }));
+      return { ...prev, rounds: updatedRounds };
+    });
+
+    // Update leaderboard entries
+    setLeaderboard((prev) => {
+      return prev.map((entry) => ({
+        ...entry,
+        scores: remapScores(entry.scores),
+      }));
+    });
+  }, []);
+
   // === Computed Values ===
 
   const getGameScoreRanking = useCallback((): PlayerRanking[] => {
@@ -224,6 +266,9 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       deleteLeaderboardEntry,
       clearLeaderboard,
 
+      // Player name sync
+      renamePlayer,
+
       // Computed
       getGameScoreRanking,
       getLeaderboardRanking,
@@ -241,6 +286,7 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       updateLeaderboardEntry,
       deleteLeaderboardEntry,
       clearLeaderboard,
+      renamePlayer,
       getGameScoreRanking,
       getLeaderboardRanking,
     ]

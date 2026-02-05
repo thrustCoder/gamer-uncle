@@ -9,8 +9,10 @@ import {
   Alert,
   Platform,
   Keyboard,
+  Image,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -215,23 +217,60 @@ export default function ScoreInputScreen() {
         {/* Game Selection (for leaderboard or new game) */}
         {needsGameSelection && (
           <TouchableOpacity
-            style={[styles.scoreInputRow, { marginBottom: 20 }]}
+            style={styles.gameInfoCard}
             onPress={() => setShowGameSearch(true)}
             testID="game-select-button"
           >
-            <Text style={styles.scoreInputLabel}>
-              {selectedGame ? selectedGame.name : 'Select Game...'}
-            </Text>
-            <Text style={{ fontSize: 20 }}>🎲</Text>
+            {selectedGame ? (
+              <>
+                {selectedGame.thumbnailUrl ? (
+                  <Image
+                    source={{ uri: selectedGame.thumbnailUrl }}
+                    style={styles.gameInfoThumbnail}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.gameInfoThumbnailPlaceholder}>
+                    <MaterialCommunityIcons name="dice-multiple" size={32} color={Colors.grayDark} />
+                  </View>
+                )}
+                <View style={styles.gameInfoContent}>
+                  <Text style={styles.gameInfoName} numberOfLines={2}>{selectedGame.name}</Text>
+                  <Text style={styles.gameInfoTapHint}>Tap to change game</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.gameInfoThumbnailPlaceholder}>
+                  <MaterialCommunityIcons name="dice-multiple" size={32} color={Colors.grayDark} />
+                </View>
+                <View style={styles.gameInfoContent}>
+                  <Text style={styles.gameInfoName}>Select a Game</Text>
+                  <Text style={styles.gameInfoTapHint}>Tap to search</Text>
+                </View>
+              </>
+            )}
           </TouchableOpacity>
         )}
 
         {/* Current game display (for adding rounds to existing game) */}
         {!needsGameSelection && gameScore && (
-          <View style={[styles.scoreInputRow, { marginBottom: 20, opacity: 0.8 }]}>
-            <Text style={styles.scoreInputLabel}>
-              {gameScore.game.name} - Round {gameScore.rounds.length + 1}
-            </Text>
+          <View style={styles.gameInfoCard}>
+            {gameScore.game.thumbnailUrl ? (
+              <Image
+                source={{ uri: gameScore.game.thumbnailUrl }}
+                style={styles.gameInfoThumbnail}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.gameInfoThumbnailPlaceholder}>
+                <MaterialCommunityIcons name="dice-multiple" size={32} color={Colors.grayDark} />
+              </View>
+            )}
+            <View style={styles.gameInfoContent}>
+              <Text style={styles.gameInfoName} numberOfLines={2}>{gameScore.game.name}</Text>
+              <Text style={styles.gameInfoTapHint}>Round {gameScore.rounds.length + 1}</Text>
+            </View>
           </View>
         )}
 

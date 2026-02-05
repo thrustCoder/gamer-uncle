@@ -339,4 +339,110 @@ describe('ScoreTrackerContext', () => {
       expect(result.current.leaderboard.length).toBe(1);
     });
   });
+
+  describe('Player Name Sync', () => {
+    it('should rename player in game score rounds', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame);
+        result.current.addRound({ Alice: 10, Bob: 20 });
+        result.current.addRound({ Alice: 15, Bob: 25 });
+      });
+      
+      act(() => {
+        result.current.renamePlayer('Alice', 'Alicia');
+      });
+      
+      expect(result.current.gameScore?.rounds[0].scores).toEqual({ Alicia: 10, Bob: 20 });
+      expect(result.current.gameScore?.rounds[1].scores).toEqual({ Alicia: 15, Bob: 25 });
+    });
+
+    it('should rename player in leaderboard entries', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.addLeaderboardEntry(mockGame, { Alice: 100, Bob: 80 });
+        result.current.addLeaderboardEntry(mockCustomGame, { Alice: 50, Bob: 120 });
+      });
+      
+      act(() => {
+        result.current.renamePlayer('Bob', 'Robert');
+      });
+      
+      expect(result.current.leaderboard[0].scores).toEqual({ Alice: 100, Robert: 80 });
+      expect(result.current.leaderboard[1].scores).toEqual({ Alice: 50, Robert: 120 });
+    });
+
+    it('should rename player in both game score and leaderboard', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame);
+        result.current.addRound({ Alice: 10, Bob: 20 });
+        result.current.addLeaderboardEntry(mockCustomGame, { Alice: 50, Bob: 120 });
+      });
+      
+      act(() => {
+        result.current.renamePlayer('Alice', 'Ali');
+      });
+      
+      expect(result.current.gameScore?.rounds[0].scores).toEqual({ Ali: 10, Bob: 20 });
+      expect(result.current.leaderboard[0].scores).toEqual({ Ali: 50, Bob: 120 });
+    });
+
+    it('should not change anything when old and new names are the same', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame);
+        result.current.addRound({ Alice: 10, Bob: 20 });
+      });
+      
+      const originalScores = { ...result.current.gameScore?.rounds[0].scores };
+      
+      act(() => {
+        result.current.renamePlayer('Alice', 'Alice');
+      });
+      
+      expect(result.current.gameScore?.rounds[0].scores).toEqual(originalScores);
+    });
+
+    it('should update ranking after player rename', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame);
+        result.current.addRound({ Alice: 30, Bob: 20 });
+      });
+      
+      act(() => {
+        result.current.renamePlayer('Alice', 'Alicia');
+      });
+      
+      const ranking = result.current.getGameScoreRanking();
+      expect(ranking[0].player).toBe('Alicia');
+      expect(ranking[0].total).toBe(30);
+    });
+  });
 });

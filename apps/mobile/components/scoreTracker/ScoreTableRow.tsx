@@ -105,19 +105,17 @@ export default function ScoreTableRow({
   };
 
   return (
-    <View style={{ overflow: 'hidden' }}>
-      {/* Action buttons (revealed on swipe) */}
+    <View style={{ overflow: 'hidden', position: 'relative' }}>
+      {/* Action buttons (revealed on swipe) - positioned absolutely behind the row */}
       <View
-        style={[
-          styles.swipeActions,
-          {
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: ACTION_WIDTH,
-          },
-        ]}
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: ACTION_WIDTH,
+          flexDirection: 'row',
+        }}
       >
         <TouchableOpacity
           style={[styles.swipeActionButton, styles.swipeActionEdit]}
@@ -133,13 +131,13 @@ export default function ScoreTableRow({
         </TouchableOpacity>
       </View>
 
-      {/* Main row content (swipeable) */}
+      {/* Main row content (swipeable) - covers action buttons when not swiped */}
       <Animated.View
         style={[
           styles.tableRow,
           {
             transform: [{ translateX }],
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: Colors.wheelGray, // Match table background color
           },
         ]}
         {...panResponder.panHandlers}

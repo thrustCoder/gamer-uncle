@@ -96,7 +96,7 @@ export const scoreTrackerStyles = StyleSheet.create({
 
   // === Section Container (Game Score / Leaderboard) ===
   sectionContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -161,7 +161,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.themeBrownDark,
+    backgroundColor: Colors.wheelLightGray,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -192,20 +192,17 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'right',
   },
-  trophyEmoji: {
-    marginLeft: 8,
-    fontSize: 20,
-  },
 
   // === Score Table ===
   tableContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: Colors.wheelGray,
     borderRadius: 12,
     overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    backgroundColor: Colors.wheelLightGray,
     paddingVertical: 10,
     paddingHorizontal: 8,
   },
@@ -216,11 +213,12 @@ export const scoreTrackerStyles = StyleSheet.create({
     textAlign: 'center',
   },
   tableHeaderCellFirst: {
-    width: 60,
+    width: 120,
     textAlign: 'left',
   },
   tableRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
@@ -232,7 +230,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     textAlign: 'center',
   },
   tableCellFirst: {
-    width: 60,
+    width: 120,
     textAlign: 'left',
     fontWeight: 'bold',
   },
@@ -261,13 +259,17 @@ export const scoreTrackerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    alignSelf: 'center',
+    backgroundColor: Colors.wheelGreen,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     marginTop: 12,
   },
   addRowButtonText: {
-    color: Colors.themeYellow,
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   addRowIcon: {
     marginRight: 8,
@@ -477,5 +479,63 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontSize: 12,
     color: Colors.white,
     flex: 1,
+  },
+
+  // === Game Info Card (Score Input Screen) ===
+  gameInfoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gameInfoThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  gameInfoThumbnailPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: Colors.grayPlaceholder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gameInfoContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  gameInfoName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.textDark,
+  },
+  gameInfoTapHint: {
+    fontSize: 13,
+    color: Colors.grayDark,
+    marginTop: 4,
+  },
+
+  // === Secondary Button (Dark Brown) ===
+  secondaryButton: {
+    backgroundColor: Colors.themeBrownDark,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 20,
+    alignItems: 'center',
+    alignSelf: 'center',
+    elevation: 4,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  secondaryButtonText: {
+    color: Colors.themeYellow,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

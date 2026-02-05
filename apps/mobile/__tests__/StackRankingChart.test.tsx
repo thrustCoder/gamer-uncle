@@ -4,8 +4,8 @@ import StackRankingChart from '../components/scoreTracker/StackRankingChart';
 
 describe('StackRankingChart', () => {
   it('renders nothing when data is empty', () => {
-    const { queryByText } = render(<StackRankingChart data={[]} />);
-    expect(queryByText('🏆')).toBeNull();
+    const { toJSON } = render(<StackRankingChart data={[]} />);
+    expect(toJSON()).toBeNull();
   });
 
   it('renders player initials', () => {
@@ -16,24 +16,6 @@ describe('StackRankingChart', () => {
     const { getByText } = render(<StackRankingChart data={data} />);
     expect(getByText('A')).toBeTruthy();
     expect(getByText('B')).toBeTruthy();
-  });
-
-  it('shows trophy emoji for leader', () => {
-    const data = [
-      { player: 'Alice', total: 100 },
-      { player: 'Bob', total: 80 },
-    ];
-    const { getByText } = render(<StackRankingChart data={data} />);
-    expect(getByText('🏆')).toBeTruthy();
-  });
-
-  it('does not show trophy when leader has 0 score', () => {
-    const data = [
-      { player: 'Alice', total: 0 },
-      { player: 'Bob', total: 0 },
-    ];
-    const { queryByText } = render(<StackRankingChart data={data} />);
-    expect(queryByText('🏆')).toBeNull();
   });
 
   it('displays scores correctly', () => {
@@ -68,8 +50,9 @@ describe('StackRankingChart', () => {
     ];
     const { getByText } = render(<StackRankingChart data={data} />);
     
-    // Should have unique initials like A, AN, AM or similar
-    expect(getByText('A')).toBeTruthy();
+    // Should have consistent 2-character initials for all players
+    // because 1 char would not be unique
+    expect(getByText('AL')).toBeTruthy();
     expect(getByText('AN')).toBeTruthy();
     expect(getByText('AM')).toBeTruthy();
   });
