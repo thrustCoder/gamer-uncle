@@ -51,14 +51,14 @@ export const scoreTrackerStyles = StyleSheet.create({
   },
   playerCountButton: {
     backgroundColor: Colors.themeBrownDark,
-    borderRadius: 12,
+    borderRadius: 7,
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    width: 80,
-    height: 50,
+    width: 48,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -66,7 +66,7 @@ export const scoreTrackerStyles = StyleSheet.create({
   },
   playerCountText: {
     color: Colors.themeYellow,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   playerNamesGrid: {

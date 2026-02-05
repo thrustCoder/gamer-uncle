@@ -52,7 +52,7 @@ export const teamRandomizerStyles = StyleSheet.create({
   },
   randomizeButton: {
     backgroundColor: Colors.wheelGreen,
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 15,
     marginTop: 50,
