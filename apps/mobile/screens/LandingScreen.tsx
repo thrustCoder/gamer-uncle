@@ -17,7 +17,7 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * 0.35; // Size of 
 // Feature configuration for circular layout
 const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
-  { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
+  { key: 'score', label: 'Score\nTracker', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search', iconType: 'ionicon' },
   { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
@@ -156,7 +156,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '2.2.10'}
+            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.1.0'}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>
