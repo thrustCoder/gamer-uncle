@@ -17,7 +17,7 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * 0.35; // Size of 
 // Feature configuration for circular layout
 const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
-  { key: 'score', label: 'Score\nTracker', screen: null, icon: 'scoreboard', iconType: 'material' },
+  { key: 'score', label: 'Score\nTracker', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search', iconType: 'ionicon' },
   { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
