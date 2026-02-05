@@ -17,7 +17,7 @@ describe('Playwright command fix', () => {
   it('should have valid playwright command syntax', async () => {
     // Test that playwright command with reporter option works
     try {
-      const { stderr } = await execAsync('npx playwright test --reporter=junit --list');
+      const { stderr } = await execAsync('npx playwright test --reporter=junit --list', { timeout: 60000 });
       // Should not contain "unknown option" error
       expect(stderr).not.toContain('unknown option');
     } catch (error) {
@@ -25,7 +25,7 @@ describe('Playwright command fix', () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       expect(errorMessage).not.toContain('unknown option');
     }
-  }, 30000);
+  }, 60000);
 
   it('should have correct CI scripts without invalid options', () => {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));

@@ -1,9 +1,17 @@
 import React, { useRef } from 'react';
-import { View, TouchableOpacity, Text, Animated, Easing, Image } from 'react-native';
+import { View, TouchableOpacity, Text, Animated, Easing, Image, Dimensions } from 'react-native';
 import Svg, { G, Path, Text as SvgText, Circle } from 'react-native-svg';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import { Audio } from 'expo-av';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Detect tablet/iPad (screen width >= 768 is typically tablet)
+const isTablet = Math.min(screenWidth, screenHeight) >= 768;
+
+// Scale multiplier for tablet marker: 2.5x for tablets, 1x for phones
+const markerScaleMultiplier = isTablet ? 2.5 : 1;
 
 interface Props {
   playerNames: string[];
@@ -52,12 +60,22 @@ const SpinningWheel: React.FC<Props> = ({ playerNames, onSpinEnd }) => {
 
   const colors = [Colors.wheelRed, Colors.wheelGray, Colors.wheelGreen, Colors.wheelLightGray, Colors.themePurple, Colors.wheelOrange];
 
+  // Marker dimensions
+  const markerSize = 120 * markerScaleMultiplier;
+  const markerTopOffset = -50 * markerScaleMultiplier;
+
   return (
-    <View style={{ alignItems: 'center', marginVertical: 20 }}>
-      <View style={{ position: 'absolute', top: -50, zIndex: 1 }}>
+    <View style={{ alignItems: 'center', marginVertical: 20, overflow: 'visible' }}>
+      <View style={{ 
+        position: 'absolute', 
+        top: markerTopOffset, 
+        zIndex: 10,
+        alignItems: 'center',
+        overflow: 'visible',
+      }}>
         <Image 
           source={require('../assets/images/turn_marker.png')} 
-          style={{ width: 120, height: 120, resizeMode: 'contain' }} 
+          style={{ width: markerSize, height: markerSize, resizeMode: 'contain' }} 
         />
       </View>
       <TouchableOpacity onPress={spinWheel} activeOpacity={0.9}>

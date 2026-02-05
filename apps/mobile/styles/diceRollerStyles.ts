@@ -2,6 +2,14 @@ import { StyleSheet, Dimensions } from 'react-native';
 import { Colors } from './colors';
 const screen = Dimensions.get('window');
 
+// Calculate dice size based on screen dimensions
+// Use the smaller dimension to ensure dice fit on tablets in any orientation
+const smallerDimension = Math.min(screen.width, screen.height);
+// Cap the dice size at 200 for tablets, and use 40% of smaller dimension for phones
+const maxDiceSize = 200;
+const calculatedSize = smallerDimension * 0.4;
+const diceSize = Math.min(calculatedSize, maxDiceSize);
+
 export const diceRollerStyles = StyleSheet.create({
   bg: {
     flex: 1,
@@ -36,15 +44,17 @@ export const diceRollerStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
   },
   diceRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'nowrap',
   },
   dice: {
-    width: screen.width * 0.6,
-    height: screen.width * 0.6,
-    marginHorizontal: -25,
+    width: diceSize,
+    height: diceSize,
+    marginHorizontal: 10,
   },
 });

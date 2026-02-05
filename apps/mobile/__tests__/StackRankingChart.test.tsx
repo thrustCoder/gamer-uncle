@@ -50,11 +50,11 @@ describe('StackRankingChart', () => {
     ];
     const { getByText } = render(<StackRankingChart data={data} />);
     
-    // Should have consistent 2-character initials for all players
+    // Should have consistent 2-character initials for all players (Title Case)
     // because 1 char would not be unique
-    expect(getByText('AL')).toBeTruthy();
-    expect(getByText('AN')).toBeTruthy();
-    expect(getByText('AM')).toBeTruthy();
+    expect(getByText('Al')).toBeTruthy();
+    expect(getByText('An')).toBeTruthy();
+    expect(getByText('Am')).toBeTruthy();
   });
 
   it('handles empty player names gracefully', () => {

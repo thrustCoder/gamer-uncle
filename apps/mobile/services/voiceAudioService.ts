@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import { File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 import axios from 'axios';
 
 export interface AudioProcessingRequest {
@@ -249,6 +250,34 @@ export class VoiceAudioService {
     }
   }
 
+  // Track temp file URI for cleanup
+  private tempAudioFileUri: string | null = null;
+
+  /**
+   * Check if device needs temp file workaround for audio playback.
+   * Data URIs can cause AVPlayerItem error -16041 on older iOS versions (iOS 16.x and below).
+   * iOS 17+ handles data URIs properly, so we use the more elegant approach there.
+   */
+  private needsTempFileWorkaround(): boolean {
+    if (Platform.OS !== 'ios') {
+      return false; // Only iOS has this issue
+    }
+    
+    // Parse iOS version - Platform.Version is a string like "16.7.2" on iOS
+    const iosVersion = typeof Platform.Version === 'string' 
+      ? parseFloat(Platform.Version) 
+      : Platform.Version;
+    
+    // iOS 16.x and below need the temp file workaround
+    const needsWorkaround = iosVersion < 17;
+    
+    if (needsWorkaround) {
+      console.log(`📱 [AUDIO] iOS ${Platform.Version} detected - using temp file for audio playback compatibility`);
+    }
+    
+    return needsWorkaround;
+  }
+
   /**
    * Play TTS audio response from backend
    */
@@ -268,44 +297,85 @@ export class VoiceAudioService {
       playThroughEarpieceAndroid: false,
     });
 
-    console.log('🔊 [AUDIO] Loading audio from data URI...');
-    // Use data URI instead of file system to avoid permission issues
-    const dataUri = `data:audio/wav;base64,${base64Wav}`;
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: dataUri },
-      { shouldPlay: true, volume: 1.0 },
-      this.onPlaybackStatusUpdate
-    );
-
-    this.soundObject = sound;
-    this.isPausedState = false;
-    console.log('🟢 [AUDIO] Playing TTS audio...');
+    // Determine audio source based on device compatibility
+    let audioUri: string;
     
-    // Notify TTS started
-    this.onTTSStartCallback?.();
+    if (this.needsTempFileWorkaround()) {
+      // Older iOS: Write to temp file to avoid AVPlayerItem error -16041
+      console.log('🔊 [AUDIO] Writing audio to temp file for playback (legacy iOS compatibility)...');
+      const tempFileName = `tts_audio_${Date.now()}.wav`;
+      const tempFilePath = `${Paths.cache}/${tempFileName}`;
+      
+      const audioBytes = this.base64ToUint8Array(base64Wav);
+      const tempFile = new File(tempFilePath);
+      await tempFile.write(audioBytes);
+      this.tempAudioFileUri = tempFilePath;
+      audioUri = tempFilePath;
+    } else {
+      // Modern devices: Use data URI for elegant in-memory playback
+      console.log('🔊 [AUDIO] Loading audio from data URI...');
+      audioUri = `data:audio/wav;base64,${base64Wav}`;
+    }
+    
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUri },
+        { shouldPlay: true, volume: 1.0 },
+        this.onPlaybackStatusUpdate
+      );
 
-    return new Promise((resolve, reject) => {
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) {
-          if (status.error) {
-            console.error('🔴 [AUDIO] Playback error:', status.error);
-            this.onTTSEndCallback?.();
-            reject(new Error(`Playback error: ${status.error}`));
+      this.soundObject = sound;
+      this.isPausedState = false;
+      console.log('🟢 [AUDIO] Playing TTS audio...');
+      
+      // Notify TTS started
+      this.onTTSStartCallback?.();
+
+      return new Promise((resolve, reject) => {
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded) {
+            if (status.error) {
+              console.error('🔴 [AUDIO] Playback error:', status.error);
+              this.cleanupTempAudioFile();
+              this.onTTSEndCallback?.();
+              reject(new Error(`Playback error: ${status.error}`));
+            }
+            return;
           }
-          return;
-        }
 
-        if (status.didJustFinish) {
-          console.log('🟢 [AUDIO] Playback finished');
-          sound.unloadAsync();
-          this.soundObject = null;
-          this.isPausedState = false;
-          // Notify TTS ended
-          this.onTTSEndCallback?.();
-          resolve();
-        }
+          if (status.didJustFinish) {
+            console.log('🟢 [AUDIO] Playback finished');
+            sound.unloadAsync();
+            this.soundObject = null;
+            this.isPausedState = false;
+            this.cleanupTempAudioFile();
+            // Notify TTS ended
+            this.onTTSEndCallback?.();
+            resolve();
+          }
+        });
       });
-    });
+    } catch (error) {
+      console.error('🔴 [AUDIO] Failed to prepare audio playback:', error);
+      this.cleanupTempAudioFile();
+      throw error;
+    }
+  }
+
+  /**
+   * Clean up temporary audio file used for TTS playback
+   */
+  private async cleanupTempAudioFile(): Promise<void> {
+    if (this.tempAudioFileUri) {
+      try {
+        const tempFile = new File(this.tempAudioFileUri);
+        await tempFile.delete();
+        console.log('🧹 [AUDIO] Cleaned up temp audio file');
+      } catch (error) {
+        console.warn('⚠️ [AUDIO] Failed to delete temp audio file:', error);
+      }
+      this.tempAudioFileUri = null;
+    }
   }
 
   /**
@@ -318,6 +388,7 @@ export class VoiceAudioService {
       await this.soundObject.unloadAsync();
       this.soundObject = null;
       this.isPausedState = false;
+      await this.cleanupTempAudioFile();
       // Notify TTS ended (interrupted)
       this.onTTSEndCallback?.();
     }
@@ -399,6 +470,9 @@ export class VoiceAudioService {
       }
       this.soundObject = null;
     }
+
+    // Clean up temp audio file
+    await this.cleanupTempAudioFile();
   }
 
   // ========== Helper Methods ==========

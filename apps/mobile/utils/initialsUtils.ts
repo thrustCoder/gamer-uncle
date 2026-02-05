@@ -1,7 +1,17 @@
 /**
+ * Converts initials to Title Case (first letter uppercase, rest lowercase)
+ * Single characters remain uppercase
+ */
+function toTitleCase(str: string): string {
+  if (str.length <= 1) return str.toUpperCase();
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+/**
  * Generates unique initials for a list of player names
  * All players will have the same number of characters in their initials
  * (the minimum needed to make all names unique)
+ * Single letter initials are uppercase, multi-letter initials are Title Case
  */
 export function generateUniqueInitials(names: string[]): Record<string, string> {
   const result: Record<string, string> = {};
@@ -54,7 +64,8 @@ export function generateUniqueInitials(names: string[]): Record<string, string> 
     }
 
     usedInitials.add(initials);
-    result[name] = initials.substring(0, 3); // Max 3 characters
+    // Apply Title Case for multi-letter initials, keep single letters uppercase
+    result[name] = toTitleCase(initials.substring(0, 3)); // Max 3 characters
   });
 
   return result;

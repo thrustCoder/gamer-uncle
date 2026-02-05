@@ -5,9 +5,14 @@ const screenHeight = Dimensions.get('window').height;
 const screenWidth = Dimensions.get('window').width;
 
 // Detect if it's an iPad (larger screen width)
-const isTablet = screenWidth >= 768;
+const isTablet = Math.min(screenWidth, screenHeight) >= 768;
 // Detect landscape orientation (width > height)
 const isLandscape = screenWidth > screenHeight;
+
+// Scale multiplier: 3x for tablets, 1x for phones
+const scaleMultiplier = isTablet ? 3 : 1;
+// Label scale multiplier: 1.5x for tablets (half of icon scale), 1x for phones
+const labelScaleMultiplier = isTablet ? 1.5 : 1;
 
 // Calculate center avatar size based on screen
 const avatarSize = Math.min(screenWidth, screenHeight) * 0.28;
@@ -50,11 +55,11 @@ export const landingStyles = StyleSheet.create({
     height: avatarSize * 0.85,
     borderRadius: (avatarSize * 0.85) / 2,
   },
-  // Feature button styles (no circular container)
+  // Feature button styles (no circular container) - scaled for tablets
   featureButton: {
     position: 'absolute',
-    width: 100,
-    height: 100,
+    width: 100 * scaleMultiplier,
+    height: 100 * scaleMultiplier,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 5,
@@ -62,9 +67,9 @@ export const landingStyles = StyleSheet.create({
   // Legacy circular icon button (kept for backward compatibility)
   circularIconButton: {
     position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 60 * scaleMultiplier,
+    height: 60 * scaleMultiplier,
+    borderRadius: 30 * scaleMultiplier,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -75,10 +80,10 @@ export const landingStyles = StyleSheet.create({
     zIndex: 5,
   },
   iconLabel: {
-    fontSize: 18,
+    fontSize: 18 * labelScaleMultiplier,
     color: '#000000',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 4 * labelScaleMultiplier,
     fontWeight: '600',
   },
   // Version container at bottom

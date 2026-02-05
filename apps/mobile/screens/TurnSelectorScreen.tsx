@@ -148,7 +148,7 @@ export default function TurnSelectorScreen() {
     >
       <BackButton />
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40 }]} testID="turn-selector">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
@@ -171,14 +171,14 @@ export default function TurnSelectorScreen() {
             onPress={showPlayerCountPicker}
             style={{ 
               backgroundColor: Colors.themeBrownDark, 
-              borderRadius: 12,
+              borderRadius: 7,
               shadowColor: Colors.black,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
               elevation: 8,
-              width: 80,
-              height: 50,
+              width: 48,
+              height: 30,
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 2,
@@ -187,7 +187,7 @@ export default function TurnSelectorScreen() {
           >
             <Text style={{
               color: Colors.themeYellow,
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: 'bold',
             }}>
               {playerCount}
