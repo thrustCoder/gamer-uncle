@@ -19,7 +19,7 @@ const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Score\nTracker', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
-  { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search', iconType: 'ionicon' },
+  { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
   { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
   { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
@@ -47,32 +47,41 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   } else if (featureKey === 'dice') {
     radiusAdjustment = -15; // Move Dice Roller closer to center
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -8; // Game Setup slightly away from center
+    radiusAdjustment = -10; // Move Game Setup closer to Talk to Uncle
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
-  
-  // Add vertical offset for bottom icons (indices 3 and 4) to accommodate thicker ring base
-  let verticalOffset = (index === 3 || index === 4) ? 25 : 0;
+  let verticalOffset = 0;
+  let horizontalOffset = 0;
   
   // Shift Talk to Uncle slightly higher towards top
   if (featureKey === 'chat') {
-    verticalOffset = -15;
+    verticalOffset = -5;
+  }
+
+  if (featureKey === 'score') {
+    horizontalOffset = -5;
+  }
+
+  if (featureKey === 'dice') {
+    verticalOffset = 5;
+    horizontalOffset = 10;
+  }
+    
+  if (featureKey === 'turn') {
+    verticalOffset = 0;
   }
   
-  // Timer and Turn Selector move slightly downward
-  if (featureKey === 'timer' || featureKey === 'turn') {
+  if (featureKey === 'timer') {
     verticalOffset = 10;
   }
   
-  // Team Randomizer moves slightly higher
   if (featureKey === 'team') {
     verticalOffset = 5; // Reduced from 15 to move it higher
   }
   
-  // Horizontal offset for Dice Roller to move it right
-  let horizontalOffset = 0;
-  if (featureKey === 'dice') {
-    horizontalOffset = 10;
+  if (featureKey === 'search') {
+    verticalOffset = 20;
+    horizontalOffset = 5;
   }
   
   return {
@@ -86,8 +95,10 @@ const renderIcon = (feature: typeof features[0]) => {
   let baseSize = 60;
   if (feature.key === 'score' || feature.key === 'setup') {
     baseSize = 48;
-  } else if (feature.key === 'turn' || feature.key === 'search') {
+  } else if (feature.key === 'turn') {
     baseSize = 54;
+  } else if (feature.key === 'search') {
+    baseSize = 65; // 20% larger than default 54
   } else if (feature.key === 'team') {
     baseSize = 66;
   }
@@ -131,7 +142,7 @@ export default function LandingScreen() {
         />
 
         {/* Circular Feature Icons */}
-        {features.map((feature, index) => {
+            {features.map((feature, index) => {
           const position = getIconPosition(index, features.length, feature.key);
           return (
             <TouchableOpacity
@@ -148,7 +159,7 @@ export default function LandingScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >
               {renderIcon(feature)}
-              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2, width: 130 }]}>{feature.label}</Text>
+              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2, width: 130 }, feature.key === 'chat' && { width: 130 }]}>{feature.label}</Text>
             </TouchableOpacity>
           );
         })}
