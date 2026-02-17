@@ -295,8 +295,8 @@ namespace GamerUncle.Functions
             
             log.LogInformation($"Prod ranked game sync timer trigger executed at: {DateTime.Now}");
             
-            var rankedSyncPages = Environment.GetEnvironmentVariable("RankedSyncPages") ?? "100";
-            int endPage = int.TryParse(rankedSyncPages, out var rp) && rp > 0 ? rp : 100;
+            var rankedSyncPages = Environment.GetEnvironmentVariable("RankedSyncPages") ?? "70";
+            int endPage = int.TryParse(rankedSyncPages, out var rp) && rp > 0 ? rp : 70;
             var request = new RankedSyncRequest { StartPage = 1, EndPage = endPage };
             string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableRankedSyncOrchestrator), request);
             
@@ -499,8 +499,8 @@ namespace GamerUncle.Functions
         /// <summary>First BGG browse page to fetch (1-based). Each page has ~100 ranked games.</summary>
         public int StartPage { get; set; } = 1;
 
-        /// <summary>Last BGG browse page to fetch. 100 pages = top 10,000 ranked games.</summary>
-        public int EndPage { get; set; } = 100;
+        /// <summary>Last BGG browse page to fetch. 70 pages = top ~7,000 ranked games.</summary>
+        public int EndPage { get; set; } = 70;
     }
 
     public class HighSignalSyncRequest

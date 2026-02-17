@@ -55,13 +55,16 @@ namespace GamerUncle.Functions.Helpers
                 try
                 {
                     using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                    request.Headers.Add("User-Agent", "GamerUncle-BggSync/1.0 (board game assistant)");
-                    request.Headers.Add("Accept", "text/html,application/xhtml+xml");
+                    // Use a realistic browser User-Agent — BGG's bot protection returns 403 for non-browser agents
+                    request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                    request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+                    request.Headers.Add("Accept-Language", "en-US,en;q=0.5");
 
                     var response = await _httpClient.SendAsync(request);
 
-                    // Retry on server errors and rate limiting
+                    // Retry on server errors, rate limiting, and forbidden (bot protection)
                     if (response.StatusCode == HttpStatusCode.TooManyRequests ||
+                        response.StatusCode == HttpStatusCode.Forbidden ||
                         (int)response.StatusCode >= 500)
                     {
                         lastException = new HttpRequestException(
