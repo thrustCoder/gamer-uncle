@@ -376,4 +376,223 @@ namespace GamerUncle.Functions.Tests
                 default), Times.Once);
         }
     }
+
+    public class BggRankedListClientTests
+    {
+        [Fact]
+        public void ParseGameIdsFromHtml_WithValidHtml_ReturnsGameIds()
+        {
+            // Arrange — simulates a snippet of BGG browse page HTML
+            var html = @"
+                <a href=""/boardgame/174430/brass-birmingham"">Brass: Birmingham</a>
+                <a href=""/boardgame/342942/ark-nova"">Ark Nova</a>
+                <a href=""/boardgame/204135/skyjo"">Skyjo</a>
+                <a href=""/boardgame/281094/plunder-a-pirates-life"">Plunder</a>
+            ";
+
+            // Act
+            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
+
+            // Assert
+            Assert.Equal(4, ids.Count);
+            Assert.Contains("174430", ids);
+            Assert.Contains("342942", ids);
+            Assert.Contains("204135", ids);
+            Assert.Contains("281094", ids);
+        }
+
+        [Fact]
+        public void ParseGameIdsFromHtml_WithDuplicateIds_ReturnsDeduplicated()
+        {
+            // Arrange — same game ID appears multiple times (e.g., thumbnail + title link)
+            var html = @"
+                <a href=""/boardgame/174430/brass-birmingham"">Thumbnail</a>
+                <a href=""/boardgame/174430/brass-birmingham"">Brass: Birmingham</a>
+                <a href=""/boardgame/342942/ark-nova"">Ark Nova</a>
+            ";
+
+            // Act
+            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
+
+            // Assert
+            Assert.Equal(2, ids.Count);
+            Assert.Contains("174430", ids);
+            Assert.Contains("342942", ids);
+        }
+
+        [Fact]
+        public void ParseGameIdsFromHtml_WithEmptyHtml_ReturnsEmptyList()
+        {
+            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(""));
+        }
+
+        [Fact]
+        public void ParseGameIdsFromHtml_WithNullHtml_ReturnsEmptyList()
+        {
+            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(null!));
+        }
+
+        [Fact]
+        public void ParseGameIdsFromHtml_WithNoGameLinks_ReturnsEmptyList()
+        {
+            var html = @"<html><body><p>No games here</p></body></html>";
+
+            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html));
+        }
+
+        [Fact]
+        public void ParseGameIdsFromHtml_IgnoresNonBoardgameLinks()
+        {
+            // Arrange — forum, user, and other non-boardgame links should be ignored
+            var html = @"
+                <a href=""/boardgame/174430/brass-birmingham"">Brass</a>
+                <a href=""/forum/174430/brass-birmingham"">Forum</a>
+                <a href=""/user/someuser"">User</a>
+                <a href=""/boardgameexpansion/999/some-expansion"">Expansion</a>
+            ";
+
+            // Act
+            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
+
+            // Assert — only the /boardgame/ link should match
+            Assert.Single(ids);
+            Assert.Contains("174430", ids);
+        }
+
+        [Fact]
+        public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new GamerUncle.Functions.Helpers.BggRankedListClient(null!));
+        }
+    }
+
+    public class RankedSyncRequestTests
+    {
+        [Fact]
+        public void DefaultValues_AreCorrect()
+        {
+            var request = new RankedSyncRequest();
+
+            Assert.Equal(1, request.StartPage);
+            Assert.Equal(100, request.EndPage);
+        }
+
+        [Fact]
+        public void CustomValues_ArePreserved()
+        {
+            var request = new RankedSyncRequest
+            {
+                StartPage = 5,
+                EndPage = 50
+            };
+
+            Assert.Equal(5, request.StartPage);
+            Assert.Equal(50, request.EndPage);
+        }
+    }
+
+    public class HighSignalSyncRequestDefaultsTests
+    {
+        [Fact]
+        public void DefaultLimit_Is10000()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(10_000, request.Limit);
+        }
+
+        [Fact]
+        public void DefaultMinVotes_Is50()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(50, request.MinVotes);
+        }
+
+        [Fact]
+        public void DefaultMinAverage_Is5()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(5.0, request.MinAverage);
+        }
+
+        [Fact]
+        public void DefaultMinBayes_Is5()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(5.0, request.MinBayes);
+        }
+    }
+
+    public class HighSignalFilterTests
+    {
+        [Fact]
+        public void IsHighSignal_WithQualifyingGame_ReturnsTrue()
+        {
+            var game = new GameDocument
+            {
+                id = "bgg-204135",
+                name = "Skyjo",
+                numVotes = 6341,
+                averageRating = 6.655,
+                bggRating = 6.7
+            };
+
+            Assert.True(HighSignalFilter.IsHighSignal(game, 5.0, 5.0, 50));
+        }
+
+        [Fact]
+        public void IsHighSignal_WithLowVotes_ReturnsFalse()
+        {
+            var game = new GameDocument
+            {
+                id = "bgg-999",
+                name = "Obscure Game",
+                numVotes = 10,
+                averageRating = 8.0,
+                bggRating = 7.0
+            };
+
+            Assert.False(HighSignalFilter.IsHighSignal(game, 5.0, 5.0, 50));
+        }
+
+        [Fact]
+        public void IsHighSignal_WithLowBggRating_ReturnsFalse()
+        {
+            var game = new GameDocument
+            {
+                id = "bgg-999",
+                name = "Low Rated",
+                numVotes = 1000,
+                averageRating = 6.0,
+                bggRating = 3.0
+            };
+
+            Assert.False(HighSignalFilter.IsHighSignal(game, 5.0, 5.0, 50));
+        }
+
+        [Fact]
+        public void IsHighSignal_WithLowAverageRating_ReturnsFalse()
+        {
+            var game = new GameDocument
+            {
+                id = "bgg-999",
+                name = "Low Average",
+                numVotes = 1000,
+                averageRating = 3.0,
+                bggRating = 6.0
+            };
+
+            Assert.False(HighSignalFilter.IsHighSignal(game, 5.0, 5.0, 50));
+        }
+
+        [Fact]
+        public void IsHighSignal_WithNullGame_ReturnsFalse()
+        {
+            Assert.False(HighSignalFilter.IsHighSignal(null!, 5.0, 5.0, 50));
+        }
+    }
 }
