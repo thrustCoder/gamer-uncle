@@ -1,9 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-<<<<<<< HEAD
 using System.Threading;
-=======
->>>>>>> main
 using System.Threading.Tasks;
 using Azure;
 using Azure.Identity;
