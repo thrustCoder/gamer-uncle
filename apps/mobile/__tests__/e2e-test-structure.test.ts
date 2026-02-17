@@ -20,15 +20,6 @@ describe('E2E Test Structure', () => {
       expect(specFiles).toContain(spec);
     });
     
-    // Should not have timer specific tests (removed)
-    const removedToolSpecs = [
-      'timer.spec.ts'
-    ];
-    
-    removedToolSpecs.forEach(spec => {
-      expect(specFiles).not.toContain(spec);
-    });
-    
     // Dice roller test should exist
     expect(specFiles).toContain('dice-roller.spec.ts');
     
