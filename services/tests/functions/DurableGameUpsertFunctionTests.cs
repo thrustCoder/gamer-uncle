@@ -1,9 +1,12 @@
 using System;
 using System.Globalization;
+using System.Net.Http;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using GamerUncle.Functions;
+using GamerUncle.Functions.Helpers;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
@@ -380,90 +383,201 @@ namespace GamerUncle.Functions.Tests
     public class BggRankedListClientTests
     {
         [Fact]
-        public void ParseGameIdsFromHtml_WithValidHtml_ReturnsGameIds()
+        public void ParseQualifiedGameIds_WithValidXml_ReturnsQualifyingIds()
         {
-            // Arrange — simulates a snippet of BGG browse page HTML
-            var html = @"
-                <a href=""/boardgame/174430/brass-birmingham"">Brass: Birmingham</a>
-                <a href=""/boardgame/342942/ark-nova"">Ark Nova</a>
-                <a href=""/boardgame/204135/skyjo"">Skyjo</a>
-                <a href=""/boardgame/281094/plunder-a-pirates-life"">Plunder</a>
-            ";
+            // Arrange — XML API response with two qualifying base games
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""50000"" />
+                                <average value=""8.5"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                    <item type=""boardgame"" id=""204135"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""12000"" />
+                                <average value=""7.2"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                </items>");
+
+            var client = new BggRankedListClient(new HttpClient());
 
             // Act
-            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
-
-            // Assert
-            Assert.Equal(4, ids.Count);
-            Assert.Contains("174430", ids);
-            Assert.Contains("342942", ids);
-            Assert.Contains("204135", ids);
-            Assert.Contains("281094", ids);
-        }
-
-        [Fact]
-        public void ParseGameIdsFromHtml_WithDuplicateIds_ReturnsDeduplicated()
-        {
-            // Arrange — same game ID appears multiple times (e.g., thumbnail + title link)
-            var html = @"
-                <a href=""/boardgame/174430/brass-birmingham"">Thumbnail</a>
-                <a href=""/boardgame/174430/brass-birmingham"">Brass: Birmingham</a>
-                <a href=""/boardgame/342942/ark-nova"">Ark Nova</a>
-            ";
-
-            // Act
-            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
+            var ids = client.ParseQualifiedGameIds(xml);
 
             // Assert
             Assert.Equal(2, ids.Count);
             Assert.Contains("174430", ids);
-            Assert.Contains("342942", ids);
+            Assert.Contains("204135", ids);
         }
 
         [Fact]
-        public void ParseGameIdsFromHtml_WithEmptyHtml_ReturnsEmptyList()
+        public void ParseQualifiedGameIds_FiltersExpansions()
         {
-            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(""));
-        }
+            // Arrange — expansion type should be excluded
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""50000"" />
+                                <average value=""8.5"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                    <item type=""boardgameexpansion"" id=""999"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""5000"" />
+                                <average value=""7.0"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                </items>");
 
-        [Fact]
-        public void ParseGameIdsFromHtml_WithNullHtml_ReturnsEmptyList()
-        {
-            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(null!));
-        }
-
-        [Fact]
-        public void ParseGameIdsFromHtml_WithNoGameLinks_ReturnsEmptyList()
-        {
-            var html = @"<html><body><p>No games here</p></body></html>";
-
-            Assert.Empty(GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html));
-        }
-
-        [Fact]
-        public void ParseGameIdsFromHtml_IgnoresNonBoardgameLinks()
-        {
-            // Arrange — forum, user, and other non-boardgame links should be ignored
-            var html = @"
-                <a href=""/boardgame/174430/brass-birmingham"">Brass</a>
-                <a href=""/forum/174430/brass-birmingham"">Forum</a>
-                <a href=""/user/someuser"">User</a>
-                <a href=""/boardgameexpansion/999/some-expansion"">Expansion</a>
-            ";
+            var client = new BggRankedListClient(new HttpClient());
 
             // Act
-            var ids = GamerUncle.Functions.Helpers.BggRankedListClient.ParseGameIdsFromHtml(html);
+            var ids = client.ParseQualifiedGameIds(xml);
 
-            // Assert — only the /boardgame/ link should match
+            // Assert — only the base game should be returned
             Assert.Single(ids);
             Assert.Contains("174430", ids);
+        }
+
+        [Fact]
+        public void ParseQualifiedGameIds_FiltersLowVoteGames()
+        {
+            // Arrange — game with fewer than MinVotes (50) should be excluded
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""10"" />
+                                <average value=""8.5"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                </items>");
+
+            var client = new BggRankedListClient(new HttpClient());
+
+            // Act
+            var ids = client.ParseQualifiedGameIds(xml);
+
+            // Assert
+            Assert.Empty(ids);
+        }
+
+        [Fact]
+        public void ParseQualifiedGameIds_FiltersLowRatedGames()
+        {
+            // Arrange — game with average below MinAverage (5.0) should be excluded
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""1000"" />
+                                <average value=""3.5"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                </items>");
+
+            var client = new BggRankedListClient(new HttpClient());
+
+            // Act
+            var ids = client.ParseQualifiedGameIds(xml);
+
+            // Assert
+            Assert.Empty(ids);
+        }
+
+        [Fact]
+        public void ParseQualifiedGameIds_WithEmptyXml_ReturnsEmptyList()
+        {
+            var xml = XDocument.Parse("<items />");
+            var client = new BggRankedListClient(new HttpClient());
+
+            Assert.Empty(client.ParseQualifiedGameIds(xml));
+        }
+
+        [Fact]
+        public void ParseQualifiedGameIds_WithNullRoot_ReturnsEmptyList()
+        {
+            var xml = new XDocument(); // No root element
+            var client = new BggRankedListClient(new HttpClient());
+
+            Assert.Empty(client.ParseQualifiedGameIds(xml));
+        }
+
+        [Fact]
+        public void ParseQualifiedGameIds_WithNoStats_ExcludesGame()
+        {
+            // Arrange — game with no statistics element
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                    </item>
+                </items>");
+
+            var client = new BggRankedListClient(new HttpClient());
+
+            // Act
+            var ids = client.ParseQualifiedGameIds(xml);
+
+            // Assert
+            Assert.Empty(ids);
         }
 
         [Fact]
         public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new GamerUncle.Functions.Helpers.BggRankedListClient(null!));
+                new BggRankedListClient(null!));
+        }
+
+        [Fact]
+        public void DefaultProperties_AreCorrect()
+        {
+            var client = new BggRankedListClient(new HttpClient());
+
+            Assert.Equal(4100, client.IdsPerPage);
+            Assert.Equal(50, client.MinVotes);
+            Assert.Equal(5.0, client.MinAverage);
+        }
+
+        [Fact]
+        public void CustomFilters_AreApplied()
+        {
+            // Arrange — custom filters: higher threshold
+            var xml = XDocument.Parse(@"
+                <items>
+                    <item type=""boardgame"" id=""174430"">
+                        <statistics>
+                            <ratings>
+                                <usersrated value=""100"" />
+                                <average value=""6.0"" />
+                            </ratings>
+                        </statistics>
+                    </item>
+                </items>");
+
+            var client = new BggRankedListClient(new HttpClient()) { MinVotes = 200, MinAverage = 7.0 };
+
+            // Act — game has 100 votes (below 200) and 6.0 average (below 7.0)
+            var ids = client.ParseQualifiedGameIds(xml);
+
+            // Assert
+            Assert.Empty(ids);
         }
     }
 

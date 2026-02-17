@@ -447,13 +447,17 @@ namespace GamerUncle.Functions
         [Function(nameof(FetchRankedGameIdsActivity))]
         public async Task<List<string>> FetchRankedGameIdsActivity([ActivityTrigger] int pageNumber)
         {
-            var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            var client = new BggRankedListClient(httpClient);
+            // Longer timeout — each page makes many batch XML API calls (~200 per page)
+            var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            var idsPerPageStr = Environment.GetEnvironmentVariable("IdsPerPage");
+            int idsPerPage = int.TryParse(idsPerPageStr, out var ipp) && ipp > 0 ? ipp : 4100;
+
+            var client = new BggRankedListClient(httpClient) { IdsPerPage = idsPerPage };
             var gameIds = await client.FetchRankedGameIdsAsync(pageNumber);
 
             _logger.LogInformation(
-                "Fetched {Count} ranked game IDs from BGG browse page {Page}",
-                gameIds.Count, pageNumber);
+                "Fetched {Count} qualifying game IDs from BGG XML API for page {Page} (IDs {Start}-{End})",
+                gameIds.Count, pageNumber, (pageNumber - 1) * idsPerPage + 1, pageNumber * idsPerPage);
 
             return gameIds;
         }
@@ -496,10 +500,10 @@ namespace GamerUncle.Functions
 
     public class RankedSyncRequest
     {
-        /// <summary>First BGG browse page to fetch (1-based). Each page has ~100 ranked games.</summary>
+        /// <summary>First page to scan (1-based). Each page covers IdsPerPage sequential BGG IDs.</summary>
         public int StartPage { get; set; } = 1;
 
-        /// <summary>Last BGG browse page to fetch. 70 pages = top ~7,000 ranked games.</summary>
+        /// <summary>Last page to scan. With IdsPerPage=4100 and 70 pages, covers ~287k BGG IDs.</summary>
         public int EndPage { get; set; } = 70;
     }
 
