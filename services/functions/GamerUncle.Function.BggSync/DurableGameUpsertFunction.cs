@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Identity;
@@ -248,12 +249,14 @@ namespace GamerUncle.Functions
                 }
             }
             
-            log.LogInformation($"Dev game sync timer trigger executed at: {DateTime.Now}");
+            log.LogInformation($"Dev ranked game sync timer trigger executed at: {DateTime.Now}");
             
-            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
-            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
+            var rankedSyncPages = Environment.GetEnvironmentVariable("RankedSyncPages") ?? "30";
+            int endPage = int.TryParse(rankedSyncPages, out var rp) && rp > 0 ? rp : 30;
+            var request = new RankedSyncRequest { StartPage = 1, EndPage = endPage };
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableRankedSyncOrchestrator), request);
             
-            log.LogInformation($"Started dev orchestration with ID = '{instanceId}'");
+            log.LogInformation($"Started dev ranked sync orchestration with ID = '{instanceId}', pages 1-{endPage}");
         }
 
         [Function("GameSyncTimerTriggerProd")]
@@ -289,12 +292,14 @@ namespace GamerUncle.Functions
                 }
             }
             
-            log.LogInformation($"Prod game sync timer trigger executed at: {DateTime.Now}");
+            log.LogInformation($"Prod ranked game sync timer trigger executed at: {DateTime.Now}");
             
-            string syncCountStr = Environment.GetEnvironmentVariable("SyncGameCount") ?? "5";
-            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableGameUpsertOrchestrator), syncCountStr);
+            var rankedSyncPages = Environment.GetEnvironmentVariable("RankedSyncPages") ?? "100";
+            int endPage = int.TryParse(rankedSyncPages, out var rp) && rp > 0 ? rp : 100;
+            var request = new RankedSyncRequest { StartPage = 1, EndPage = endPage };
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DurableRankedSyncOrchestrator), request);
             
-            log.LogInformation($"Started prod orchestration with ID = '{instanceId}'");
+            log.LogInformation($"Started prod ranked sync orchestration with ID = '{instanceId}', pages 1-{endPage}");
         }
 
         [Function(nameof(DurableHighSignalUpsertOrchestrator))]
@@ -371,13 +376,128 @@ namespace GamerUncle.Functions
             }));
             return response;
         }
+
+        // ─── Ranked Sync (BGG browse pages by rank) ───────────────────────
+
+        [Function(nameof(DurableRankedSyncOrchestrator))]
+        public async Task DurableRankedSyncOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
+        {
+            var request = context.GetInput<RankedSyncRequest>() ?? new RankedSyncRequest();
+
+            int upserted = 0;
+            int skipped = 0;
+            int failed = 0;
+
+            for (int page = request.StartPage; page <= request.EndPage; page++)
+            {
+                // Fetch ranked game IDs from this BGG browse page
+                List<string> gameIds;
+                try
+                {
+                    gameIds = await context.CallActivityAsync<List<string>>(
+                        nameof(FetchRankedGameIdsActivity), page);
+                }
+                catch
+                {
+                    // If a page fetch fails, skip to the next page
+                    failed++;
+                    continue;
+                }
+
+                if (gameIds == null || gameIds.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var gameId in gameIds)
+                {
+                    // Check if game already exists in Cosmos DB
+                    bool gameExists = await context.CallActivityAsync<bool>(
+                        nameof(CheckGameExistsActivity), gameId);
+
+                    if (gameExists)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Fetch full game data from BGG XML API and upsert
+                    GameDocument? game = await context.CallActivityAsync<GameDocument?>(
+                        nameof(FetchGameDataActivity), gameId);
+
+                    if (game != null)
+                    {
+                        await context.CallActivityAsync(nameof(UpsertGameDocumentActivity), game);
+                        upserted++;
+                    }
+                }
+            }
+        }
+
+        [Function(nameof(FetchRankedGameIdsActivity))]
+        public async Task<List<string>> FetchRankedGameIdsActivity([ActivityTrigger] int pageNumber)
+        {
+            var httpClient = new HttpClient();
+            var client = new BggRankedListClient(httpClient);
+            var gameIds = await client.FetchRankedGameIdsAsync(pageNumber);
+
+            _logger.LogInformation(
+                "Fetched {Count} ranked game IDs from BGG browse page {Page}",
+                gameIds.Count, pageNumber);
+
+            return gameIds;
+        }
+
+        [Function("GameSyncRankedStart")]
+        public async Task<HttpResponseData> GameSyncRankedStart(
+            [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
+            [DurableClient] DurableTaskClient client)
+        {
+            RankedSyncRequest? request = null;
+            try
+            {
+                using var reader = new StreamReader(req.Body);
+                var body = await reader.ReadToEndAsync();
+                request = JsonSerializer.Deserialize<RankedSyncRequest>(body, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse ranked sync request body. Using defaults.");
+            }
+
+            request ??= new RankedSyncRequest();
+
+            string instanceId = await client.ScheduleNewOrchestrationInstanceAsync(
+                nameof(DurableRankedSyncOrchestrator), request);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/json");
+            await response.WriteStringAsync(JsonSerializer.Serialize(new
+            {
+                instanceId,
+                request
+            }));
+            return response;
+        }
+    }
+
+    public class RankedSyncRequest
+    {
+        /// <summary>First BGG browse page to fetch (1-based). Each page has ~100 ranked games.</summary>
+        public int StartPage { get; set; } = 1;
+
+        /// <summary>Last BGG browse page to fetch. 100 pages = top 10,000 ranked games.</summary>
+        public int EndPage { get; set; } = 100;
     }
 
     public class HighSignalSyncRequest
     {
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
-        public int Limit { get; set; } = 5000; // how many to upsert
+        public int Limit { get; set; } = 10_000; // how many to upsert
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
         public int MinVotes { get; set; } = 50;
