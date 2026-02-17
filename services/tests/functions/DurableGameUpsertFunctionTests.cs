@@ -495,11 +495,11 @@ namespace GamerUncle.Functions.Tests
     public class HighSignalSyncRequestDefaultsTests
     {
         [Fact]
-        public void DefaultLimit_Is10000()
+        public void DefaultLimit_Is7000()
         {
             var request = new HighSignalSyncRequest();
 
-            Assert.Equal(10_000, request.Limit);
+            Assert.Equal(7_000, request.Limit);
         }
 
         [Fact]

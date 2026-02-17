@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Identity;
@@ -390,6 +391,12 @@ namespace GamerUncle.Functions
 
             for (int page = request.StartPage; page <= request.EndPage; page++)
             {
+                // Delay between pages to avoid overwhelming BGG (3 seconds between page fetches)
+                if (page > request.StartPage)
+                {
+                    await context.CreateTimer(context.CurrentUtcDateTime.AddSeconds(3), CancellationToken.None);
+                }
+
                 // Fetch ranked game IDs from this BGG browse page
                 List<string> gameIds;
                 try
@@ -421,6 +428,9 @@ namespace GamerUncle.Functions
                         continue;
                     }
 
+                    // Small delay before fetching game data from BGG XML API (1 second)
+                    await context.CreateTimer(context.CurrentUtcDateTime.AddSeconds(1), CancellationToken.None);
+
                     // Fetch full game data from BGG XML API and upsert
                     GameDocument? game = await context.CallActivityAsync<GameDocument?>(
                         nameof(FetchGameDataActivity), gameId);
@@ -437,7 +447,7 @@ namespace GamerUncle.Functions
         [Function(nameof(FetchRankedGameIdsActivity))]
         public async Task<List<string>> FetchRankedGameIdsActivity([ActivityTrigger] int pageNumber)
         {
-            var httpClient = new HttpClient();
+            var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             var client = new BggRankedListClient(httpClient);
             var gameIds = await client.FetchRankedGameIdsAsync(pageNumber);
 
@@ -497,7 +507,7 @@ namespace GamerUncle.Functions
     {
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
-        public int Limit { get; set; } = 10_000; // how many to upsert
+        public int Limit { get; set; } = 7_000; // how many to upsert
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
         public int MinVotes { get; set; } = 50;
