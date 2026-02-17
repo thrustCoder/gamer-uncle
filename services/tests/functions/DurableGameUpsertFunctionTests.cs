@@ -475,7 +475,7 @@ namespace GamerUncle.Functions.Tests
             var request = new RankedSyncRequest();
 
             Assert.Equal(1, request.StartPage);
-            Assert.Equal(100, request.EndPage);
+            Assert.Equal(70, request.EndPage);
         }
 
         [Fact]
