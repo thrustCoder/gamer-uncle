@@ -1,8 +1,12 @@
 import axios from 'axios';
-import { getApiBaseUrl } from '../config/apiConfig';
+import { getApiBaseUrl, getAppKey } from '../config/apiConfig';
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json',
+    'X-GamerUncle-AppKey': getAppKey(),
+  },
 });
 
 export const getRecommendations = async (criteria: any) => {

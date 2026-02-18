@@ -9,6 +9,11 @@ jest.mock('react-native', () => ({
   },
 }));
 
+// Mock apiConfig
+jest.mock('../config/apiConfig', () => ({
+  getAppKey: jest.fn(() => 'test-voice-app-key'),
+}));
+
 // Mock expo-av
 jest.mock('expo-av', () => ({
   Audio: {
@@ -217,6 +222,23 @@ describe('VoiceAudioService', () => {
           conversationId: testConversationId
         }),
         expect.any(Object)
+      );
+    });
+
+    it('should include X-GamerUncle-AppKey header in the request', async () => {
+      const axios = require('axios');
+      
+      await service.startRecording();
+      await service.stopRecordingAndProcess();
+      
+      expect(axios.post).toHaveBeenCalledWith(
+        expect.stringContaining('voice/process'),
+        expect.any(Object),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'X-GamerUncle-AppKey': 'test-voice-app-key',
+          }),
+        })
       );
     });
 

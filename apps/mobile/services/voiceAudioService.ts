@@ -2,6 +2,7 @@ import { Audio } from 'expo-av';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import axios from 'axios';
+import { getAppKey } from '../config/apiConfig';
 
 export interface AudioProcessingRequest {
   audioData: string; // Base64
@@ -27,6 +28,7 @@ export class VoiceAudioService {
   private recording: Audio.Recording | null = null;
   private soundObject: Audio.Sound | null = null;
   private apiBaseUrl: string;
+  private appKey: string;
   private isPausedState: boolean = false;
   
   // TTS state callbacks
@@ -38,8 +40,9 @@ export class VoiceAudioService {
   private meteringInterval: NodeJS.Timeout | null = null;
   private silenceStartTime: number | null = null;
 
-  constructor(apiBaseUrl: string) {
+  constructor(apiBaseUrl: string, appKey?: string) {
     this.apiBaseUrl = apiBaseUrl;
+    this.appKey = appKey || getAppKey();
   }
 
   /**
@@ -228,6 +231,10 @@ export class VoiceAudioService {
         } as AudioProcessingRequest,
         {
           timeout: 45000, // 45 second timeout for audio processing
+          headers: {
+            'Content-Type': 'application/json',
+            'X-GamerUncle-AppKey': this.appKey,
+          },
         }
       );
 
