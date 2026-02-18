@@ -208,22 +208,25 @@ namespace GamerUncle.Api.Tests
         }
 
         /// <summary>
-        /// Test that error responses are concise and chat-friendly
+        /// Test that error responses are concise and chat-friendly (no raw exception leaking)
         /// </summary>
         [Fact]
-        public void GetRecommendationsAsync_ErrorResponse_ShouldBeTerseAndChatFriendly()
+        public void GetRecommendationsAsync_ErrorResponse_ShouldBeFriendlyAndNotLeakDetails()
         {
-            // Arrange
-            var errorMessage = "Connection failed";
-            var expectedResponse = $"Something went wrong: {errorMessage}. Let's try again! 🎲";
+            // Arrange - Simulate what a RequestFailedException message looks like (HTML body, headers, etc.)
+            var rawExceptionMessage = "Service request failed.\nStatus: 502 (Bad Gateway)\nContent:\n<html><head><title>502 Bad Gateway</title></head></html>\nHeaders:\nazureml-served-by-cluster: REDACTED";
 
-            // Act - Simulate the error response format from GetRecommendationsAsync
-            var actualResponse = $"Something went wrong: {errorMessage}. Let's try again! 🎲";
+            // Act - Use the new friendly error message helper
+            var friendlyMessage = AgentServiceClient.GetFriendlyErrorMessage(
+                new Azure.RequestFailedException(rawExceptionMessage) { });
 
-            // Assert
-            Assert.Equal(expectedResponse, actualResponse);
-            Assert.True(actualResponse.Length < 100, "Error message should be concise for mobile chat");
-            Assert.Contains("🎲", actualResponse, StringComparison.Ordinal);
+            // Assert - Should NOT contain raw HTTP details
+            Assert.DoesNotContain("<html>", friendlyMessage);
+            Assert.DoesNotContain("502", friendlyMessage);
+            Assert.DoesNotContain("Bad Gateway", friendlyMessage);
+            Assert.DoesNotContain("nginx", friendlyMessage);
+            Assert.DoesNotContain("REDACTED", friendlyMessage);
+            Assert.True(friendlyMessage.Length < 100, "Error message should be concise for mobile chat");
         }
 
         /// <summary>
@@ -316,13 +319,15 @@ namespace GamerUncle.Api.Tests
         /// </summary>
         [Theory]
         [InlineData("No response from my brain 🤖 Let's try again!")]
-        [InlineData("Something went wrong: test error. Let's try again! 🎲")]
         [InlineData("Let me find some great games for you! 🎲")]
         [InlineData("Finding some great games for you! 🎯")]
         [InlineData("Let me search for perfect games! 🎲")]
         [InlineData("Looking for your next favorite game! 🎮")]
         [InlineData("Searching the game library for you! 📚")]
         [InlineData("Hold on, finding awesome games! ⭐")]
+        [InlineData("My brain is taking a quick nap. Please try again! 🎲")]
+        [InlineData("Something went wrong on my end. Let's try again! 🎲")]
+        [InlineData("That took too long! Let's try a simpler question. ⏳")]
         public void ResponseMessages_ShouldBeChatFriendly(string responseText)
         {
             // Assert
@@ -335,7 +340,8 @@ namespace GamerUncle.Api.Tests
             // Check for emojis (mobile-friendly touch)
             bool hasEmoji = responseText.Contains("🤖") || responseText.Contains("🎲") || 
                            responseText.Contains("🎯") || responseText.Contains("🎮") || 
-                           responseText.Contains("📚") || responseText.Contains("⭐");
+                           responseText.Contains("📚") || responseText.Contains("⭐") ||
+                           responseText.Contains("⏳") || responseText.Contains("🔒");
             Assert.True(hasEmoji, "Should include emojis for mobile chat friendliness");
         }
 
@@ -373,6 +379,112 @@ namespace GamerUncle.Api.Tests
                           message.ToLower().Contains("search"), 
                           $"Message '{message}' should be game-related");
             }
+        }
+
+        /// <summary>
+        /// Test that GetFriendlyErrorMessage returns safe messages for 502 errors (no HTML leaking)
+        /// </summary>
+        [Fact]
+        public void GetFriendlyErrorMessage_502Error_ShouldNotLeakHtmlOrHeaders()
+        {
+            // Arrange - Simulate the exact error from the Azure AI Agent Service
+            var rawMessage = "Service request failed.\nStatus: 502 (Bad Gateway)\nContent:\n<html><head><title>502 Bad Gateway</title></head><body>\n<center><h1>502 Bad Gateway</h1></center>\n<hr><center>nginx</center>\n</body></html>\nHeaders:\nStrict-Transport-Security: REDACTED\nazureml-served-by-cluster: REDACTED";
+            var exception = new Azure.RequestFailedException(502, rawMessage);
+
+            // Act
+            var result = AgentServiceClient.GetFriendlyErrorMessage(exception);
+
+            // Assert
+            Assert.DoesNotContain("<html>", result);
+            Assert.DoesNotContain("Bad Gateway", result);
+            Assert.DoesNotContain("nginx", result);
+            Assert.DoesNotContain("REDACTED", result);
+            Assert.DoesNotContain("azureml", result);
+            Assert.Contains("🎲", result);
+            Assert.True(result.Length < 100, "Should be concise for mobile chat display");
+        }
+
+        /// <summary>
+        /// Test GetFriendlyErrorMessage for various HTTP error codes
+        /// </summary>
+        [Theory]
+        [InlineData(429, "questions right now")]
+        [InlineData(502, "quick nap")]
+        [InlineData(503, "quick nap")]
+        [InlineData(504, "quick nap")]
+        [InlineData(401, "trouble connecting")]
+        [InlineData(403, "trouble connecting")]
+        [InlineData(500, "Something went wrong")]
+        public void GetFriendlyErrorMessage_VariousStatusCodes_ShouldReturnAppropriateMessage(int statusCode, string expectedSubstring)
+        {
+            // Arrange
+            var exception = new Azure.RequestFailedException(statusCode, $"HTTP {statusCode} error");
+
+            // Act
+            var result = AgentServiceClient.GetFriendlyErrorMessage(exception);
+
+            // Assert
+            Assert.Contains(expectedSubstring, result);
+            Assert.True(result.Length < 100, $"Message for {statusCode} should be concise");
+        }
+
+        /// <summary>
+        /// Test GetFriendlyErrorMessage for timeout exceptions
+        /// </summary>
+        [Fact]
+        public void GetFriendlyErrorMessage_Timeout_ShouldSuggestSimplerQuestion()
+        {
+            // Arrange
+            var exception = new TaskCanceledException("The operation was canceled.");
+
+            // Act
+            var result = AgentServiceClient.GetFriendlyErrorMessage(exception);
+
+            // Assert
+            Assert.Contains("took too long", result);
+            Assert.Contains("⏳", result);
+        }
+
+        /// <summary>
+        /// Test GetFriendlyErrorMessage for generic exceptions
+        /// </summary>
+        [Fact]
+        public void GetFriendlyErrorMessage_GenericException_ShouldReturnSafeMessage()
+        {
+            // Arrange
+            var exception = new InvalidOperationException("Some internal error with sensitive details");
+
+            // Act
+            var result = AgentServiceClient.GetFriendlyErrorMessage(exception);
+
+            // Assert
+            Assert.DoesNotContain("sensitive details", result);
+            Assert.DoesNotContain("InvalidOperationException", result);
+            Assert.Contains("🎲", result);
+        }
+
+        /// <summary>
+        /// Test IsTransientHttpError correctly identifies transient status codes
+        /// </summary>
+        [Theory]
+        [InlineData(408, true)]
+        [InlineData(429, true)]
+        [InlineData(502, true)]
+        [InlineData(503, true)]
+        [InlineData(504, true)]
+        [InlineData(400, false)]
+        [InlineData(401, false)]
+        [InlineData(403, false)]
+        [InlineData(404, false)]
+        [InlineData(500, false)]
+        [InlineData(200, false)]
+        public void IsTransientHttpError_ShouldCorrectlyIdentifyTransientCodes(int statusCode, bool expectedResult)
+        {
+            // Act
+            var result = AgentServiceClient.IsTransientHttpError(statusCode);
+
+            // Assert
+            Assert.Equal(expectedResult, result);
         }
     }
 }

@@ -27,10 +27,17 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly TelemetryClient? _telemetryClient;
         private readonly ILogger<AgentServiceClient> _logger;
         private readonly int _maxLowQualityRetries;
+        private readonly int _maxTransientRetries;
 
         // A5 Optimization: Adaptive polling intervals - start fast, slow down over time
         // Saves 200-400ms per AI call by catching fast responses early
         private static readonly int[] AdaptivePollDelaysMs = { 50, 100, 150, 200, 300, 400, 500 };
+
+        // Transient error retry delays (exponential backoff: 1s, 2s, 4s)
+        private static readonly int[] TransientRetryDelaysMs = { 1000, 2000, 4000 };
+
+        // HTTP status codes considered transient and eligible for retry
+        private static readonly int[] TransientStatusCodes = { 408, 429, 502, 503, 504 };
 
         public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
@@ -58,6 +65,12 @@ namespace GamerUncle.Api.Services.AgentService
             if (!int.TryParse(retryRaw, out _maxLowQualityRetries))
             {
                 _maxLowQualityRetries = env == "testing" ? 0 : 2;
+            }
+            // Transient error retries: default 2 retries (3 total attempts)
+            var transientRetryRaw = config["AgentService:MaxTransientRetries"];
+            if (!int.TryParse(transientRetryRaw, out _maxTransientRetries))
+            {
+                _maxTransientRetries = env == "testing" ? 0 : 2;
             }
         }
 
@@ -152,7 +165,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                     var strengthenedPayload = new { messages = strengthenedMessages };
 
-                    (string? raw, string threadIdResult) = await RunAgentWithMessagesAsync(strengthenedPayload, currentThreadId);
+                    (string? raw, string threadIdResult) = await RunAgentWithTransientRetryAsync(strengthenedPayload, currentThreadId);
                     response = raw;
                     currentThreadId = threadIdResult;
 
@@ -226,7 +239,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                 return new AgentResponse
                 {
-                    ResponseText = $"Something went wrong: {ex.Message}. Let's try again! 🎲",
+                    ResponseText = GetFriendlyErrorMessage(ex),
                     ThreadId = null,
                     MatchingGamesCount = 0
                 };
@@ -319,6 +332,72 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 Console.WriteLine($"Failed to parse criteria JSON: {json}. Error: {ex.Message}");
                 return new GameQueryCriteria();
             }
+        }
+
+        /// <summary>
+        /// Wraps RunAgentWithMessagesAsync with retry logic for transient HTTP errors (502, 503, 429, etc.)
+        /// </summary>
+        private async Task<(string? response, string threadId)> RunAgentWithTransientRetryAsync(object requestPayload, string? threadId)
+        {
+            for (int retryAttempt = 0; retryAttempt <= _maxTransientRetries; retryAttempt++)
+            {
+                try
+                {
+                    return await RunAgentWithMessagesAsync(requestPayload, threadId);
+                }
+                catch (RequestFailedException rfEx) when (IsTransientHttpError(rfEx.Status) && retryAttempt < _maxTransientRetries)
+                {
+                    var delayMs = TransientRetryDelaysMs[Math.Min(retryAttempt, TransientRetryDelaysMs.Length - 1)];
+                    _logger.LogWarning(
+                        "Transient error (HTTP {StatusCode}) on attempt {Attempt}/{MaxRetries}. Retrying in {DelayMs}ms. ThreadId: {ThreadId}",
+                        rfEx.Status, retryAttempt + 1, _maxTransientRetries + 1, delayMs, threadId);
+
+                    _telemetryClient?.TrackEvent("AgentRequest.TransientRetry", new Dictionary<string, string>
+                    {
+                        ["StatusCode"] = rfEx.Status.ToString(),
+                        ["Attempt"] = (retryAttempt + 1).ToString(),
+                        ["ThreadId"] = threadId ?? "new",
+                        ["DelayMs"] = delayMs.ToString()
+                    });
+
+                    await Task.Delay(delayMs);
+                }
+            }
+
+            // Final attempt without catching (will propagate to outer catch in GetRecommendationsAsync)
+            return await RunAgentWithMessagesAsync(requestPayload, threadId);
+        }
+
+        /// <summary>
+        /// Determines if an HTTP status code represents a transient error eligible for retry.
+        /// </summary>
+        public static bool IsTransientHttpError(int statusCode)
+        {
+            return Array.Exists(TransientStatusCodes, code => code == statusCode);
+        }
+
+        /// <summary>
+        /// Returns a user-friendly error message without leaking raw exception details.
+        /// </summary>
+        public static string GetFriendlyErrorMessage(Exception ex)
+        {
+            if (ex is RequestFailedException rfEx)
+            {
+                return rfEx.Status switch
+                {
+                    429 => "I'm getting a lot of questions right now! Please try again in a moment. 🎲",
+                    502 or 503 or 504 => "My brain is taking a quick nap. Please try again! 🎲",
+                    401 or 403 => "I'm having trouble connecting to my game knowledge. Please try again later. 🔒",
+                    _ => "Something went wrong on my end. Let's try again! 🎲"
+                };
+            }
+
+            if (ex is TaskCanceledException or OperationCanceledException)
+            {
+                return "That took too long! Let's try a simpler question. ⏳";
+            }
+
+            return "Something went wrong on my end. Let's try again! 🎲";
         }
 
         private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
