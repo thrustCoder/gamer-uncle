@@ -13,6 +13,11 @@
     <UserSecretsId>c76c1e8e-c435-4c6a-815e-7709516f736b</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Allow unit test project to access internal members -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GamerUncle.Api.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Add any dependencies you use -->
     <PackageReference Include="Azure.AI.Agents.Persistent" Version="1.0.0-beta.2" />

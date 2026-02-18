@@ -3,6 +3,8 @@ using GamerUncle.Api.Services.AgentService;
 using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
 using GamerUncle.Api.Services.GameData;
+using GamerUncle.Api.Services.RateLimiting;
+using GamerUncle.Api.Services.Resilience;
 using GamerUncle.Api.Services.Speech;
 using GamerUncle.Api.Services.ThreadMapping;
 using GamerUncle.Mcp.Extensions;
@@ -18,6 +20,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -143,33 +146,26 @@ builder.Services.AddRateLimiter(options =>
     }
     else
     {
-        // Production rate limiting
-        options.AddFixedWindowLimiter("GameRecommendations", configure =>
+        // Finding #5: Production rate limiting — Redis-backed for distributed counting.
+        // When Redis (Upstash) is available, rate limits are shared across all App Service instances.
+        // Falls back to in-memory rate limiting when Redis is unavailable.
+        options.AddPolicy("GameRecommendations", httpContext =>
         {
-            configure.PermitLimit = 15; // 15 requests per minute
-            configure.Window = TimeSpan.FromMinutes(1); // per minute
-            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            configure.QueueLimit = 5; // Allow 5 requests to queue when limit is hit
+            var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+            return CreateRateLimitPartition(httpContext, "GameRecommendations", partitionKey, permitLimit: 15, window: TimeSpan.FromMinutes(1));
         });
 
-        // MCP SSE connection limit (prevent connection flooding)
-        options.AddFixedWindowLimiter("McpSsePolicy", configure =>
+        options.AddPolicy("McpSsePolicy", httpContext =>
         {
-            configure.PermitLimit = 5; // 5 SSE connections per IP
-            configure.Window = TimeSpan.FromMinutes(5); // per 5 minutes
-            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            configure.QueueLimit = 1;
+            var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+            return CreateRateLimitPartition(httpContext, "McpSsePolicy", partitionKey, permitLimit: 5, window: TimeSpan.FromMinutes(5));
         });
 
-        // Game Search rate limiting (30 requests per minute per IP)
-        options.AddFixedWindowLimiter("GameSearch", configure =>
+        options.AddPolicy("GameSearch", httpContext =>
         {
-            configure.PermitLimit = 30; // 30 requests per minute
-            configure.Window = TimeSpan.FromMinutes(1);
-            configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            configure.QueueLimit = 5;
+            var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+            return CreateRateLimitPartition(httpContext, "GameSearch", partitionKey, permitLimit: 30, window: TimeSpan.FromMinutes(1));
         });
-
     }
 
     options.OnRejected = async (context, token) =>
@@ -298,6 +294,12 @@ builder.Services.AddSingleton<IThreadMappingStore>(sp =>
         sp.GetRequiredService<ILogger<InMemoryThreadMappingStore>>(),
         sp.GetRequiredService<IConfiguration>());
 });
+
+// Finding #6: Register Polly resilience policies (timeout + retry for AI agent calls, retry for Redis)
+var resilienceSettings = builder.Configuration.GetSection(ResilienceSettings.SectionName).Get<ResilienceSettings>()
+    ?? new ResilienceSettings();
+builder.Services.AddSingleton(resilienceSettings);
+builder.Services.AddSingleton<IResiliencePolicyProvider, ResiliencePolicyProvider>();
 
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")
@@ -463,6 +465,39 @@ static string? ResolveKeyVaultReference(string? configValue)
         // Return null to indicate resolution failed - cache will work in L1-only mode
         return null;
     }
+}
+
+// Finding #5: Helper to create Redis-backed or in-memory rate limit partitions.
+// Uses Redis when available for distributed counting; falls back to in-memory otherwise.
+static RateLimitPartition<string> CreateRateLimitPartition(
+    HttpContext httpContext, string policyName, string partitionKey, int permitLimit, TimeSpan window)
+{
+    return RateLimitPartition.Get(partitionKey, key =>
+    {
+        var redis = httpContext.RequestServices.GetService<IConnectionMultiplexer>();
+        var logger = httpContext.RequestServices.GetRequiredService<ILogger<RedisFixedWindowRateLimiter>>();
+
+        if (redis?.IsConnected == true)
+        {
+            return new RedisFixedWindowRateLimiter(redis, new RedisFixedWindowRateLimiterOptions
+            {
+                PolicyName = policyName,
+                PartitionKey = key,
+                PermitLimit = permitLimit,
+                Window = window
+            }, logger);
+        }
+
+        // Fallback to in-memory when Redis is unavailable
+        logger.LogWarning("Redis unavailable for rate limiting policy {Policy}, using in-memory fallback", policyName);
+        return new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = window,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        });
+    });
 }
 
 // Make Program class accessible for testing

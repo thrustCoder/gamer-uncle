@@ -44,8 +44,8 @@
 | 2 | [In-memory conversation thread map](#2-in-memory-conversation-thread-map) | P0 | **9** | Statefulness | 4–6 hours | ✅ Yes |
 | 3 | [No CosmosClientOptions configuration](#3-no-cosmosclientoptions-configuration) | P0 | **8** | Connection Management | 1–2 hours | ✅ Yes |
 | 4 | [No autoscaling rules](#4-no-autoscaling-rules) | P1 | **8** | Infrastructure | 2–4 hours | 🟠 No |
-| 5 | [Rate limiting is per-instance](#5-rate-limiting-is-per-instance-not-distributed) | P1 | **7** | Distributed Systems | 4–8 hours | 🟠 No |
-| 6 | [Polly referenced but not used](#6-polly-referenced-but-not-used--no-resilience-policies) | P1 | **7** | Resilience | 4–6 hours | 🟠 No |
+| 5 | [Rate limiting is per-instance](#5-rate-limiting-is-per-instance-not-distributed) | P1 | **7** | Distributed Systems | 4–8 hours | ✅ Yes |
+| 6 | [Polly referenced but not used](#6-polly-referenced-but-not-used--no-resilience-policies) | P1 | **7** | Resilience | 4–6 hours | ✅ Yes |
 | 7 | [CORS allows all origins](#7-cors-allows-all-origins) | P2 | **4** | Security | 30 min | 🟠 No |
 | 8 | [No Upstash health check](#8-no-upstash-health-check) | P2 | **3** | Observability | 1–2 hours | 🟠 No |
 
@@ -149,7 +149,7 @@
 |---|---|
 | **Priority** | P1 |
 | **Criticality** | 7/10 |
-| **Implemented** | No |
+| **Implemented** | Yes (Feb 2026) |
 
 **Location**: `services/api/Program.cs` (rate limiter configuration block)
 
@@ -158,6 +158,8 @@
 **Impact at scale**: With 2+ App Service instances, each allows the full rate independently. A user could consume 2× the intended rate across 2 instances, doubling backend load on AI Foundry and Cosmos DB.
 
 **Fix**: Use `RedisRateLimiting` NuGet package or custom Redis-backed limiter. Upstash is already in the stack.
+
+**Implementation**: Created `RedisFixedWindowRateLimiter` using Lua scripting for atomic increment+expire operations on Upstash Redis. Production rate limiting policies (`GameRecommendations`, `McpSsePolicy`, `GameSearch`) now use per-IP distributed counting via Redis when connected. Falls back to in-memory `FixedWindowRateLimiter` when Redis is unavailable (fail-open). Window keys are aligned across instances using `floor(unixSeconds / windowSeconds)` for consistent distributed counting.
 
 > **Note**: This is P1 rather than P0 because it only matters once autoscaling is enabled (multiple instances). On a single instance the current setup is correct.
 
@@ -169,7 +171,7 @@
 |---|---|
 | **Priority** | P1 |
 | **Criticality** | 7/10 |
-| **Implemented** | No |
+| **Implemented** | Yes (Feb 2026) |
 
 **Location**: `services/api/GamerUncle.Api.csproj:30` (package reference), no usage in any source files.
 
@@ -181,6 +183,11 @@
 **Impact at scale**: A slow AI Foundry response at 500+ users ties up request threads with no timeout. A transient Upstash failure cascades without circuit breaking. A brief Cosmos DB outage produces uncontrolled retry storms.
 
 **Fix**: Add Polly policies: timeout (30s) + retry (2 attempts with exponential backoff) on AI calls, circuit breaker on Upstash operations.
+
+**Implementation**: Created `IResiliencePolicyProvider` with `ResiliencePolicyProvider` providing two policies:
+- **AgentCallPolicy**: Wraps AI Agent calls with Polly timeout (30s per attempt, optimistic strategy) + retry (2 attempts with exponential backoff). Handles `RequestFailedException` for transient HTTP errors (408, 429, 502, 503, 504), `TimeoutRejectedException`, and `TaskCanceledException`. CancellationToken is threaded through to `Task.Delay` in the adaptive polling loop for responsive timeout cancellation.
+- **RedisOperationPolicy**: Retry (2 attempts with 100ms base delay) for `RedisException` and subtypes.
+- Configuration is via `Resilience` section in appsettings.json. `AgentServiceClient` uses Polly when available, falls back to built-in manual retry for backward compatibility.
 
 ---
 
@@ -261,8 +268,8 @@ For 1,000 installed users (~150 DAU, ~50 peak concurrent):
 - [ ] **#4**: Configure App Service autoscaling (2 min, 4–6 max)
 
 ### Sprint 2 — Resilience hardening
-- [ ] **#6**: Add Polly timeout + retry policies on AI agent calls
-- [ ] **#5**: Implement Redis-backed distributed rate limiting
+- [x] **#6**: Add Polly timeout + retry policies on AI agent calls
+- [x] **#5**: Implement Redis-backed distributed rate limiting
 - [ ] **#8**: Add Upstash health check
 
 ### Sprint 3 — Operational maturity

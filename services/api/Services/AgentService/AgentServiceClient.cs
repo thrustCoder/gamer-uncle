@@ -8,9 +8,11 @@ using GamerUncle.Shared.Models;
 using GamerUncle.Api.Models;
 using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Interfaces;
+using GamerUncle.Api.Services.Resilience;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace GamerUncle.Api.Services.AgentService
 {
@@ -27,6 +29,7 @@ namespace GamerUncle.Api.Services.AgentService
         private readonly ILogger<AgentServiceClient> _logger;
         private readonly int _maxLowQualityRetries;
         private readonly int _maxTransientRetries;
+        private readonly IResiliencePolicyProvider? _resiliencePolicies;
 
         // A5 Optimization: Adaptive polling intervals - start fast, slow down over time
         // Saves 200-400ms per AI call by catching fast responses early
@@ -38,7 +41,7 @@ namespace GamerUncle.Api.Services.AgentService
         // HTTP status codes considered transient and eligible for retry
         private static readonly int[] TransientStatusCodes = { 408, 429, 502, 503, 504 };
 
-        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, IThreadMappingStore threadMappingStore, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
+        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, IThreadMappingStore threadMappingStore, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null, IResiliencePolicyProvider? resiliencePolicies = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             // A3: Use separate agents for criteria extraction (fast) and main responses (quality)
@@ -71,6 +74,12 @@ namespace GamerUncle.Api.Services.AgentService
             if (!int.TryParse(transientRetryRaw, out _maxTransientRetries))
             {
                 _maxTransientRetries = env == "testing" ? 0 : 2;
+            }
+            // Finding #6: Polly resilience policies for timeout + retry on AI agent calls
+            _resiliencePolicies = resiliencePolicies;
+            if (_resiliencePolicies != null)
+            {
+                _logger.LogInformation("Polly resilience policies enabled for AI agent calls");
             }
         }
 
@@ -164,7 +173,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                     var strengthenedPayload = new { messages = strengthenedMessages };
 
-                    (string? raw, string threadIdResult) = await RunAgentWithTransientRetryAsync(strengthenedPayload, currentThreadId);
+                    // Finding #6: Use Polly policies when available; fall back to manual retry otherwise
+                    (string? raw, string threadIdResult) = await ExecuteAgentCallAsync(strengthenedPayload, currentThreadId);
                     response = raw;
                     currentThreadId = threadIdResult;
 
@@ -309,8 +319,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
             var requestPayload = new { messages };
 
-            // Use a direct agent call for criteria extraction, bypassing the JSON format modification
-            var (json, _) = await RunAgentForCriteriaExtractionAsync(requestPayload, sessionId);
+            // Finding #6: Use Polly for criteria extraction too (timeout + retry)
+            var (json, _) = await ExecuteCriteriaCallAsync(requestPayload, sessionId);
 
             // A1 Optimization: Cache the result for future queries
             if (_criteriaCache != null && !string.IsNullOrEmpty(json))
@@ -334,7 +344,40 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         }
 
         /// <summary>
+        /// Finding #6: Executes an AI agent call with Polly resilience policies when available.
+        /// Falls back to manual transient retry logic when policies are not configured.
+        /// </summary>
+        private async Task<(string? response, string threadId)> ExecuteAgentCallAsync(object requestPayload, string? threadId)
+        {
+            if (_resiliencePolicies != null)
+            {
+                return await _resiliencePolicies.AgentCallPolicy.ExecuteAsync(
+                    ct => RunAgentWithMessagesAsync(requestPayload, threadId, ct),
+                    CancellationToken.None);
+            }
+
+            return await RunAgentWithTransientRetryAsync(requestPayload, threadId);
+        }
+
+        /// <summary>
+        /// Finding #6: Executes a criteria extraction call with Polly resilience policies when available.
+        /// Falls back to direct call when policies are not configured.
+        /// </summary>
+        private async Task<(string? response, string threadId)> ExecuteCriteriaCallAsync(object requestPayload, string? threadId)
+        {
+            if (_resiliencePolicies != null)
+            {
+                return await _resiliencePolicies.AgentCallPolicy.ExecuteAsync(
+                    ct => RunAgentForCriteriaExtractionAsync(requestPayload, threadId, ct),
+                    CancellationToken.None);
+            }
+
+            return await RunAgentForCriteriaExtractionAsync(requestPayload, threadId);
+        }
+
+        /// <summary>
         /// Wraps RunAgentWithMessagesAsync with retry logic for transient HTTP errors (502, 503, 429, etc.)
+        /// Legacy path used when Polly resilience policies are not configured.
         /// </summary>
         private async Task<(string? response, string threadId)> RunAgentWithTransientRetryAsync(object requestPayload, string? threadId)
         {
@@ -399,7 +442,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             return "Something went wrong on my end. Let's try again! 🎲";
         }
 
-        private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId)
+        private async Task<(string? response, string threadId)> RunAgentWithMessagesAsync(object requestPayload, string? threadId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -471,7 +514,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 do
                 {
                     var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
-                    await Task.Delay(delayMs);
+                    await Task.Delay(delayMs, cancellationToken);
                     run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                     pollCount++;
                 } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
@@ -502,7 +545,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             }
         }
 
-        private async Task<(string? response, string threadId)> RunAgentForCriteriaExtractionAsync(object requestPayload, string? threadId)
+        private async Task<(string? response, string threadId)> RunAgentForCriteriaExtractionAsync(object requestPayload, string? threadId, CancellationToken cancellationToken = default)
         {
             // A3: Use dedicated fast agent for criteria extraction
             PersistentAgent agent = _agentsClient.Administration.GetAgent(_criteriaAgentId);
@@ -553,7 +596,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             do
             {
                 var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, cancellationToken);
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
