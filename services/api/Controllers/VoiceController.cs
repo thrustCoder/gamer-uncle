@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
+using GamerUncle.Api.Services.Authentication;
 using System.Diagnostics;
 
 namespace GamerUncle.Api.Controllers
@@ -12,6 +13,7 @@ namespace GamerUncle.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("GameRecommendations")] // Use same rate limiting policy as recommendations
+    [RequireAppKeyGraceful]
     public class VoiceController : ControllerBase
     {
         private readonly IAudioProcessingService _audioProcessingService;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GameProvider } from './store/GameContext';
@@ -15,16 +15,27 @@ import GameSetupScreen from './screens/GameSetupScreen';
 import GameSearchScreen from './screens/GameSearchScreen';
 import ScoreTrackerScreen from './screens/ScoreTrackerScreen';
 import ScoreInputScreen from './screens/ScoreInputScreen';
+import ForceUpgradeModal from './components/ForceUpgradeModal';
 import { initTelemetry } from './services/Telemetry';
 import { useAnalytics } from './hooks/useAnalytics';
+import { checkAppVersion, VersionCheckResult } from './services/AppConfigService';
 
 const Stack = createStackNavigator();
 
 export default function App() {
   const { onNavigationStateChange } = useAnalytics();
+  const [upgradeInfo, setUpgradeInfo] = useState<VersionCheckResult | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     initTelemetry();
+
+    checkAppVersion().then((result) => {
+      if (result?.needsUpdate) {
+        setUpgradeInfo(result);
+        setShowUpgradeModal(true);
+      }
+    });
   }, []);
 
   return (
@@ -46,6 +57,13 @@ export default function App() {
                 <Stack.Screen name="ScoreInput" component={ScoreInputScreen} />
               </Stack.Navigator>
             </NavigationContainer>
+            <ForceUpgradeModal
+              visible={showUpgradeModal}
+              message={upgradeInfo?.message}
+              upgradeUrl={upgradeInfo?.upgradeUrl}
+              forceUpgrade={upgradeInfo?.forceUpgrade ?? false}
+              onDismiss={() => setShowUpgradeModal(false)}
+            />
           </ScoreTrackerProvider>
         </TimerProvider>
       </ChatProvider>

@@ -7,6 +7,7 @@ using GamerUncle.Api.Services.RateLimiting;
 using GamerUncle.Api.Services.Resilience;
 using GamerUncle.Api.Services.Speech;
 using GamerUncle.Api.Services.ThreadMapping;
+using GamerUncle.Api.Models;
 using GamerUncle.Mcp.Extensions;
 using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
@@ -218,6 +219,9 @@ if (!isTestEnv)
         return client.GetContainer(databaseName, containerName);
     });
 }
+
+// Bind AppVersionPolicy from configuration (used by AppConfigController)
+builder.Services.Configure<AppVersionPolicy>(builder.Configuration.GetSection("AppVersionPolicy"));
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();

@@ -19,9 +19,9 @@
 
 | Phase | Description | Estimated Duration | Status |
 |---|---|---|---|
-| **1. Client Sends App Key** | Mobile app starts sending `X-GamerUncle-AppKey` on Recommendations & Voice requests. No server changes. | 1–2 weeks (app review) | In Progress |
-| **2. Soft Enforcement** | Server validates App Key but allows requests without it (logs warning). Reject invalid keys. | Deploy after Phase 1 is live | Not Started |
-| **3. Force Upgrade** | Build `/api/AppConfig` endpoint + client-side version check with blocking upgrade modal. Observation window to monitor adoption. | 2–3 weeks build + 4–6 weeks observation | Not Started |
+| **1. Client Sends App Key** | Mobile app starts sending `X-GamerUncle-AppKey` on Recommendations & Voice requests. No server changes. | 1–2 weeks (app review) | Complete |
+| **2. Soft Enforcement** | Server validates App Key but allows requests without it (logs warning). Reject invalid keys. | Deploy after Phase 1 is live | Complete |
+| **3. Force Upgrade** | Build `/api/AppConfig` endpoint + client-side version check with blocking upgrade modal. Observation window to monitor adoption. | 2–3 weeks build + 4–6 weeks observation | Complete |
 | **4. Hard Enforcement** | Swap graceful filter for strict `[RequireAppKey]`. All unauthenticated requests rejected. | Single deploy | Not Started |
 
 ---
