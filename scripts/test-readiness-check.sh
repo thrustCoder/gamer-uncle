@@ -43,7 +43,7 @@ test_api_readiness() {
 
 # Test with dev API (should be accessible)
 echo "Testing Dev API readiness check..."
-if test_api_readiness "https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net" 3; then
+if test_api_readiness "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net" 3; then
     echo "✅ Dev API readiness check passed"
 else
     echo "⚠️ Dev API readiness check failed (this may be expected if API is down)"
@@ -51,7 +51,7 @@ fi
 
 echo ""
 echo "Testing Prod API readiness check..."
-if test_api_readiness "https://gamer-uncle-prod-app-svc.azurewebsites.net" 3; then
+if test_api_readiness "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net" 3; then
     echo "✅ Prod API readiness check passed"
 else
     echo "⚠️ Prod API readiness check failed (this may be expected if API is down)"

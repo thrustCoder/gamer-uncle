@@ -1,7 +1,7 @@
 # Test Production Recommendations API
 # This script tests the fixed AI Foundry endpoint
 
-$apiUrl = "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/Recommendations"
+$apiUrl = "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/Recommendations"
 
 Write-Host "Testing Production Recommendations API" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan

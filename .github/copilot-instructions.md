@@ -126,7 +126,7 @@ $env:TEST_ENVIRONMENT="Local"
 $env:API_BASE_URL="http://localhost:5000"
 
 # E2E tests with specific backend
-$env:E2E_BASE_URL="https://gamer-uncle-dev-app-svc.azurewebsites.net"
+$env:E2E_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
 ```
 
 ## Key File Patterns

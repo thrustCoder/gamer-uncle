@@ -834,7 +834,7 @@ stages:
 
     - script: |
         echo "🔍 Waiting for Dev API to be ready..."
-        API_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
+        API_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
         MAX_ATTEMPTS=30
         ATTEMPT=1
         
@@ -869,7 +869,7 @@ stages:
 
     - script: |
         export TEST_ENVIRONMENT=Dev
-        export API_BASE_URL=https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net
+        export API_BASE_URL=https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net
         echo "Running functional tests against Dev environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)
@@ -1164,7 +1164,7 @@ stages:
 
     - script: |
         echo "🔍 Waiting for Prod API to be ready..."
-        API_URL="https://gamer-uncle-prod-app-svc.azurewebsites.net"
+        API_URL="https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"
         MAX_ATTEMPTS=30
         ATTEMPT=1
         
@@ -1199,7 +1199,7 @@ stages:
 
     - script: |
         export TEST_ENVIRONMENT=Prod
-        export API_BASE_URL=https://gamer-uncle-prod-app-svc.azurewebsites.net
+        export API_BASE_URL=https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net
         echo "Running functional tests against Prod environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)

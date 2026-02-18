@@ -35,7 +35,7 @@ describe('Playwright Configuration Tests', () => {
   test('should have correct base URL configuration', () => {
     // Assert
     expect(playwrightConfigContent).toContain('baseURL: process.env.E2E_BASE_URL');
-    expect(playwrightConfigContent).toContain('gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net');
+    expect(playwrightConfigContent).toContain('gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net');
     expect(playwrightConfigContent).toContain('http://localhost:8081');
   });
 

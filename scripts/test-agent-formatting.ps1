@@ -10,8 +10,8 @@ param(
 # Set API URL based on environment
 $apiUrl = switch ($Environment) {
     "local" { "http://localhost:5001/api/recommendations" }
-    "dev"   { "https://gamer-uncle-dev-app-svc.azurewebsites.net/api/recommendations" }
-    "prod"  { "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/recommendations" }
+    "dev"   { "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api/recommendations" }
+    "prod"  { "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/recommendations" }
 }
 
 Write-Host "========================================" -ForegroundColor Cyan

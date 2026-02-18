@@ -25,5 +25,5 @@ az webapp restart `
   --name gamer-uncle-prod-app-svc `
   --resource-group gamer-uncle-prod-rg
 
-Write-Host "✅ Swagger should now be enabled at: https://gamer-uncle-prod-app-svc.azurewebsites.net/swagger" -ForegroundColor Green
+Write-Host "✅ Swagger should now be enabled at: https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/swagger" -ForegroundColor Green
 Write-Host "💡 Wait 1-2 minutes for the app to restart before testing" -ForegroundColor Blue

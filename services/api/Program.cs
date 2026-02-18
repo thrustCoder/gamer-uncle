@@ -11,6 +11,7 @@ using GamerUncle.Shared.Models;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Microsoft.Azure.Cosmos;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.RateLimiting;
@@ -176,6 +177,50 @@ builder.Services.AddRateLimiter(options =>
         await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Please try again later.", token);
     };
 });
+
+// Register singleton CosmosClient (one per application lifetime per Microsoft best practices)
+// All services share this single client to avoid TCP port exhaustion under load.
+var isTestEnv = builder.Environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase)
+              || builder.Configuration.GetValue<bool>("Testing:DisableRateLimit")
+              || Environment.GetEnvironmentVariable("TEST_ENVIRONMENT") == "Testing";
+
+if (!isTestEnv)
+{
+    builder.Services.AddSingleton<CosmosClient>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var endpoint = config["CosmosDb:Endpoint"]
+            ?? throw new InvalidOperationException("Missing Cosmos DB endpoint config.");
+        var tenantId = config["CosmosDb:TenantId"]
+            ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
+
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            TenantId = tenantId,
+        });
+
+        var clientOptions = new CosmosClientOptions
+        {
+            ConnectionMode = ConnectionMode.Direct,
+            MaxRetryAttemptsOnRateLimitedRequests = 5,
+            MaxRetryWaitTimeOnRateLimitedRequests = TimeSpan.FromSeconds(15),
+            MaxRequestsPerTcpConnection = 10,
+            MaxTcpConnectionsPerEndpoint = 10,
+        };
+
+        return new CosmosClient(endpoint, credential, clientOptions);
+    });
+
+    builder.Services.AddSingleton<Container>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var client = sp.GetRequiredService<CosmosClient>();
+        var databaseName = config["CosmosDb:DatabaseName"]
+            ?? throw new InvalidOperationException("Missing Cosmos DB database name config.");
+        var containerName = config["CosmosDb:ContainerName"] ?? "Games";
+        return client.GetContainer(databaseName, containerName);
+    });
+}
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();

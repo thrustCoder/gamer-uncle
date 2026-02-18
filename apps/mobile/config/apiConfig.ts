@@ -16,7 +16,7 @@ export const API_ENVIRONMENT = 'prod' as ApiEnvironment; // Change this to switc
 
 // API endpoint URLs
 const LOCAL_API_URL = 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
-const AZURE_DEV_API_URL = 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure dev endpoint
+const AZURE_DEV_API_URL = 'https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api/'; // Azure dev endpoint
 const AZURE_PROD_API_URL = 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/'; // Azure prod endpoint
 
 // App Keys (for API authentication)

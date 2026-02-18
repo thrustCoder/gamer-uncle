@@ -19,7 +19,7 @@ Please email us with the steps to reproduce the issue, your iOS version, and scr
 
 ## 📜 Privacy Policy
 We do not collect personal data.  
-For full details, see our [Privacy Policy](https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net/privacy.html).
+For full details, see our [Privacy Policy](https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/privacy.html).
 
 ---
 

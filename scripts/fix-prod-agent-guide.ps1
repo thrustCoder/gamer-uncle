@@ -28,7 +28,7 @@ Write-Host "`n4. Update PROD agent to match DEV configuration" -ForegroundColor 
 Write-Host "`n🧪 Test Commands:" -ForegroundColor Green
 Write-Host "After fixing the agent configuration, test with:" -ForegroundColor Gray
 Write-Host '$testQuery = @{ query = "What is Catan about?"; userId = "test" } | ConvertTo-Json' -ForegroundColor White
-Write-Host '$response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json"' -ForegroundColor White
+Write-Host '$response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json"' -ForegroundColor White
 Write-Host 'Write-Host $response.responseText' -ForegroundColor White
 
 Write-Host "`n⚠️  Important:" -ForegroundColor Yellow

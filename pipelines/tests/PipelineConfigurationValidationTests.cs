@@ -170,8 +170,8 @@ namespace GamerUncle.Pipeline.Tests
             // Act & Assert
             Assert.IsTrue(pipelineContent.Contains("TEST_ENVIRONMENT=Prod"), 
                 "Production functional tests should set TEST_ENVIRONMENT=Prod");
-            Assert.IsTrue(pipelineContent.Contains("gamer-uncle-prod-app-svc.azurewebsites.net"), 
-                "Production tests should use production URLs");
+            Assert.IsTrue(pipelineContent.Contains("gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"), 
+                "Production tests should use production AFD URLs");
         }
 
         [TestMethod]
