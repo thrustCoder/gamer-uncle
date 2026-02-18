@@ -53,7 +53,7 @@ configure_environment() {
         "local"|"pr")
             echo -e "${YELLOW}🏠 Configuring for local testing${NC}"
             export E2E_BASE_URL="http://localhost:8081"
-            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
             
             # Check if API is accessible
             if ! check_url "$API_BASE_URL/api" "API Service"; then
@@ -63,8 +63,8 @@ configure_environment() {
             
         "dev")
             echo -e "${YELLOW}🌐 Configuring for dev environment testing${NC}"
-            export E2E_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
-            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            export E2E_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
             
             # Check if both app and API are accessible
             if ! check_url "$E2E_BASE_URL" "Mobile App"; then
@@ -80,8 +80,8 @@ configure_environment() {
             
         "staging")
             echo -e "${YELLOW}🚀 Configuring for staging environment testing${NC}"
-            export E2E_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
-            export API_BASE_URL="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net"
+            export E2E_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
+            export API_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
             ;;
             
         "prod"|"production")

@@ -4,7 +4,7 @@ echo "🔍 Testing Mobile App API Endpoints"
 echo "=================================="
 
 # Test endpoints with mobile-like headers
-DEV_API="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api"
+DEV_API="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api"
 
 echo "1. Testing Voice Sessions Endpoint:"
 echo "POST $DEV_API/voice/sessions"

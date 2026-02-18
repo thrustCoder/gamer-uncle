@@ -1,36 +1,20 @@
-using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
 
 namespace GamerUncle.Api.Services.Cosmos
 {
+    /// <summary>
+    /// Cosmos DB service for game query operations.
+    /// Uses a shared singleton Container injected via DI (single CosmosClient per application).
+    /// </summary>
     public class CosmosDbService : ICosmosDbService
     {
         private readonly Container _container;
 
-        public CosmosDbService(IConfiguration config)
+        public CosmosDbService(Container container)
         {
-            var endpoint = config["CosmosDb:Endpoint"]
-                ?? throw new InvalidOperationException("Missing Cosmos DB endpoint config.");
-
-            var tenantId = config["CosmosDb:TenantId"]
-                ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
-
-            var databaseName = config["CosmosDb:DatabaseName"]
-                ?? throw new InvalidOperationException("Missing Cosmos DB database name config.");
-
-            var containerName = config["CosmosDb:ContainerName"] ?? "Games";
-
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-            {
-                TenantId = tenantId,
-                // For API running in Azure, you might also need to specify:
-                // ManagedIdentityClientId = config["CosmosDb:ClientId"] // if using UAMI
-            });
-
-            var client = new CosmosClient(endpoint, credential);
-            _container = client.GetContainer(databaseName, containerName);
+            _container = container ?? throw new ArgumentNullException(nameof(container));
         }
 
         public async Task<IEnumerable<GameDocument>> QueryGamesAsync(GameQueryCriteria criteria)

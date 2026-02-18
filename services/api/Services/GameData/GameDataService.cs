@@ -1,4 +1,3 @@
-using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
@@ -6,13 +5,18 @@ using System.Text;
 
 namespace GamerUncle.Api.Services.GameData
 {
+    /// <summary>
+    /// Service for game data operations (voice sessions, Foundry context).
+    /// Uses a shared singleton Container injected via DI (single CosmosClient per application).
+    /// In test environments, the container may be null and mock data is used.
+    /// </summary>
     public class GameDataService : IGameDataService
     {
         private readonly Container? _container;
         private readonly ILogger<GameDataService> _logger;
         private readonly bool _isTestEnvironment;
 
-        public GameDataService(IConfiguration config, ILogger<GameDataService> logger, IWebHostEnvironment environment)
+        public GameDataService(IConfiguration config, ILogger<GameDataService> logger, IWebHostEnvironment environment, Container? container = null)
         {
             _logger = logger;
             _isTestEnvironment = environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase) 
@@ -21,24 +25,8 @@ namespace GamerUncle.Api.Services.GameData
 
             if (!_isTestEnvironment)
             {
-                var endpoint = config["CosmosDb:Endpoint"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB endpoint config.");
-
-                var tenantId = config["CosmosDb:TenantId"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
-
-                var databaseName = config["CosmosDb:DatabaseName"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB database name config.");
-
-                var containerName = config["CosmosDb:ContainerName"] ?? "Games";
-
-                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-                {
-                    TenantId = tenantId,
-                });
-
-                var client = new CosmosClient(endpoint, credential);
-                _container = client.GetContainer(databaseName, containerName);
+                _container = container ?? throw new InvalidOperationException(
+                    "Cosmos DB Container must be registered in DI for non-test environments.");
             }
             else
             {

@@ -1,8 +1,8 @@
 #!/usr/bin/env pwsh
 
 # Test production API with detailed logging
-$productionUrl = "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/Recommendations"
-$devUrl = "https://gamer-uncle-dev-app-svc.azurewebsites.net/api/Recommendations"
+$productionUrl = "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/Recommendations"
+$devUrl = "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api/Recommendations"
 
 Write-Host "Testing Gamer Uncle API - Dev vs Prod Comparison" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green

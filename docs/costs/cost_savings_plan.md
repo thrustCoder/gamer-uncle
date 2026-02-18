@@ -82,8 +82,8 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | Resource | Type | SKU/Tier | Monthly Cost (Est.) |
 |----------|------|----------|:-------------------:|
 | gamer-uncle-dev-app-plan | App Service Plan | **B1** (Basic, 1 instance) | ~$33 |
-| gamer-uncle-afd-dev | Front Door | Standard_AzureFrontDoor | ~$35 |
-| gameuncledevwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD |
+| ~~gamer-uncle-afd-dev~~ | ~~Front Door~~ | ~~Standard_AzureFrontDoor~~ | ~~$35~~ → **$0** (consolidated onto prod AFD) |
+| ~~gameuncledevwaf~~ | ~~WAF Policy~~ | ~~Standard_AzureFrontDoor~~ | ~~Included in AFD~~ → deleted |
 | gamer-uncle-dev-foundry | AI Services | S0 | Pay-per-use |
 | gamer-uncle-dev-speech | Speech Services | **F0** (Free) | $0 |
 | gamer-uncle-dev-cosmos | Cosmos DB | **Free Tier** enabled | $0 |
@@ -107,8 +107,8 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | Resource | Type | SKU/Tier | Monthly Cost (Est.) |
 |----------|------|----------|:-------------------:|
 | gamer-uncle-prod-app-plan | App Service Plan | **P1v3** (PremiumV3, 1 instance) | ~$99 |
-| gamer-uncle-prod-afd | Front Door | Standard_AzureFrontDoor | ~$35 |
-| gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD |
+| gamer-uncle-prod-afd | Front Door | Standard_AzureFrontDoor | ~$35 (now serves both dev + prod endpoints) |
+| gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD (rate limits: dev 60/min, prod 100/min) |
 | gamer-uncle-prod-foundry-resourc | AI Services | S0 | Pay-per-use |
 | gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
 | gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–4000 RU/s, **no free tier** | ~$72 |
@@ -136,24 +136,24 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 
 | # | Recommendation | Env | Cost Contributor (1-10) | Risk if Changed (1-10) | Est. Monthly Savings | Scale Impact | Implemented? |
 |---|----------------|:---:|:-----------------------:|:----------------------:|:--------------------:|:------------:|:------------:|
-| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | No |
-| 2 | [Remove Azure Front Door from dev](#2-remove-azure-front-door-from-dev) | Dev | **9** | **2** | $35/mo | Safe at scale | No |
-| 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | No |
-| 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $20–33/mo | Safe at scale | No |
-| 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | No |
-| 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | No |
-| 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | No |
-| 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | **Yes** |
-| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | No |
-| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | No |
-| 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | No |
+| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | 🟠 |
+| 2 | [Consolidate dev AFD onto prod profile](#2-consolidate-dev-afd-onto-prod-profile) | Dev | **9** | **2** | $35/mo | Safe at scale | ✅ |
+| 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | 🟠 |
+| 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $20–33/mo | Safe at scale | 🟠 |
+| 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | 🟠 |
+| 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | 🟠 |
+| 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
+| 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
+| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
+| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | 🟠 |
+| 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
 
 ### How to read this table
 
 - **Cost Contributor (1-10)**: How much this resource contributes to your total bill. 10 = biggest cost driver.
 - **Risk if Changed (1-10)**: How risky the optimization is. 1 = safe/easy, 10 = could impact production reliability.
 - **Scale Impact**: How this recommendation interacts with projected traffic growth (see [Cross-Reference with Scaling Analysis](#cross-reference-with-scaling-analysis) for legend). *Temporary savings* should be reversed at the milestone indicated; *Complementary* optimizations actually help at scale.
-- **Implemented?**: Whether this optimization has been applied.
+- **Implemented?**: Whether this optimization has been applied. ✅ = Done, 🟠 = Not yet.
 
 ---
 
@@ -163,22 +163,45 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 
 > See [#1 in Prod section below](#1-downgrade-prod-app-service-from-p1v3) — listed here for the summary table ordering.
 
-### 2. Remove Azure Front Door from Dev
+### 2. Consolidate Dev AFD onto Prod Profile
 
 | | |
 |---|---|
 | **Cost Contributor** | 9/10 |
 | **Risk** | 2/10 |
 | **Savings** | ~$35/mo |
-| **Implemented** | No |
+| **Implemented** | ✅ (Feb 2026) |
 
-**Current state**: Dev has a full Azure Front Door Standard profile (`gamer-uncle-afd-dev`) with WAF policy (`gameuncledevwaf`). This costs **$35/mo flat** regardless of traffic — accounting for **50% of your dev spend**.
+**What was done**: Instead of removing AFD entirely from dev, the dev endpoint was consolidated onto the existing prod AFD profile (`gamer-uncle-prod-afd`). This eliminates the $35/mo base fee for the separate dev AFD profile while retaining WAF protection and AFD routing for both environments.
 
-**Why it's unnecessary for dev**: Front Door provides global load balancing, CDN caching, and WAF protection. Dev is used only by you for testing. The mobile app in dev can connect directly to the App Service URL.
+**Implementation details**:
 
-**Recommendation**: Delete the dev Front Door profile and WAF policy. Point the mobile app's dev config directly at `gamer-uncle-dev-app-svc.azurewebsites.net`.
+1. **Created dev endpoint** `gamer-uncle-dev-api` on the prod AFD profile
+   - Hostname: `gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net`
+   - Origin group: `dev-app-service-origin-group` → App Service `gamer-uncle-dev-app-svc`
+   - Routes: `/api/*`, `/health`, `/*` (catch-all)
+   - Health probe: GET `/health` via HTTPS every 120s
+   - Certificate name check: Disabled (required for new-format App Service hostnames with regional suffix)
 
-**Risk**: Minimal. Dev doesn't need CDN, global routing, or WAF. If you need to test Front Door behavior specifically, re-create it temporarily.
+2. **WAF rate limiting** added to shared WAF policy (`gameruncleprodwaf`):
+   - `devApiRateLimit`: 60 requests/min per IP on `/api/*` paths
+   - `prodApiRateLimit`: 100 requests/min per IP on `/api/*` paths
+   - Security policy `waf-policy-association` links WAF to both endpoints
+
+3. **FDID lockdown** on both App Services:
+   - Access restriction: Allow only `AzureFrontDoor.Backend` service tag with `X-Azure-FDID: f2c54541-49ea-4a66-8e48-a589809412d3`
+   - Deny all other traffic (direct App Service access returns 403)
+
+4. **URL references updated** across ~27 files:
+   - Old dev AFD URL → new dev endpoint URL
+   - Direct App Service URLs → AFD endpoint URLs
+   - Affected: mobile config, pipeline YAML, test scripts, diagnostic scripts, docs
+
+5. **Old dev AFD profile** (`gamer-uncle-afd-dev`) and WAF policy (`gameuncledevwaf`) — deletion in progress
+
+**Key finding**: Azure Front Door Standard tier does **not** support managed WAF rule sets (OWASP/bot protection). That requires Premium tier at ~$330/mo. Custom rules (rate limiting) work fine on Standard.
+
+**Risk**: Minimal. Both environments share one AFD profile but have separate endpoints, origin groups, and rate limit rules. No cross-contamination.
 
 ---
 
@@ -189,7 +212,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Cost Contributor** | 8/10 |
 | **Risk** | 3/10 |
 | **Savings** | $20–33/mo |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Dev runs on **B1** (Basic tier, 1 instance) at ~$33/mo. This provides 1.75 GB RAM, 1 core.
 
@@ -213,7 +236,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Cost Contributor** | 3/10 |
 | **Risk** | 1/10 |
 | **Savings** | $0–2/mo |
-| **Implemented** | **Yes** (Feb 2026) |
+| **Implemented** | ✅ (Feb 2026) |
 
 **What was done**:
 
@@ -253,7 +276,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Cost Contributor** | 2/10 |
 | **Risk** | 1/10 |
 | **Savings** | $1–2/mo |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Both dev and prod Log Analytics workspaces have `dailyQuotaGb: -1` (unlimited). Dev is currently low cost ($0.14/mo) but this will grow as you add more logging at scale.
 
@@ -271,7 +294,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Risk** | 4/10 |
 | **Savings** | $45/mo (temporary — ~2-3 months) |
 | **Scale Impact** | **Temporary savings** — upgrade back to S2/P1v3 at 500+ users |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
 
@@ -303,7 +326,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Risk** | 5/10 |
 | **Savings** | $54/mo (temporary — ~2-3 months) |
 | **Scale Impact** | **Temporary savings** — raise autoscale max back to 4000 RU/s at 500+ users |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Prod Cosmos DB uses **autoscale at container level** with max 4,000 RU/s. The current throughput shows 100 RU/s (autoscale scales down to 10% of max). However, the **minimum billing** for autoscale is 10% of max = 400 RU/s. At ~$0.008/RU/hr, that's **~$72/mo** just for provisioned throughput.
 
@@ -340,7 +363,7 @@ Dev Cosmos DB has **free tier** enabled (1000 RU/s + 25 GB free), which is why d
 | **Risk** | 2/10 |
 | **Savings** | $15–30/mo (defer until tier stabilizes) |
 | **Scale Impact** | **Depends on tier** — don't commit until post-scaling tier is settled |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: App Service is on pay-as-you-go pricing.
 
@@ -367,7 +390,7 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 | **Cost Contributor** | 5/10 |
 | **Risk** | 3/10 |
 | **Savings** | $5–15/mo (RU reduction) |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Prod Cosmos DB uses the **default indexing policy** — `includedPaths: [/*]`. This indexes every property in every document.
 
@@ -400,7 +423,7 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 | **Cost Contributor** | 4/10 |
 | **Risk** | 3/10 |
 | **Savings** | $0.50–2/mo now; $5–15/mo at 1,000 users |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: The architecture uses gpt-4.1-mini for criteria extraction and gpt-4.1 for main responses. GPT-4.1-mini is ~10x cheaper per token.
 
@@ -415,7 +438,7 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 | **Cost Contributor** | 3/10 |
 | **Risk** | 2/10 |
 | **Savings** | $1–5/mo (grows with scale) |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Neither dev nor prod has Application Insights sampling enabled (`samplingPercentage: null`). Every request, dependency call, and trace is ingested at 100%.
 
@@ -432,7 +455,7 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 | **Cost Contributor** | 1/10 |
 | **Risk** | 1/10 |
 | **Savings** | <$1/mo |
-| **Implemented** | No |
+| **Implemented** | 🟠 |
 
 **Current state**: Each environment has 2 storage accounts — one for the app and one for Functions. Total cost is negligible (~$0.12/mo combined).
 
@@ -449,7 +472,7 @@ These savings apply **now** while traffic is low. Some are temporary and will be
 | Recommendation | Dev Savings | Prod Savings | Duration | Notes |
 |----------------|:-----------:|:------------:|:--------:|-------|
 | #1 — Downgrade prod App Service to S1 | – | $45 | Temporary (3 mo) | Upgrade to S2/P1v3 at 500+ users |
-| #2 — Remove dev Front Door | $35 | – | Permanent | Dev never needs AFD |
+| #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ Dev endpoint on prod AFD profile |
 | #3 — Lower Cosmos DB autoscale to 1000 | – | $54 | Temporary (2–3 mo) | Raise back to 4000 at 500+ users |
 | #4 — Downgrade dev App Service (stop at night) | $15–20 | – | Permanent | Dev stays lean |
 | #5 — Reserved Instance | – | – | Deferred | Wait until tier stabilizes (Month 4+) |
@@ -468,7 +491,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 | Recommendation | Dev Savings | Prod Savings | Notes |
 |----------------|:-----------:|:------------:|-------|
 | #1 — App Service tier | – | **$0** (back to S2/P1v3) | Upgraded for autoscaling at 1,000 users |
-| #2 — Remove dev Front Door | $35 | – | Permanent |
+| #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ |
 | #3 — Cosmos DB autoscale | – | **$0** (back to 4000 max) | Restored for burst traffic capacity |
 | #4 — Dev App Service | $15–20 | – | Permanent |
 | #5 — Reserved Instance | – | $30 | Purchase RI once tier is stable (Month 4+) |
@@ -496,7 +519,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 ## Implementation Roadmap
 
 ### Phase 1 — Quick Wins (This Week, ~$134/mo immediate savings)
-- [ ] **#2**: Remove dev Azure Front Door + WAF policy → **$35/mo saved** (permanent)
+- [x] **#2**: Consolidate dev AFD onto prod profile → **$35/mo saved** (permanent) — completed Feb 2026
 - [ ] **#8**: Delete `gamer-uncle-dev-foundry-eastus2` resource → **$0–2/mo saved** (permanent)
 - [ ] **#3**: Lower prod Cosmos DB autoscale max from 4000 to 1000 RU/s → **$54/mo saved** (temporary)
   - ⚠️ **Prerequisite**: Fix CosmosClientOptions (scaling Finding #4) first

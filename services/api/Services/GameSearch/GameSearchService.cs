@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Azure.Identity;
 using GamerUncle.Api.Models;
 using GamerUncle.Api.Services.Interfaces;
 using GamerUncle.Shared.Models;
@@ -12,6 +11,7 @@ namespace GamerUncle.Api.Services.GameSearch
 {
     /// <summary>
     /// Service for game search functionality with L1 (memory) and L2 (Redis) caching.
+    /// Uses a shared singleton Container injected via DI (single CosmosClient per application).
     /// </summary>
     public class GameSearchService : IGameSearchService
     {
@@ -35,7 +35,8 @@ namespace GamerUncle.Api.Services.GameSearch
             IConnectionMultiplexer? redis,
             ILogger<GameSearchService> logger,
             IWebHostEnvironment environment,
-            TelemetryClient? telemetry = null)
+            TelemetryClient? telemetry = null,
+            Container? container = null)
         {
             _l1Cache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
             _redis = redis;
@@ -50,27 +51,11 @@ namespace GamerUncle.Api.Services.GameSearch
             _l2Expiration = TimeSpan.FromMinutes(config.GetValue<int>("CriteriaCache:L2ExpirationMinutes", 30));
             _environment = config.GetValue<string>("CriteriaCache:Environment") ?? "default";
 
-            // Initialize Cosmos DB (skip in test environment)
+            // Use injected container (skip in test environment)
             if (!_isTestEnvironment)
             {
-                var endpoint = config["CosmosDb:Endpoint"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB endpoint config.");
-
-                var tenantId = config["CosmosDb:TenantId"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB tenant ID config.");
-
-                var databaseName = config["CosmosDb:DatabaseName"]
-                    ?? throw new InvalidOperationException("Missing Cosmos DB database name config.");
-
-                var containerName = config["CosmosDb:ContainerName"] ?? "Games";
-
-                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-                {
-                    TenantId = tenantId,
-                });
-
-                var client = new CosmosClient(endpoint, credential);
-                _container = client.GetContainer(databaseName, containerName);
+                _container = container ?? throw new InvalidOperationException(
+                    "Cosmos DB Container must be registered in DI for non-test environments.");
             }
 
             _logger.LogInformation(

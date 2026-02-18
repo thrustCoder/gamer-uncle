@@ -118,7 +118,7 @@ $body = @{
     conversationId = "test-emoji-" + (Get-Date -Format "yyyyMMddHHmmss")
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "https://gamer-uncle-dev-app-svc.azurewebsites.net/api/recommendations" `
+$response = Invoke-RestMethod -Uri "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api/recommendations" `
     -Method POST -Body $body -ContentType "application/json"
 
 # Check for emojis and formatting
@@ -161,7 +161,7 @@ $body = @{
     conversationId = "test-emoji-prod-" + (Get-Date -Format "yyyyMMddHHmmss")
 } | ConvertTo-Json
 
-$response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/recommendations" `
+$response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/recommendations" `
     -Method POST -Body $body -ContentType "application/json"
 
 # Check for emojis and formatting

@@ -5,7 +5,7 @@ echo "============================="
 
 # Test the production API endpoint that the mobile app is calling
 PROD_API="https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api"
-DEV_API="https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api"
+DEV_API="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api"
 
 echo "Testing Production Voice Endpoint:"
 echo "POST $PROD_API/voice/sessions"

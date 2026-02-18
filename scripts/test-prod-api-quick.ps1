@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Continue"
 
-$ProdApiUrl = "https://gamer-uncle-prod-app-svc.azurewebsites.net"
+$ProdApiUrl = "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net"
 $EndpointUrl = "$ProdApiUrl/api/recommendations"
 
 $body = @{

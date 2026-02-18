@@ -29,7 +29,7 @@ services/tests/functional/
 The tests use a configuration-based approach to support multiple environments:
 
 - **Local Environment**: Tests run against `http://localhost:5000`
-- **Dev Environment**: Tests run against `https://gamer-uncle-dev-app-svc.azurewebsites.net`
+- **Dev Environment**: Tests run against `https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net`
 
 Configuration is loaded from:
 1. Base `appsettings.json`

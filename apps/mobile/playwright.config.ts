@@ -23,7 +23,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.E2E_BASE_URL || (process.env.CI ? 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net' : 'http://localhost:8081'),
+    baseURL: process.env.E2E_BASE_URL || (process.env.CI ? 'https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net' : 'http://localhost:8081'),
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

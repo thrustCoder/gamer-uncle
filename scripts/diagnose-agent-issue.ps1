@@ -66,7 +66,7 @@ $testQuery = @{
 
 Write-Host "  Testing PROD API..." -ForegroundColor Gray
 try {
-    $prodResponse = Invoke-RestMethod -Uri "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json" -ErrorAction Stop
+    $prodResponse = Invoke-RestMethod -Uri "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json" -ErrorAction Stop
     
     $isFallback = $prodResponse.responseText -match "Your query about"
     $hasGenericPatterns = $prodResponse.responseText -match "(Here are a few engaging board games|Catan.*trading.*expansion)"

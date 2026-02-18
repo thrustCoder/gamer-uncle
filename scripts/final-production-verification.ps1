@@ -35,7 +35,7 @@ foreach ($i in 0..($testQueries.Count - 1)) {
     } | ConvertTo-Json
     
     try {
-        $response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-app-svc.azurewebsites.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json" -ErrorAction Stop
+        $response = Invoke-RestMethod -Uri "https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/Recommendations" -Method Post -Body $testQuery -ContentType "application/json" -ErrorAction Stop
         
         $hasError = $response.responseText -match "(Something went wrong|Forbidden|Error|NotFound)"
         $isGeneric = $response.responseText -match "(On it!|Great board game question|Looking into|Let me help|Checking my)"

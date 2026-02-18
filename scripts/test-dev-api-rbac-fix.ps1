@@ -7,7 +7,7 @@ Write-Host "`n======================================" -ForegroundColor Cyan
 Write-Host "Test Dev API RBAC Fix" -ForegroundColor Cyan
 Write-Host "======================================`n" -ForegroundColor Cyan
 
-$DevApiUrl = "https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net"
+$DevApiUrl = "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
 $EndpointUrl = "$DevApiUrl/api/recommendations"
 
 Write-Host "Testing endpoint: $EndpointUrl`n" -ForegroundColor Yellow

@@ -20,7 +20,7 @@ if [ ! -f "package.json" ]; then
 fi
 
 # Configuration
-API_URL="https://gamer-uncle-dev-app-svc-fre7dsc5hecdh7fn.westus-01.azurewebsites.net/api"
+API_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api"
 LOCAL_URL="http://localhost:8081"
 MAX_RETRIES=30
 RETRY_INTERVAL=2

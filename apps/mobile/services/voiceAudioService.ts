@@ -227,7 +227,7 @@ export class VoiceAudioService {
           gameContext,
         } as AudioProcessingRequest,
         {
-          timeout: 30000, // 30 second timeout for audio processing
+          timeout: 45000, // 45 second timeout for audio processing
         }
       );
 

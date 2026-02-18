@@ -126,7 +126,7 @@ $env:TEST_ENVIRONMENT="Local"
 $env:API_BASE_URL="http://localhost:5000"
 
 # E2E tests with specific backend
-$env:E2E_BASE_URL="https://gamer-uncle-dev-app-svc.azurewebsites.net"
+$env:E2E_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
 ```
 
 ## Key File Patterns
@@ -271,13 +271,19 @@ On **Windows**, the local API server is started for local development.
    Set-Content -Path "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile\.env.local" -Value $envContent
    ```
 
-4. **Start the API server in a new terminal window** (background process):
+4. **Sync the dev app key into dotnet user-secrets** so the local API accepts the same key the mobile app sends:
+   - **CRITICAL**: Without this, the local API uses the placeholder key from `appsettings.Development.json` which won't match the real Key Vault key in `.env.local`, causing "Invalid or missing app key" errors.
+   ```powershell
+   dotnet user-secrets set "ApiAuthentication:AppKey" $devKey --project "C:\Users\rajsin\r\Code\gamer-uncle\services\api\GamerUncle.Api.csproj"
+   ```
+
+5. **Start the API server in a new terminal window** (background process):
    - **CRITICAL**: Use `http://*:5001` to bind to all network interfaces (not just localhost) so the mobile device can connect
    ```powershell
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\rajsin\r\Code\gamer-uncle'; dotnet run --project services/api/GamerUncle.Api.csproj --urls 'http://*:5001'"
    ```
 
-5. **Start the Expo mobile app in a new terminal window** (so the QR code is visible):
+6. **Start the Expo mobile app in a new terminal window** (so the QR code is visible):
    - **CRITICAL**: Must use `Start-Process PowerShell` so the QR code is displayed in a real terminal window. Running Expo inline or in a background terminal hides the QR code from the user.
    ```powershell
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --clear"
