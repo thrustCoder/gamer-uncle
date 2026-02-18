@@ -277,13 +277,15 @@ On **Windows**, the local API server is started for local development.
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'C:\Users\rajsin\r\Code\gamer-uncle'; dotnet run --project services/api/GamerUncle.Api.csproj --urls 'http://*:5001'"
    ```
 
-5. **Start the Expo mobile app** in the current terminal:
+5. **Start the Expo mobile app in a new terminal window** (so the QR code is visible):
+   - **CRITICAL**: Must use `Start-Process PowerShell` so the QR code is displayed in a real terminal window. Running Expo inline or in a background terminal hides the QR code from the user.
    ```powershell
-   Push-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"; npx expo start --clear; Pop-Location
+   Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --clear"
    ```
 
 **Important Notes for Windows "testit"**:
-- The API server MUST run in a separate PowerShell window to avoid blocking
+- Both the API server AND the Expo dev server MUST run in separate PowerShell windows (via `Start-Process PowerShell`)
+- The Expo dev server MUST be in its own terminal window so the QR code is visible for scanning
 - App keys are fetched from Azure Key Vault and written to `.env.local` (gitignored)
 - The mobile app reads keys from environment variables via `.env.local`
 - Use `--clear` flag with Expo to ensure a fresh cache start
