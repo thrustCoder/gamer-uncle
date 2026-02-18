@@ -384,6 +384,30 @@ stages:
       runOnce:
         deploy:
           steps:
+          - task: AzureCLI@2
+            displayName: 'Scale Up Dev App Service to B1'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                CURRENT_SKU=$(az appservice plan show \
+                  --name gamer-uncle-dev-app-plan \
+                  --resource-group gamer-uncle-dev-rg \
+                  --query "sku.name" --output tsv)
+                echo "Current dev App Service Plan SKU: $CURRENT_SKU"
+                if [ "$CURRENT_SKU" != "B1" ]; then
+                  echo "Scaling up to B1 for deployment..."
+                  az appservice plan update \
+                    --name gamer-uncle-dev-app-plan \
+                    --resource-group gamer-uncle-dev-rg \
+                    --sku B1
+                  echo "Scaled to B1. Waiting 30s for plan to stabilize..."
+                  sleep 30
+                else
+                  echo "Already on B1 — no scale-up needed."
+                fi
+
           - download: current
             artifact: dropApi
 

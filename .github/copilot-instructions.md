@@ -209,7 +209,21 @@ On **macOS**, no local API server is needed. The app connects to Azure-hosted AP
 2. **Determine the environment** from `apps/mobile/config/apiConfig.ts`:
    - Read the `API_ENVIRONMENT` value to determine which keys to fetch ('dev' or 'prod')
 
-3. **Create/update `.env.local`** with App Key and Speech API Key fetched from Azure Key Vault:
+3. **If `API_ENVIRONMENT` is `dev`, scale up the dev App Service** (it may be parked on F1/Free by the nightly schedule):
+   ```zsh
+   CURRENT_SKU=$(az appservice plan show --name gamer-uncle-dev-app-plan --resource-group gamer-uncle-dev-rg --query "sku.name" -o tsv)
+   if [ "$CURRENT_SKU" != "B1" ]; then
+     echo "Scaling dev App Service from $CURRENT_SKU to B1..."
+     az appservice plan update --name gamer-uncle-dev-app-plan --resource-group gamer-uncle-dev-rg --sku B1
+     echo "Waiting 30s for plan to stabilize..."
+     sleep 30
+   else
+     echo "Dev App Service already on B1."
+   fi
+   ```
+   - **Skip this step** if `API_ENVIRONMENT` is `prod` (prod App Service is always running)
+
+4. **Create/update `.env.local`** with App Key and Speech API Key fetched from Azure Key Vault:
    ```zsh
    cd /Users/rajarshisingh/r/Code3/gamer-uncle/apps/mobile
    
@@ -230,13 +244,14 @@ On **macOS**, no local API server is needed. The app connects to Azure-hosted AP
    EOF
    ```
 
-4. **Start the Expo mobile app** with dev-client:
+5. **Start the Expo mobile app** with dev-client:
    ```zsh
    cd /Users/rajarshisingh/r/Code3/gamer-uncle/apps/mobile && npx expo start --dev-client
    ```
 
 **Important Notes for macOS "testit"**:
 - **No local API server**: macOS uses Azure-hosted APIs (dev/prod), not a local server
+- **Dev App Service scale-up**: When `API_ENVIRONMENT` is `dev`, the dev App Service may be parked on F1 (free) by the nightly schedule. Step 3 wakes it up. This is NOT needed for `prod` or `local`.
 - App keys AND Speech API keys are fetched from Azure Key Vault based on environment
 - The mobile app reads keys from environment variables via `.env.local` (gitignored)
 - Use `--dev-client` flag with Expo for development builds
@@ -247,6 +262,24 @@ On **macOS**, no local API server is needed. The app connects to Azure-hosted AP
 #### Windows Instructions
 
 On **Windows**, the local API server is started for local development.
+
+0. **Determine the environment** from `apps/mobile/config/apiConfig.ts`:
+   - Read the `API_ENVIRONMENT` value ('local', 'dev', or 'prod')
+
+0.5. **If `API_ENVIRONMENT` is `dev`, scale up the dev App Service** (it may be parked on F1/Free by the nightly schedule):
+   ```powershell
+   $currentSku = az appservice plan show --name gamer-uncle-dev-app-plan --resource-group gamer-uncle-dev-rg --query "sku.name" -o tsv
+   if ($currentSku -ne 'B1') {
+     Write-Host "Scaling dev App Service from $currentSku to B1..."
+     az appservice plan update --name gamer-uncle-dev-app-plan --resource-group gamer-uncle-dev-rg --sku B1
+     Write-Host "Waiting 30s for plan to stabilize..."
+     Start-Sleep -Seconds 30
+   } else {
+     Write-Host "Dev App Service already on B1."
+   }
+   ```
+   - **Skip this step** if `API_ENVIRONMENT` is `local` or `prod`
+   - When `API_ENVIRONMENT` is `dev`, do NOT start a local API server (steps 4-5 below become step 4-only: skip step 5)
 
 1. **Kill any existing dotnet processes** to ensure clean state:
    ```powershell
@@ -297,6 +330,8 @@ On **Windows**, the local API server is started for local development.
 - Use `--clear` flag with Expo to ensure a fresh cache start
 - Existing dotnet and Metro/Node processes are killed to prevent port conflicts
 - Change `API_ENVIRONMENT` in `apps/mobile/config/apiConfig.ts` to switch between 'local', 'dev', or 'prod'
+- **Dev App Service scale-up**: When `API_ENVIRONMENT` is `dev`, the dev App Service may be parked on F1 (free) by the nightly schedule. Step 0.5 wakes it up. When using `dev`, do NOT start a local API server — the mobile app connects to Azure dev via AFD.
+- **Local does NOT need scale-up**: When `API_ENVIRONMENT` is `local`, the mobile app hits `localhost:5001` (local API server), not the dev App Service.
 
 ## General Guidelines
 

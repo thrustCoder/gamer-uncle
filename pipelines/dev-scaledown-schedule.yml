@@ -1,0 +1,46 @@
+# Scheduled pipeline to scale down the dev App Service Plan to F1 (free) after hours.
+# Runs nightly at 11:00 PM Pacific Time (07:00 UTC next day).
+# This saves ~$25-31/mo by parking the dev environment when not in use.
+#
+# The main pipeline (azure-pipelines.yml) scales UP to B1 before dev deployments,
+# so deploys during work hours automatically wake the environment.
+# The "testit" command also scales up when API_ENVIRONMENT is 'dev'.
+
+trigger: none  # No CI trigger — schedule only
+
+schedules:
+  - cron: '0 7 * * *'  # 07:00 UTC = 11:00 PM PT (PST: UTC-8) / 12:00 AM PT (PDT: UTC-7)
+    displayName: 'Nightly dev scale-down (11 PM PT)'
+    branches:
+      include:
+        - main
+    always: true  # Run even if no code changes
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Scale Down Dev App Service to F1 (Free)'
+    inputs:
+      azureSubscription: 'gamer-uncle-dev-sc'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        CURRENT_SKU=$(az appservice plan show \
+          --name gamer-uncle-dev-app-plan \
+          --resource-group gamer-uncle-dev-rg \
+          --query "sku.name" --output tsv)
+        
+        echo "Current dev App Service Plan SKU: $CURRENT_SKU"
+        
+        if [ "$CURRENT_SKU" = "F1" ]; then
+          echo "Already on F1 (free) — nothing to do."
+        else
+          echo "Scaling down from $CURRENT_SKU to F1 (free)..."
+          az appservice plan update \
+            --name gamer-uncle-dev-app-plan \
+            --resource-group gamer-uncle-dev-rg \
+            --sku F1
+          echo "Dev App Service Plan scaled to F1. No charges accruing."
+        fi
