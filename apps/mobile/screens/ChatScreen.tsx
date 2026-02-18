@@ -220,7 +220,7 @@ export default function ChatScreen() {
       const contextMessage: ChatMessage = {
         id: `context-${Date.now()}`,
         type: 'system',
-        text: `What else would you like to know about **${gameContext.gameName}**? I can help with rules, strategies, setup, or any other questions! 🎲`
+        text: `What would you like to know about **${gameContext.gameName}**? I can help with rules, strategies, setup, or any other questions! 🎲`
       };
       
       // Replace all messages with context-aware message (clears previous chat)

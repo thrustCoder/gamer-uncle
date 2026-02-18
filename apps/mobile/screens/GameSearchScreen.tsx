@@ -45,6 +45,7 @@ export default function GameSearchScreen() {
   const [selectedGame, setSelectedGame] = useState<GameDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [failedGameName, setFailedGameName] = useState<string | null>(null);
   
   // Debounced search query
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -81,6 +82,7 @@ export default function GameSearchScreen() {
   const handleSelectGame = async (game: GameSearchResult) => {
     setIsLoadingDetails(true);
     setDetailsError(null);
+    setFailedGameName(null);
     trackEvent(AnalyticsEvents.SEARCH_RESULT_TAPPED, { gameId: game.id, gameName: game.name });
     
     try {
@@ -90,6 +92,7 @@ export default function GameSearchScreen() {
       trackEvent(AnalyticsEvents.SEARCH_DETAILS_VIEWED, { gameId: game.id, gameName: details.name });
     } catch (error: any) {
       setDetailsError(error.message || 'Failed to load game details');
+      setFailedGameName(game.name);
     } finally {
       setIsLoadingDetails(false);
     }
@@ -115,25 +118,14 @@ export default function GameSearchScreen() {
     });
   }, []);
 
-  const handleAskUncle = (gameName?: string) => {
-    trackEvent(AnalyticsEvents.SEARCH_ASK_UNCLE_TAPPED, { gameName: gameName || searchQuery, source: gameName ? 'details' : 'no-results' });
-    if (gameName) {
-      // Navigate to chat with game context
-      navigation.navigate('Chat', {
-        gameContext: {
-          gameName: gameName,
-          fromGameSearch: true,
-        },
-      });
-    } else {
-      // Navigate to chat with the search query
-      navigation.navigate('Chat', {
-        prefillContext: {
-          searchQuery: searchQuery,
-          fromGameSearchNoResults: true,
-        },
-      });
-    }
+  const handleAskUncle = (gameName: string) => {
+    trackEvent(AnalyticsEvents.SEARCH_ASK_UNCLE_TAPPED, { gameName, source: 'game-search' });
+    navigation.navigate('Chat', {
+      gameContext: {
+        gameName,
+        fromGameSearch: true,
+      },
+    });
   };
 
   const formatNumber = (num: number): string => {
@@ -189,15 +181,27 @@ export default function GameSearchScreen() {
 
         {/* Error state */}
         {searchError && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={20} color={Colors.white} />
-            <Text style={styles.errorText}>{searchError}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={() => performSearch(searchQuery)}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
+          <View>
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color={Colors.white} />
+              <Text style={styles.errorText}>{searchError}</Text>
+              <TouchableOpacity 
+                style={styles.retryButton}
+                onPress={() => performSearch(searchQuery)}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.askUncleErrorContainer}>
+              <Text style={styles.askUncleErrorHint}>Can't find what you're looking for?</Text>
+              <TouchableOpacity 
+                style={styles.askUncleButton}
+                onPress={() => handleAskUncle(searchQuery)}
+                testID="ask-uncle-search-error"
+              >
+                <Text style={styles.askUncleButtonText}>Ask Gamer Uncle</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -259,10 +263,10 @@ export default function GameSearchScreen() {
             </Text>
             <TouchableOpacity 
               style={styles.askUncleButton}
-              onPress={() => handleAskUncle()}
+              onPress={() => handleAskUncle(searchQuery)}
               testID="ask-uncle-no-results"
             >
-              <Text style={styles.askUncleButtonText}>Want to ask Gamer Uncle?</Text>
+              <Text style={styles.askUncleButtonText}>Ask Gamer Uncle</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -288,9 +292,23 @@ export default function GameSearchScreen() {
 
       {/* Details Error */}
       {detailsError && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={20} color={Colors.white} />
-          <Text style={styles.errorText}>{detailsError}</Text>
+        <View>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color={Colors.white} />
+            <Text style={styles.errorText}>{detailsError}</Text>
+          </View>
+          {failedGameName && (
+            <View style={styles.askUncleErrorContainer}>
+              <Text style={styles.askUncleErrorHint}>Can't load details? Ask Gamer Uncle instead!</Text>
+              <TouchableOpacity 
+                style={styles.askUncleButton}
+                onPress={() => handleAskUncle(failedGameName)}
+                testID="ask-uncle-details-error"
+              >
+                <Text style={styles.askUncleButtonText}>Ask about {failedGameName}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </>
