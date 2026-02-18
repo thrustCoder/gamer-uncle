@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GameProvider } from './store/GameContext';
@@ -15,16 +15,24 @@ import GameSetupScreen from './screens/GameSetupScreen';
 import GameSearchScreen from './screens/GameSearchScreen';
 import ScoreTrackerScreen from './screens/ScoreTrackerScreen';
 import ScoreInputScreen from './screens/ScoreInputScreen';
+import { initTelemetry } from './services/Telemetry';
+import { useAnalytics } from './hooks/useAnalytics';
 
 const Stack = createStackNavigator();
 
 export default function App() {
+  const { onNavigationStateChange } = useAnalytics();
+
+  useEffect(() => {
+    initTelemetry();
+  }, []);
+
   return (
     <GameProvider>
       <ChatProvider>
         <TimerProvider>
           <ScoreTrackerProvider>
-            <NavigationContainer>
+            <NavigationContainer onStateChange={onNavigationStateChange}>
               <Stack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="Landing" component={LandingScreen} />
                 <Stack.Screen name="Chat" component={ChatScreen} />

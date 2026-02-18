@@ -19,7 +19,7 @@ namespace GamerUncle.Api.Services.Authentication
             ILogger<AppKeyAuthorizationFilter> logger,
             IWebHostEnvironment environment)
         {
-            _configuredAppKey = configuration["GameSearch:AppKey"];
+            _configuredAppKey = configuration["ApiAuthentication:AppKey"];
             _logger = logger;
             _isTestEnvironment = environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase)
                                || configuration.GetValue<bool>("Testing:DisableRateLimit");
@@ -38,7 +38,7 @@ namespace GamerUncle.Api.Services.Authentication
             // If no app key is configured, skip validation (allows gradual rollout)
             if (string.IsNullOrEmpty(_configuredAppKey))
             {
-                _logger.LogWarning("AppKey validation skipped - no app key configured. Configure GameSearch:AppKey to enable.");
+                _logger.LogWarning("AppKey validation skipped - no app key configured. Configure ApiAuthentication:AppKey to enable.");
                 await next();
                 return;
             }

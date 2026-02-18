@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
 import Constants from 'expo-constants';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -145,7 +146,10 @@ export default function LandingScreen() {
               borderRadius: centerCircleSize / 2,
             },
           ]}
-          onPress={() => navigation.navigate('Chat')}
+          onPress={() => {
+            trackEvent(AnalyticsEvents.FEATURE_TAPPED, { feature: 'center-circle', target: 'Chat' });
+            navigation.navigate('Chat');
+          }}
           testID="center-circle"
           {...(Platform.OS === 'web' && { 'data-testid': 'center-circle' })}
         />
@@ -163,7 +167,10 @@ export default function LandingScreen() {
                   top: position.top,
                 },
               ]}
-              onPress={() => feature.screen && navigation.navigate(feature.screen)}
+              onPress={() => {
+                trackEvent(AnalyticsEvents.FEATURE_TAPPED, { feature: feature.key, target: feature.screen });
+                feature.screen && navigation.navigate(feature.screen);
+              }}
               testID={`${feature.key}-button`}
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >

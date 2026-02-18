@@ -26,6 +26,7 @@ import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
 import { useChat, ChatMessage } from '../store/ChatContext';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 // Define route params type for Chat screen
 type ChatRouteParams = {
@@ -208,6 +209,7 @@ export default function ChatScreen() {
     
     if (isNewGame) {
       lastHandledGameContextRef.current = currentGameName;
+      trackEvent(AnalyticsEvents.CHAT_CONTEXT_RECEIVED, { source: 'GameSearch', gameName: gameContext.gameName });
       
       // Store game context for AI
       gameContextRef.current = {
@@ -231,6 +233,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (prefillContext?.previousSetupQuery && !prefillHandledRef.current) {
       prefillHandledRef.current = true;
+      trackEvent(AnalyticsEvents.CHAT_CONTEXT_RECEIVED, { source: 'GameSetup', gameName: prefillContext.gameName });
       
       // Store game context to prepend to first user message for AI
       gameContextRef.current = {
@@ -709,6 +712,7 @@ export default function ChatScreen() {
       case 'default':
         // First tap: Enter recording mode (start voice session)
         console.log('🎤 [CHAT] Default mode - entering recording mode');
+        trackEvent(AnalyticsEvents.CHAT_VOICE_STARTED);
         setVoiceUXMode('recording-mode');
         await handleStartVoice();
         // If handleStartVoice fails (permission denied), voiceUXMode is reset to default inside it
@@ -731,6 +735,7 @@ export default function ChatScreen() {
       case 'active-recording':
         // Third tap: Stop recording and go to processing state
         console.log('🎤 [CHAT] Active recording - stopping recording and entering processing mode');
+        trackEvent(AnalyticsEvents.CHAT_VOICE_SUBMITTED);
         setVoiceUXMode('processing');
         await setRecording(false);
         break;
@@ -880,6 +885,7 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    trackEvent(AnalyticsEvents.CHAT_MESSAGE_SENT, { inputMethod: 'text' }, { messageLength: input.trim().length });
     
     // Stop TTS if playing/paused when user sends a text message
     if (voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') {
@@ -969,6 +975,7 @@ export default function ChatScreen() {
       }
     } catch (error) {
       console.error('Error calling API:', error);
+      trackEvent(AnalyticsEvents.ERROR_API, { source: 'chat', error: String(error) });
       setMessages(prev => prev.filter(msg => msg.id !== typingId));
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -1108,6 +1115,7 @@ export default function ChatScreen() {
                   text: 'New Chat',
                   style: 'destructive',
                   onPress: async () => {
+                    trackEvent(AnalyticsEvents.CHAT_NEW_THREAD);
                     // Stop voice recording if active
                     if (voiceUXMode !== 'default') {
                       await setRecording(false);

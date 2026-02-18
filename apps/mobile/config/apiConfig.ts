@@ -19,7 +19,7 @@ const LOCAL_API_URL = 'http://192.168.50.11:5001/api/'; // Local API (host machi
 const AZURE_DEV_API_URL = 'https://gamer-uncle-dev-endpoint-ddbzf6b4hzcadhbg.z03.azurefd.net/api/'; // Azure dev endpoint
 const AZURE_PROD_API_URL = 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/'; // Azure prod endpoint
 
-// Game Search App Keys (for API authentication)
+// App Keys (for API authentication)
 // Keys are loaded from environment variables, with fallback to placeholders for CI/CD
 const LOCAL_APP_KEY = process.env.EXPO_PUBLIC_LOCAL_APP_KEY || 'dev-gamer-uncle-app-key-2026';
 const DEV_APP_KEY = process.env.EXPO_PUBLIC_DEV_APP_KEY || 'dev-gamer-uncle-app-key-2026';
@@ -43,9 +43,9 @@ export const getApiBaseUrl = (): string => {
 };
 
 /**
- * Get the Game Search App Key based on environment configuration
+ * Get the App Key based on environment configuration
  */
-export const getGameSearchAppKey = (): string => {
+export const getAppKey = (): string => {
   switch (API_ENVIRONMENT) {
     case 'local':
       return LOCAL_APP_KEY;

@@ -1,0 +1,543 @@
+# Azure Cost Analysis & Savings Plan — Gamer Uncle
+
+> **Date**: February 17, 2026  
+> **Updated**: February 17, 2026 — Cross-referenced with [scaling_analysis.md](../performance/scaling_analysis.md) traffic projections  
+> **Subscription costs queried**: Azure Cost Management API (real data)  
+> **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
+> **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
+
+### Cross-Reference with Scaling Analysis
+
+This plan has been reconciled against the [Scalability Analysis](../performance/scaling_analysis.md) traffic projections. Several recommendations are **phased** — they save money at current traffic (~60 users) but need to be reversed or adjusted when scaling milestones are hit. Each recommendation now includes a **Scale Impact** assessment:
+
+- **Safe at scale** — No conflict with scaling needs; implement permanently.
+- **Temporary savings** — Save money now, but expect to scale back up at a defined traffic milestone.
+- **Do not implement** — Conflicts with scaling needs; keep the current resource level.
+- **Complementary** — Actually helps scaling by reducing per-request resource consumption.
+
+---
+
+## Table of Contents
+
+1. [Current Monthly Spend](#current-monthly-spend)
+2. [Cost Breakdown by Service](#cost-breakdown-by-service)
+3. [Resource Inventory](#resource-inventory)
+4. [Optimization Recommendations](#optimization-recommendations)
+5. [Dev Environment — Keep It Lean](#dev-environment--keep-it-lean)
+6. [Prod Environment — Optimize for Value](#prod-environment--optimize-for-value)
+7. [Projected Monthly Savings](#projected-monthly-savings)
+8. [Implementation Roadmap](#implementation-roadmap)
+9. [Traffic Milestone Triggers](#traffic-milestone-triggers)
+
+---
+
+## Current Monthly Spend
+
+Data from Azure Cost Management API. February is month-to-date (17 days); January is a full month.
+
+| Environment | January 2026 (full month) | February 2026 (17 days, projected full month) |
+|-------------|:-------------------------:|:---------------------------------------------:|
+| **Dev** (`gamer-uncle-dev-rg`) | **$70.12** | ~$76 |
+| **Prod** (`gamer-uncle-prod-rg`) | **$207.02** | ~$189 |
+| Other (defaultresourcegroup-wus) | $1.42 | ~$22 |
+| **Total** | **~$279** | **~$287/mo** |
+
+---
+
+## Cost Breakdown by Service
+
+### Dev Environment — January 2026 ($70.12/mo)
+
+| Service | Jan 2026 Cost | % of Dev | Notes |
+|---------|:------------:|:--------:|-------|
+| Azure Front Door | $35.00 | 50% | Standard_AzureFrontDoor — base fee is **$35/mo** regardless of traffic |
+| Azure App Service | $32.74 | 47% | B1 plan (1 instance) — ~$54/mo list price, pro-rated |
+| Foundry Models (AI) | $2.12 | 3% | GPT-4.1 + GPT-4.1-mini usage |
+| Storage | $0.12 | <1% | 2× Standard_LRS accounts |
+| Log Analytics | $0.14 | <1% | Low ingestion |
+| Functions | $0.00 | 0% | Consumption plan (Y1) — within free grant |
+| Key Vault | $0.00 | 0% | Minimal operations |
+| Cosmos DB | $0.00 | 0% | **Free tier** enabled — 1000 RU/s + 25 GB free |
+
+### Prod Environment — January 2026 ($207.02/mo)
+
+| Service | Jan 2026 Cost | % of Prod | Notes |
+|---------|:------------:|:---------:|-------|
+| App Service | **$98.95** | 48% | **P1v3** plan (1 instance) — PremiumV3 tier |
+| Cosmos DB | **$71.60** | 35% | Autoscale 100–4000 RU/s, **free tier NOT enabled** |
+| Azure Front Door | **$35.01** | 17% | Standard_AzureFrontDoor — same $35/mo base |
+| Foundry Models (AI) | $0.79 | <1% | GPT-4.1 + GPT-4.1-mini + GPT-realtime |
+| Foundry Tools | $0.54 | <1% | Agent orchestration |
+| Storage | $0.10 | <1% | 2× Standard_LRS accounts |
+| Log Analytics | $0.03 | <1% | Low ingestion |
+| Functions | $0.00 | 0% | Consumption plan (Y1) — within free grant |
+| Key Vault | $0.00 | 0% | Minimal operations |
+
+---
+
+## Resource Inventory
+
+### Dev Resources (Queried from Azure)
+
+| Resource | Type | SKU/Tier | Monthly Cost (Est.) |
+|----------|------|----------|:-------------------:|
+| gamer-uncle-dev-app-plan | App Service Plan | **B1** (Basic, 1 instance) | ~$33 |
+| gamer-uncle-afd-dev | Front Door | Standard_AzureFrontDoor | ~$35 |
+| gameuncledevwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD |
+| gamer-uncle-dev-foundry | AI Services | S0 | Pay-per-use |
+| gamer-uncle-dev-foundry-eastus2 | AI Services | S0 | Pay-per-use |
+| gamer-uncle-dev-speech | Speech Services | **F0** (Free) | $0 |
+| gamer-uncle-dev-cosmos | Cosmos DB | **Free Tier** enabled | $0 |
+| gamer-uncle-dev-vault | Key Vault | Standard | ~$0 |
+| gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention | ~$0.14 |
+| gamer-uncle-dev-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
+| gameruncledevstorage | Storage Account | Standard_LRS | ~$0.06 |
+| gameruncledevfuncstorage | Storage Account | Standard_LRS | ~$0.06 |
+| gamer-uncle-dev-function | Function App | Y1 (Consumption) | ~$0 |
+| Upstash Redis (external) | Redis Cache | Free/Pro | ~$0–10 |
+
+**Dev AI Model Deployments:**
+
+| Foundry Resource | Model | SKU | Capacity (TPM in thousands) |
+|------------------|-------|-----|:-------:|
+| gamer-uncle-dev-foundry | gpt-4.1 | GlobalStandard | 50K |
+| gamer-uncle-dev-foundry | gpt-4.1-mini | GlobalStandard | 10K |
+| gamer-uncle-dev-foundry-eastus2 | gpt-realtime | GlobalStandard | 5K |
+| gamer-uncle-dev-foundry-eastus2 | gpt-4o | GlobalStandard | 10K |
+
+### Prod Resources (Queried from Azure)
+
+| Resource | Type | SKU/Tier | Monthly Cost (Est.) |
+|----------|------|----------|:-------------------:|
+| gamer-uncle-prod-app-plan | App Service Plan | **P1v3** (PremiumV3, 1 instance) | ~$99 |
+| gamer-uncle-prod-afd | Front Door | Standard_AzureFrontDoor | ~$35 |
+| gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD |
+| gamer-uncle-prod-foundry-resourc | AI Services | S0 | Pay-per-use |
+| gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
+| gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–4000 RU/s, **no free tier** | ~$72 |
+| gamer-uncle-prod-vault | Key Vault | Standard | ~$0 |
+| gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention | ~$0 |
+| gamer-uncle-prod-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
+| gameruncleprodstorage | Storage Account | Standard_LRS | ~$0.05 |
+| gameruncleprofuncstorage | Storage Account | Standard_LRS | ~$0.05 |
+| gamer-uncle-prod-function | Function App | Y1 (Consumption) | ~$0 |
+| Upstash Redis (external) | Redis Cache | Pro (estimated) | ~$0–10 |
+
+**Prod AI Model Deployments:**
+
+| Foundry Resource | Model | SKU | Capacity (TPM in thousands) |
+|------------------|-------|-----|:-------:|
+| gamer-uncle-prod-foundry-resourc | gpt-4.1 | GlobalStandard | 50K |
+| gamer-uncle-prod-foundry-resourc | gpt-4.1-mini | GlobalStandard | 10K |
+| gamer-uncle-prod-foundry-resourc | gpt-realtime | GlobalStandard | 5K |
+
+---
+
+## Optimization Recommendations
+
+### Summary Table (sorted by Cost Contributor, descending)
+
+| # | Recommendation | Env | Cost Contributor (1-10) | Risk if Changed (1-10) | Est. Monthly Savings | Scale Impact | Implemented? |
+|---|----------------|:---:|:-----------------------:|:----------------------:|:--------------------:|:------------:|:------------:|
+| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | No |
+| 2 | [Remove Azure Front Door from dev](#2-remove-azure-front-door-from-dev) | Dev | **9** | **2** | $35/mo | Safe at scale | No |
+| 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | No |
+| 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $20–33/mo | Safe at scale | No |
+| 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | No |
+| 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | No |
+| 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | No |
+| 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | No |
+| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | No |
+| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | No |
+| 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | No |
+
+### How to read this table
+
+- **Cost Contributor (1-10)**: How much this resource contributes to your total bill. 10 = biggest cost driver.
+- **Risk if Changed (1-10)**: How risky the optimization is. 1 = safe/easy, 10 = could impact production reliability.
+- **Scale Impact**: How this recommendation interacts with projected traffic growth (see [Cross-Reference with Scaling Analysis](#cross-reference-with-scaling-analysis) for legend). *Temporary savings* should be reversed at the milestone indicated; *Complementary* optimizations actually help at scale.
+- **Implemented?**: Whether this optimization has been applied.
+
+---
+
+## Dev Environment — Keep It Lean
+
+### 1. Downgrade Prod App Service from P1v3
+
+> See [#1 in Prod section below](#1-downgrade-prod-app-service-from-p1v3) — listed here for the summary table ordering.
+
+### 2. Remove Azure Front Door from Dev
+
+| | |
+|---|---|
+| **Cost Contributor** | 9/10 |
+| **Risk** | 2/10 |
+| **Savings** | ~$35/mo |
+| **Implemented** | No |
+
+**Current state**: Dev has a full Azure Front Door Standard profile (`gamer-uncle-afd-dev`) with WAF policy (`gameuncledevwaf`). This costs **$35/mo flat** regardless of traffic — accounting for **50% of your dev spend**.
+
+**Why it's unnecessary for dev**: Front Door provides global load balancing, CDN caching, and WAF protection. Dev is used only by you for testing. The mobile app in dev can connect directly to the App Service URL.
+
+**Recommendation**: Delete the dev Front Door profile and WAF policy. Point the mobile app's dev config directly at `gamer-uncle-dev-app-svc.azurewebsites.net`.
+
+**Risk**: Minimal. Dev doesn't need CDN, global routing, or WAF. If you need to test Front Door behavior specifically, re-create it temporarily.
+
+---
+
+### 4. Downgrade Dev App Service
+
+| | |
+|---|---|
+| **Cost Contributor** | 8/10 |
+| **Risk** | 3/10 |
+| **Savings** | $20–33/mo |
+| **Implemented** | No |
+
+**Current state**: Dev runs on **B1** (Basic tier, 1 instance) at ~$33/mo. This provides 1.75 GB RAM, 1 core.
+
+**Options**:
+
+| Option | Monthly Cost | Savings | Trade-off |
+|--------|:----------:|:-------:|-----------|
+| Keep B1 | ~$54 | – | Current setup |
+| Downgrade to **F1** (Free) | $0 | $33/mo | 60 min/day compute, 1 GB memory, no custom domain, no always-on |
+| Downgrade to **B1** but **stop when not testing** | ~$15–20 | $15–20/mo | Manual start/stop or scheduled |
+| Use **D1** (Shared) | ~$10 | $23/mo | Shared compute, limited features |
+
+**Recommendation**: Since dev is only for verification, schedule the App Service to stop during nights/weekends using Azure Automation, or downgrade to F1 if 60 min/day is sufficient for CI/CD and manual testing.
+
+---
+
+### 8. Delete Unused Dev AI Foundry eastus2 Resource
+
+| | |
+|---|---|
+| **Cost Contributor** | 3/10 |
+| **Risk** | 1/10 |
+| **Savings** | $0–2/mo |
+| **Implemented** | No |
+
+**Current state**: Dev has **two** AI Foundry resources:
+- `gamer-uncle-dev-foundry` (primary, referenced in all appsettings) — has gpt-4.1 + gpt-4.1-mini
+- `gamer-uncle-dev-foundry-eastus2` (secondary) — has gpt-realtime + gpt-4o
+
+**Deep analysis — confirmed safe to delete**:
+
+A thorough codebase investigation was conducted to determine if this resource is actually used:
+
+| Check | Result |
+|-------|--------|
+| `appsettings.json` | Points to `gamer-uncle-dev-foundry` only — **no reference** to eastus2 |
+| `appsettings.Development.json` | Points to `gamer-uncle-dev-foundry` only — **no reference** to eastus2 |
+| `appsettings.Production.json` | Points to prod foundry — **no reference** to eastus2 |
+| Source code (`services/api/`) | **Zero references** to `gamer-uncle-dev-foundry-eastus2` in any `.cs` or `.json` source file |
+| `IFoundryVoiceService` | Interface exists but has **no implementation** — dead code. Not registered in DI (`Program.cs`), not injected into any controller |
+| `VoiceController.cs` | Uses `IAudioProcessingService` (STT→AI→TTS pipeline), **not** `IFoundryVoiceService` |
+| `VoiceService` config | Only configured in `appsettings.Testing.json` with mock URLs — **not configured** in Dev or Prod |
+| `gpt-realtime` usage in dev | Per [model_usage.md](../model_usage.md): "WebRTC Voice: Only available in **production**" — dev has no gpt-realtime usage |
+| `scripts/fix-dev-app-config.ps1` | Historical one-off fix script that hardcoded the eastus2 endpoint — **not part of CI/CD pipeline** or regular deployment |
+| `bin/Release/` reference | Stale build artifact in `bin/Release/net8.0/appsettings.Development.json` — not a source file |
+| `gpt-4o` model | Superseded by gpt-4.1 (deployed on the primary foundry resource) |
+
+**Recommendation**: **Delete `gamer-uncle-dev-foundry-eastus2`** and its model deployments (gpt-realtime, gpt-4o). No application code or configuration depends on it. Also clean up the stale `scripts/fix-dev-app-config.ps1` script.
+
+**Risk**: Very low. Exhaustive search confirmed no runtime dependency.
+
+---
+
+### 10. Set Log Analytics Daily Cap on Dev
+
+| | |
+|---|---|
+| **Cost Contributor** | 2/10 |
+| **Risk** | 1/10 |
+| **Savings** | $1–2/mo |
+| **Implemented** | No |
+
+**Current state**: Both dev and prod Log Analytics workspaces have `dailyQuotaGb: -1` (unlimited). Dev is currently low cost ($0.14/mo) but this will grow as you add more logging at scale.
+
+**Recommendation**: Set a daily cap of 0.5 GB/day on dev to prevent surprise cost spikes. First 5 GB/mo is free with Log Analytics.
+
+---
+
+## Prod Environment — Optimize for Value
+
+### 1. Downgrade Prod App Service from P1v3
+
+| | |
+|---|---|
+| **Cost Contributor** | 10/10 |
+| **Risk** | 4/10 |
+| **Savings** | $45/mo (temporary — ~2-3 months) |
+| **Scale Impact** | **Temporary savings** — upgrade back to S2/P1v3 at 500+ users |
+| **Implemented** | No |
+
+**Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
+
+**Why it's oversized NOW**: With ~60 users and ~5 peak concurrent, P1v3 is significant overkill. The app is an API proxy to AI services — not compute-heavy.
+
+**Why it's needed LATER**: The [scaling analysis](../performance/scaling_analysis.md#7-no-autoscaling-rules) recommends **S2 or P1v3, 2–4 instances** with autoscaling at 1,000 users (~50 peak concurrent). P1v3 also supports deployment slots (useful for zero-downtime deployments during rapid iteration).
+
+**Phased approach**:
+
+| Phase | Users | Plan | Monthly Cost | Action |
+|-------|:-----:|------|:----------:|--------|
+| **Now** (0–3 months) | ~60 | **S1** (Standard) | ~$54 | Downgrade from P1v3 → S1; save $45/mo |
+| **Month 1–2** (200–500 users) | 200–500 | **S1 × 2 instances** | ~$108 | Enable autoscaling (min 1, max 2); configure scale rules |
+| **Month 3** (1,000+ users) | 1,000+ | **S2 or P1v3 × 2–4** | $108–396 | Upgrade tier when P95 latency degrades; add more instances |
+
+**Recommendation**: **Downgrade to S1 now** ($54/mo). S1 supports autoscaling, which is critical. When traffic hits 200+ users (Month 1), enable autoscale to 2 instances. Revisit the tier (S2 vs P1v3) when approaching 500+ users.
+
+> **Scaling trigger**: Upgrade from S1 when CPU consistently exceeds 70% on a single instance, or when P95 response time exceeds 3 seconds.
+
+**Risk**: Monitor response times after downgrading. The key bottleneck is AI Foundry response time (2–8s), not App Service compute. S1's 1.75 GB RAM is sufficient since the app offloads work to Cosmos DB and AI Foundry.
+
+---
+
+### 3. Switch Prod Cosmos DB to Serverless or Lower Autoscale
+
+| | |
+|---|---|
+| **Cost Contributor** | 9/10 |
+| **Risk** | 5/10 |
+| **Savings** | $54/mo (temporary — ~2-3 months) |
+| **Scale Impact** | **Temporary savings** — raise autoscale max back to 4000 RU/s at 500+ users |
+| **Implemented** | No |
+
+**Current state**: Prod Cosmos DB uses **autoscale at container level** with max 4,000 RU/s. The current throughput shows 100 RU/s (autoscale scales down to 10% of max). However, the **minimum billing** for autoscale is 10% of max = 400 RU/s. At ~$0.008/RU/hr, that's **~$72/mo** just for provisioned throughput.
+
+Dev Cosmos DB has **free tier** enabled (1000 RU/s + 25 GB free), which is why dev Cosmos costs $0.
+
+**Why it's oversized NOW**: At ~60 users (~5 peak concurrent), actual RU consumption is far below 400 RU/s. The autoscale floor is the cost driver, not actual usage.
+
+**Why the current max is needed LATER**: The [scaling analysis](../performance/scaling_analysis.md#capacity-recommendations) recommends **1,000 RU/s or autoscale 400–4,000** for 1,000 users. `CONTAINS` queries cost 10–30 RU each. At 50 peak concurrent users × 20 RU avg = 1,000 RU/s at ceiling. Burst traffic (e.g., everyone browsing at game night) could exceed 1,000 RU/s.
+
+**Phased approach**:
+
+| Phase | Users | Autoscale Max | Min Billing | Monthly Cost | Action |
+|-------|:-----:|:------------:|:-----------:|:----------:|--------|
+| **Now** (0–3 months) | ~60 | **1,000 RU/s** | 100 RU/s | ~$18 | Lower max from 4000→1000; save $54/mo |
+| **Month 2** (200–500 users) | 200–500 | **2,000 RU/s** | 200 RU/s | ~$36 | Raise max when avg RU approaches 800 |
+| **Month 3** (1,000+ users) | 1,000+ | **4,000 RU/s** | 400 RU/s | ~$72 | Restore current max; cost returns to baseline |
+
+**Recommendation**: **Lower autoscale max to 1,000 RU/s now**. This saves $54/mo with the autoscale floor dropping to 100 RU/s (~$18/mo). At ~60 users this is comfortable headroom.
+
+> **Scaling trigger**: Raise autoscale max when Cosmos DB returns 429 (throttled) responses, or when average RU consumption exceeds 70% of max (700 RU/s sustained).
+
+> **Critical prerequisite**: Fix [CosmosClientOptions](../performance/scaling_analysis.md#4-no-cosmosclientoptions-configuration) (scaling Finding #4) **before** lowering the ceiling. Proper retry settings on 429s will handle brief burst spikes gracefully.
+
+**Risk**: Medium. If traffic spikes suddenly hit the 1000 RU/s ceiling without retry logic, Cosmos returns 429 errors. The app currently has no configured retry policy on Cosmos calls. Fix CosmosClientOptions first.
+
+---
+
+
+### 5. Use Azure Reserved Instances for Prod App Service
+
+| | |
+|---|---|
+| **Cost Contributor** | 7/10 |
+| **Risk** | 2/10 |
+| **Savings** | $15–30/mo (defer until tier stabilizes) |
+| **Scale Impact** | **Depends on tier** — don't commit until post-scaling tier is settled |
+| **Implemented** | No |
+
+**Current state**: App Service is on pay-as-you-go pricing.
+
+**Why to defer (cross-reference with scaling analysis)**: Recommendation #1 proposes a phased App Service plan:
+- **Months 0–3**: S1 ($54/mo) — saving money at low traffic
+- **Month 3+**: S2 or P1v3 ($108–$99/mo) — upgrading for 1,000+ users
+
+Purchasing a reserved instance on S1 now would lock you into a tier you'll likely outgrow within 3 months. RI exchanges are possible but add friction.
+
+**Recommendation**: **Wait until Month 3–4** when you've settled on the production tier (likely S2 or P1v3 based on scaling analysis). Then purchase a 1-year reserved instance:
+- S2 pay-as-you-go: ~$108/mo → S2 reserved: ~$76/mo (save ~$32/mo)
+- P1v3 pay-as-you-go: ~$99/mo → P1v3 reserved: ~$69/mo (save ~$30/mo)
+
+> **Scaling trigger**: Purchase RI once the same App Service tier has been stable for 1+ month and you're confident in the plan choice.
+
+**Risk**: Very low. Only risk is premature commitment during the scaling transition period.
+
+---
+
+### 6. Optimize Cosmos DB Indexing Policy
+
+| | |
+|---|---|
+| **Cost Contributor** | 5/10 |
+| **Risk** | 3/10 |
+| **Savings** | $5–15/mo (RU reduction) |
+| **Implemented** | No |
+
+**Current state**: Prod Cosmos DB uses the **default indexing policy** — `includedPaths: [/*]`. This indexes every property in every document.
+
+**Why it matters**: The Games container stores board game data with fields like `description`, `image`, `thumbnail` that are never queried but are fully indexed. Each write consumes extra RUs for index maintenance, and index storage contributes to size.
+
+**Recommendation**: Exclude paths that are never filtered on:
+```json
+{
+  "indexingMode": "consistent",
+  "includedPaths": [{ "path": "/*" }],
+  "excludedPaths": [
+    { "path": "/description/?" },
+    { "path": "/image/?" },
+    { "path": "/thumbnail/?" },
+    { "path": "/mechanics/?" },
+    { "path": "/categories/?" },
+    { "path": "/\"_etag\"/?" }
+  ]
+}
+```
+
+**Risk**: Low if you exclude only paths not used in WHERE clauses. Verify against actual queries in CosmosDbService, GameDataService, and GameSearchService.
+
+---
+
+### 7. Route More Traffic Through AI Mini Model
+
+| | |
+|---|---|
+| **Cost Contributor** | 4/10 |
+| **Risk** | 3/10 |
+| **Savings** | $0.50–2/mo now; $5–15/mo at 1,000 users |
+| **Implemented** | No |
+
+**Current state**: The architecture uses gpt-4.1-mini for criteria extraction and gpt-4.1 for main responses. GPT-4.1-mini is ~10x cheaper per token.
+
+**Recommendation**: Evaluate if simple follow-up queries (e.g., "tell me more about Catan") can be routed to gpt-4.1-mini instead of gpt-4.1. This requires query classification logic but can significantly reduce AI costs at scale.
+
+---
+
+### 9. Enable Application Insights Sampling
+
+| | |
+|---|---|
+| **Cost Contributor** | 3/10 |
+| **Risk** | 2/10 |
+| **Savings** | $1–5/mo (grows with scale) |
+| **Implemented** | No |
+
+**Current state**: Neither dev nor prod has Application Insights sampling enabled (`samplingPercentage: null`). Every request, dependency call, and trace is ingested at 100%.
+
+**Why it matters at scale**: At 1,000 users, 100% ingestion will generate significant Log Analytics data volume. Log Analytics charges $2.76/GB after the free 5 GB/mo.
+
+**Recommendation**: Enable adaptive sampling in prod (default keeps ~5 events/sec). In dev, set fixed-rate sampling at 25% to minimize cost while keeping enough data for debugging.
+
+---
+
+### 11. Consolidate or Delete Extra Storage Accounts
+
+| | |
+|---|---|
+| **Cost Contributor** | 1/10 |
+| **Risk** | 1/10 |
+| **Savings** | <$1/mo |
+| **Implemented** | No |
+
+**Current state**: Each environment has 2 storage accounts — one for the app and one for Functions. Total cost is negligible (~$0.12/mo combined).
+
+**Recommendation**: Low priority. Keep as-is unless you want to simplify resource count.
+
+---
+
+## Projected Monthly Savings
+
+### Scenario 1 — Immediate Savings (~60 users, Months 0–3)
+
+These savings apply **now** while traffic is low. Some are temporary and will be reversed as users grow.
+
+| Recommendation | Dev Savings | Prod Savings | Duration | Notes |
+|----------------|:-----------:|:------------:|:--------:|-------|
+| #1 — Downgrade prod App Service to S1 | – | $45 | Temporary (3 mo) | Upgrade to S2/P1v3 at 500+ users |
+| #2 — Remove dev Front Door | $35 | – | Permanent | Dev never needs AFD |
+| #3 — Lower Cosmos DB autoscale to 1000 | – | $54 | Temporary (2–3 mo) | Raise back to 4000 at 500+ users |
+| #4 — Downgrade dev App Service (stop at night) | $15–20 | – | Permanent | Dev stays lean |
+| #5 — Reserved Instance | – | – | Deferred | Wait until tier stabilizes (Month 4+) |
+| #6 — Optimize Cosmos indexing | – | $5–15 | Permanent | Reduces RU consumption |
+| #7 — Route to mini model | $0.25 | $0.50 | Permanent | Complementary to scaling |
+| #8 — Delete unused dev AI Foundry eastus2 | $0–2 | – | Permanent | Unused resource |
+| #9 — Enable App Insights sampling | $1 | $2 | Permanent | Complementary to scaling |
+| #10 — Set dev Log Analytics cap | $1–2 | – | Permanent | |
+| #11 — Consolidate storage | <$1 | <$1 | Permanent | Low priority |
+| **Totals (Months 0–3)** | **$52–60/mo** | **$107–117/mo** | | |
+
+### Scenario 2 — At Scale (~1,000 users, Month 3+)
+
+Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
+
+| Recommendation | Dev Savings | Prod Savings | Notes |
+|----------------|:-----------:|:------------:|-------|
+| #1 — App Service tier | – | **$0** (back to S2/P1v3) | Upgraded for autoscaling at 1,000 users |
+| #2 — Remove dev Front Door | $35 | – | Permanent |
+| #3 — Cosmos DB autoscale | – | **$0** (back to 4000 max) | Restored for burst traffic capacity |
+| #4 — Dev App Service | $15–20 | – | Permanent |
+| #5 — Reserved Instance | – | $30 | Purchase RI once tier is stable (Month 4+) |
+| #6 — Cosmos indexing | – | $5–15 | Permanent; saves more RUs at higher traffic |
+| #7 — Mini model routing | $0.25 | $5–15 | Grows with scale; significant at 1,000 users |
+| #8 — Delete dev AI Foundry eastus2 | $0–2 | – | Permanent |
+| #9 — App Insights sampling | $1 | $2 | Permanent; more impactful at scale |
+| #10 — Dev Log Analytics cap | $1–2 | – | Permanent |
+| #11 — Storage consolidation | <$1 | <$1 | |
+| **Totals (Month 3+)** | **$52–60/mo** | **$42–63/mo** | |
+
+### Summary: Cost Trajectory Over Time
+
+| Period | Dev Spend | Prod Spend | Total | vs. Current ($277) |
+|--------|:---------:|:----------:|:-----:|:-------------------:|
+| **Current** | ~$70/mo | ~$207/mo | ~$277/mo | – |
+| **Months 0–3** (low traffic) | ~$15/mo | ~$95/mo | **~$110/mo** | **60% reduction** |
+| **Month 3+** (1,000 users) | ~$15/mo | ~$160–175/mo | **~$175–190/mo** | **31–37% reduction** |
+| **Month 4+** (with RI) | ~$15/mo | ~$135–150/mo | **~$150–165/mo** | **40–46% reduction** |
+
+> **Key insight**: You get the deepest savings (~60%) in the first 3 months when traffic is low. As you scale to 1,000 users, costs increase but are still **30–46% below today's spend** thanks to permanent optimizations (dev cleanup, indexing, sampling, mini model routing, reserved instances).
+
+---
+
+## Implementation Roadmap
+
+### Phase 1 — Quick Wins (This Week, ~$134/mo immediate savings)
+- [ ] **#2**: Remove dev Azure Front Door + WAF policy → **$35/mo saved** (permanent)
+- [ ] **#8**: Delete `gamer-uncle-dev-foundry-eastus2` resource → **$0–2/mo saved** (permanent)
+- [ ] **#3**: Lower prod Cosmos DB autoscale max from 4000 to 1000 RU/s → **$54/mo saved** (temporary)
+  - ⚠️ **Prerequisite**: Fix CosmosClientOptions (scaling Finding #4) first
+- [ ] **#1**: Downgrade prod App Service from P1v3 to S1 → **$45/mo saved** (temporary)
+
+### Phase 2 — Moderate Effort (Next Sprint, $20/mo additional savings)
+- [ ] **#4**: Schedule dev App Service stop at nights/weekends → **$15–20/mo saved** (permanent)
+- [ ] **#10**: Set dev Log Analytics daily cap to 0.5 GB → **$1–2/mo saved** (permanent)
+- [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
+
+### Phase 3 — Optimization at Scale (Before Marketing Push)
+- [ ] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale)
+- [ ] **#7**: Evaluate mini model routing for simple queries → growing savings (permanent)
+
+### Phase 4 — Scale-Up Actions (When Traffic Grows)
+These are **cost increases** that reverse temporary savings, triggered by traffic milestones.
+
+- [ ] **#3 reversal**: Raise Cosmos DB autoscale max back to **2000 RU/s** at 200+ users, **4000 RU/s** at 500+ users
+- [ ] **#1 reversal**: Upgrade App Service from S1 to **S2/P1v3** at 500+ users; enable autoscaling (min 2, max 4)
+- [ ] **#5**: Purchase reserved instance once prod tier stabilizes (Month 4+) → **$30/mo saved** (permanent)
+
+---
+
+## Traffic Milestone Triggers
+
+Use this table to decide when to reverse temporary cost savings and scale up resources.
+
+| Milestone | Installs | DAU (est.) | Peak Concurrent | Actions |
+|-----------|:--------:|:----------:|:---------------:|---------|
+| **Current** | ~60 | ~9 | ~5 | Implement Phase 1 & 2 cost savings (save ~$154/mo) |
+| **200 users** | 200 | ~30 | ~10 | Raise Cosmos autoscale max to 2,000 RU/s; enable App Service autoscale (min 1, max 2) |
+| **500 users** | 500 | ~75 | ~25 | Raise Cosmos autoscale max to 4,000 RU/s; evaluate S1 → S2 upgrade; implement distributed rate limiting |
+| **1,000 users** | 1,000 | ~150 | ~50 | Upgrade to S2/P1v3 with 2–4 instances; verify AI Foundry TPM quotas; purchase reserved instance |
+
+### How to Monitor These Triggers
+
+| Metric | Where to Check | Threshold |
+|--------|----------------|-----------|
+| User installs | App Store Connect / Google Play Console | Milestone numbers above |
+| Cosmos DB RU consumption | Azure Portal → Cosmos DB → Metrics → Normalized RU Consumption | >70% of max sustained |
+| Cosmos DB 429 errors | Azure Portal → Cosmos DB → Metrics → Total Requests (filter status=429) | Any sustained 429s |
+| App Service CPU | Azure Portal → App Service → Metrics → CPU Percentage | >70% sustained |
+| App Service response time | Application Insights → Performance | P95 > 3 seconds |
+| AI Foundry TPM | Azure Portal → AI Foundry → Deployments → Metrics | >80% of quota |
