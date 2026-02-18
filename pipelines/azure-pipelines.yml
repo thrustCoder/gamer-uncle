@@ -729,8 +729,8 @@ stages:
       displayName: 'Build Functional Tests'
 
     - script: |
-        echo "Starting API in background..."
-        dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --urls "http://localhost:5000" &
+        echo "Starting API in background with Testing environment..."
+        ASPNETCORE_ENVIRONMENT=Testing dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --urls "http://localhost:5000" &
         API_PID=$!
         echo "API PID: $API_PID"
         
