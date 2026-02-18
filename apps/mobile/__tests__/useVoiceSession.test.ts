@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react-native';
 // Mock API config before importing the hook
 jest.mock('../config/apiConfig', () => ({
   getApiBaseUrl: jest.fn(() => 'http://localhost:5001/api/'),
+  getAppKey: jest.fn(() => 'test-app-key'),
   API_ENVIRONMENT: 'local' as const,
 }));
 
