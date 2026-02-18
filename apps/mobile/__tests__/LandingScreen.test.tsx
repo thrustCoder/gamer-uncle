@@ -13,7 +13,7 @@ jest.mock('@react-navigation/native', () => ({
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
   expoConfig: {
-    version: '3.1.2',
+    version: '3.2.7',
   },
 }));
 
