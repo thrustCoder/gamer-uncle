@@ -208,6 +208,18 @@ export const gameSearchStyles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
+  askUncleErrorContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  askUncleErrorHint: {
+    fontSize: 14,
+    color: Colors.themeYellow,
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: 12,
+  },
 
   // Game Details Section
   detailsContainer: {

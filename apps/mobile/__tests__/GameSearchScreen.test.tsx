@@ -237,9 +237,110 @@ describe('GameSearchScreen', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('Chat', {
-      prefillContext: {
-        searchQuery: 'xyzgame',
-        fromGameSearchNoResults: true,
+      gameContext: {
+        gameName: 'xyzgame',
+        fromGameSearch: true,
+      },
+    });
+  });
+
+  it('shows Ask Uncle button on search API error', async () => {
+    mockSearchGames.mockRejectedValue(new Error('Network error'));
+
+    const { getByTestId, getByText } = render(<GameSearchScreen />);
+    
+    const input = getByTestId('game-search-input');
+    fireEvent.changeText(input, 'catan');
+    
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    
+    await waitFor(() => {
+      expect(getByText('Network error')).toBeTruthy();
+      expect(getByTestId('ask-uncle-search-error')).toBeTruthy();
+    });
+  });
+
+  it('navigates to chat when Ask Uncle is pressed on search error', async () => {
+    mockSearchGames.mockRejectedValue(new Error('Network error'));
+
+    const { getByTestId } = render(<GameSearchScreen />);
+    
+    const input = getByTestId('game-search-input');
+    fireEvent.changeText(input, 'catan');
+    
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    
+    await waitFor(() => {
+      const askButton = getByTestId('ask-uncle-search-error');
+      fireEvent.press(askButton);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('Chat', {
+      gameContext: {
+        gameName: 'catan',
+        fromGameSearch: true,
+      },
+    });
+  });
+
+  it('shows Ask Uncle button on details API error', async () => {
+    mockSearchGames.mockResolvedValue({
+      results: [{ id: 'bgg-13', name: 'Catan', averageRating: 7.1, minPlayers: 3, maxPlayers: 4 }],
+      totalCount: 1
+    });
+    mockGetGameDetails.mockRejectedValue(new Error('Failed to load'));
+
+    const { getByTestId, findByTestId, getByText } = render(<GameSearchScreen />);
+    
+    const input = getByTestId('game-search-input');
+    fireEvent.changeText(input, 'catan');
+    
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    
+    const result = await findByTestId('search-result-0');
+    fireEvent.press(result);
+    
+    await waitFor(() => {
+      expect(getByText('Failed to load')).toBeTruthy();
+      expect(getByTestId('ask-uncle-details-error')).toBeTruthy();
+      expect(getByText('Ask about Catan')).toBeTruthy();
+    });
+  });
+
+  it('navigates to chat when Ask Uncle is pressed on details error', async () => {
+    mockSearchGames.mockResolvedValue({
+      results: [{ id: 'bgg-13', name: 'Catan', averageRating: 7.1, minPlayers: 3, maxPlayers: 4 }],
+      totalCount: 1
+    });
+    mockGetGameDetails.mockRejectedValue(new Error('Failed to load'));
+
+    const { getByTestId, findByTestId } = render(<GameSearchScreen />);
+    
+    const input = getByTestId('game-search-input');
+    fireEvent.changeText(input, 'catan');
+    
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    
+    const result = await findByTestId('search-result-0');
+    fireEvent.press(result);
+    
+    await waitFor(() => {
+      const askButton = getByTestId('ask-uncle-details-error');
+      fireEvent.press(askButton);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('Chat', {
+      gameContext: {
+        gameName: 'Catan',
+        fromGameSearch: true,
       },
     });
   });

@@ -13,6 +13,7 @@ namespace GamerUncle.Api.Tests
         private class FakeCosmos : ICosmosDbService
         {
             public Task<IEnumerable<GameDocument>> QueryGamesAsync(GameQueryCriteria criteria) => Task.FromResult<IEnumerable<GameDocument>>(new List<GameDocument>());
+            public Task<IEnumerable<GameSummary>> QueryGameSummariesAsync(GameQueryCriteria criteria, int top = 50) => Task.FromResult<IEnumerable<GameSummary>>(new List<GameSummary>());
         }
 
         private AgentServiceClient CreateClient()
@@ -35,7 +36,7 @@ namespace GamerUncle.Api.Tests
         private static string InvokeEnhanced(AgentServiceClient client, string input)
         {
             var m = typeof(AgentServiceClient).GetMethod("GenerateEnhancedResponse", BindingFlags.NonPublic | BindingFlags.Instance)!;
-            return (string)m.Invoke(client, new object?[] { input, new List<GameDocument>() })!;
+            return (string)m.Invoke(client, new object?[] { input, new List<GameSummary>() })!;
         }
 
         [Theory]

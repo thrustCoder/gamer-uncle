@@ -35,12 +35,70 @@ namespace GamerUncle.Api.Services.Cosmos
 
         public async Task<IEnumerable<GameDocument>> QueryGamesAsync(GameQueryCriteria criteria)
         {
-            var query = "SELECT * FROM c WHERE 1=1";
+            var (whereClause, parameters) = BuildWhereClause(criteria);
+            var query = $"SELECT * FROM c{whereClause}";
+
+            var queryDef = new QueryDefinition(query);
+            foreach (var param in parameters)
+            {
+                queryDef.WithParameter(param.Key, param.Value);
+            }
+
+            var results = new List<GameDocument>();
+            using var iterator = _container.GetItemQueryIterator<GameDocument>(queryDef);
+            while (iterator.HasMoreResults)
+            {
+                var response = await iterator.ReadNextAsync();
+                results.AddRange(response);
+            }
+
+            return results;
+        }
+
+        public async Task<IEnumerable<GameSummary>> QueryGameSummariesAsync(GameQueryCriteria criteria, int top = 50)
+        {
+            var (whereClause, parameters) = BuildWhereClause(criteria);
+
+            // Use SELECT projection to fetch only lightweight fields needed for RAG
+            // and TOP + ORDER BY to let Cosmos DB return only the best matches
+            var query = $@"SELECT TOP {top}
+    c.id, c.name, c.overview,
+    c.minPlayers, c.maxPlayers,
+    c.minPlaytime, c.maxPlaytime,
+    c.weight, c.averageRating,
+    c.imageUrl, c.mechanics, c.categories
+FROM c{whereClause}
+ORDER BY c.averageRating DESC";
+
+            var queryDef = new QueryDefinition(query);
+            foreach (var param in parameters)
+            {
+                queryDef.WithParameter(param.Key, param.Value);
+            }
+
+            var results = new List<GameSummary>();
+            using var iterator = _container.GetItemQueryIterator<GameSummary>(queryDef);
+            while (iterator.HasMoreResults)
+            {
+                var response = await iterator.ReadNextAsync();
+                results.AddRange(response);
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Builds the WHERE clause and parameter dictionary from the query criteria.
+        /// Shared between QueryGamesAsync and QueryGameSummariesAsync.
+        /// </summary>
+        private static (string whereClause, Dictionary<string, object> parameters) BuildWhereClause(GameQueryCriteria criteria)
+        {
+            var conditions = new List<string>();
             var parameters = new Dictionary<string, object>();
 
             if (!string.IsNullOrEmpty(criteria.name))
             {
-                query += " AND CONTAINS(LOWER(c.name), LOWER(@name))";
+                conditions.Add("CONTAINS(LOWER(c.name), LOWER(@name))");
                 parameters.Add("@name", criteria.name);
             }
 
@@ -48,20 +106,20 @@ namespace GamerUncle.Api.Services.Cosmos
             if (criteria.MinPlayers.HasValue && criteria.MaxPlayers.HasValue)
             {
                 // Range query: "2-4 players" - find games that overlap with this range
-                query += " AND c.maxPlayers >= @minPlayers AND c.minPlayers <= @maxPlayers";
+                conditions.Add("c.maxPlayers >= @minPlayers AND c.minPlayers <= @maxPlayers");
                 parameters.Add("@minPlayers", criteria.MinPlayers.Value);
                 parameters.Add("@maxPlayers", criteria.MaxPlayers.Value);
             }
             else if (criteria.MinPlayers.HasValue)
             {
                 // "At least X players" - game must support AT LEAST this many
-                query += " AND c.maxPlayers >= @minPlayers";
+                conditions.Add("c.maxPlayers >= @minPlayers");
                 parameters.Add("@minPlayers", criteria.MinPlayers.Value);
             }
             else if (criteria.MaxPlayers.HasValue)
             {
                 // "Up to X players" - game must work with this few players
-                query += " AND c.minPlayers <= @maxPlayers";
+                conditions.Add("c.minPlayers <= @maxPlayers");
                 parameters.Add("@maxPlayers", criteria.MaxPlayers.Value);
             }
 
@@ -69,38 +127,38 @@ namespace GamerUncle.Api.Services.Cosmos
             if (criteria.MinPlaytime.HasValue && criteria.MaxPlaytime.HasValue)
             {
                 // Range query: "30-60 minutes" - find games that overlap with this range
-                query += " AND c.maxPlaytime >= @minPlaytime AND c.minPlaytime <= @maxPlaytime";
+                conditions.Add("c.maxPlaytime >= @minPlaytime AND c.minPlaytime <= @maxPlaytime");
                 parameters.Add("@minPlaytime", criteria.MinPlaytime.Value);
                 parameters.Add("@maxPlaytime", criteria.MaxPlaytime.Value);
             }
             else if (criteria.MinPlaytime.HasValue)
             {
                 // "At least X minutes" - game can be played for at least this long
-                query += " AND c.maxPlaytime >= @minPlaytime";
+                conditions.Add("c.maxPlaytime >= @minPlaytime");
                 parameters.Add("@minPlaytime", criteria.MinPlaytime.Value);
             }
             else if (criteria.MaxPlaytime.HasValue)
             {
                 // "Up to X minutes" - game doesn't require more time than this
-                query += " AND c.minPlaytime <= @maxPlaytime";
+                conditions.Add("c.minPlaytime <= @maxPlaytime");
                 parameters.Add("@maxPlaytime", criteria.MaxPlaytime.Value);
             }
 
             if (criteria.MaxWeight.HasValue)
             {
-                query += " AND c.weight <= @maxWeight";
+                conditions.Add("c.weight <= @maxWeight");
                 parameters.Add("@maxWeight", criteria.MaxWeight.Value);
             }
 
             if (criteria.averageRating.HasValue)
             {
-                query += " AND c.averageRating >= @averageRating";
+                conditions.Add("c.averageRating >= @averageRating");
                 parameters.Add("@averageRating", criteria.averageRating.Value);
             }
 
             if (criteria.ageRequirement.HasValue)
             {
-                query += " AND c.ageRequirement <= @ageRequirement";
+                conditions.Add("c.ageRequirement <= @ageRequirement");
                 parameters.Add("@ageRequirement", criteria.ageRequirement.Value);
             }
 
@@ -130,27 +188,14 @@ namespace GamerUncle.Api.Services.Cosmos
                 }
                 mechanicsOrCategories += ")";
 
-                query += $" AND {mechanicsOrCategories}";
+                conditions.Add(mechanicsOrCategories);
             }
 
-            // Create QueryDefinition with final query string
-            var queryDef = new QueryDefinition(query);
+            var whereClause = conditions.Count > 0
+                ? " WHERE " + string.Join(" AND ", conditions)
+                : "";
 
-            // Add all parameters to the QueryDefinition
-            foreach (var param in parameters)
-            {
-                queryDef.WithParameter(param.Key, param.Value);
-            }
-
-            var results = new List<GameDocument>();
-            using var iterator = _container.GetItemQueryIterator<GameDocument>(queryDef);
-            while (iterator.HasMoreResults)
-            {
-                var response = await iterator.ReadNextAsync();
-                results.AddRange(response);
-            }
-
-            return results;
+            return (whereClause, parameters);
         }
 
         private static string ToTitleCase(string input)

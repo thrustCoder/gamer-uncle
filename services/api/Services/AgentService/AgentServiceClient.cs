@@ -93,7 +93,7 @@ namespace GamerUncle.Api.Services.AgentService
                 var criteria = await ExtractGameCriteriaViaAgent(userInput, threadId);
 
                 // Step 2: Query Cosmos DB for relevant games (if criteria found)
-                List<GameDocument> matchingGames;
+                List<GameSummary> matchingGames;
                 var messages = new List<object>();
                 if (criteria == null ||
                     (string.IsNullOrEmpty(criteria.name) &&
@@ -108,7 +108,7 @@ namespace GamerUncle.Api.Services.AgentService
                     !criteria.ageRequirement.HasValue))
                 {
                     // No specific criteria found - proceed without RAG context
-                    matchingGames = new List<GameDocument>();
+                    matchingGames = new List<GameSummary>();
                     messages = new[]
                     {
                         new { role = "user", content = userInput }
@@ -122,11 +122,10 @@ namespace GamerUncle.Api.Services.AgentService
                 else
                 {
                     // Criteria found - use RAG approach with relevant games
-                    var queryResults = await _cosmosDbService.QueryGamesAsync(criteria);
-                    // Sort games by user rating in descending order (highest rated first)
-                    matchingGames = queryResults
-                        .OrderByDescending(game => game.averageRating)
-                        .ToList();
+                    // QueryGameSummariesAsync uses SELECT projection (lightweight fields only)
+                    // and TOP 50 ORDER BY averageRating DESC at the Cosmos DB level
+                    var queryResults = await _cosmosDbService.QueryGameSummariesAsync(criteria);
+                    matchingGames = queryResults.ToList();
                     var ragContext = FormatGamesForRag(matchingGames);
                     messages = new[]
                     {
@@ -642,7 +641,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         }
 
         // Converts games to plain text for RAG context
-        private string FormatGamesForRag(IEnumerable<GameDocument> games)
+        private string FormatGamesForRag(IEnumerable<GameSummary> games)
         {
             var sb = new StringBuilder();
             sb.AppendLine("Here are relevant board games from the database:");
@@ -851,7 +850,7 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
             return fallbackPatterns.Any(p => response.Contains(p, StringComparison.OrdinalIgnoreCase));
         }
 
-        private string GenerateEnhancedResponse(string userInput, List<GameDocument> games)
+        private string GenerateEnhancedResponse(string userInput, List<GameSummary> games)
         {
             // Deterministic enriched content with light personalization & strategy snippets
             var sb = new StringBuilder();

@@ -24,35 +24,29 @@ export class EnvironmentDetection {
     return __DEV__;
   }
   
+  // Cached result to avoid recomputing on every render
+  private static _shouldUseMockVoiceResult: boolean | null = null;
+
   /**
    * Determines if mock voice service should be used
    * Very specific conditions to prevent accidental usage in production
+   * Result is cached since the environment never changes at runtime.
    * @returns true only for iOS simulator in development mode
    */
   static shouldUseMockVoice(): boolean {
+    if (EnvironmentDetection._shouldUseMockVoiceResult !== null) {
+      return EnvironmentDetection._shouldUseMockVoiceResult;
+    }
+
     // Temporarily allow web testing in development
     const isWebDev = __DEV__ && Platform.OS === 'web';
-    const isSimulator = EnvironmentDetection.isSimulator();
     const isProduction = process.env.NODE_ENV === 'production';
-    const isPhysicalDevice = Constants.isDevice === true;
-    
-    // Debug logging to help troubleshoot
-    console.log('🔍 [DEBUG] Environment Detection:', {
-      __DEV__,
-      platform: Platform.OS,
-      isDevice: Constants.isDevice,
-      isWebDev,
-      isSimulator,
-      isProduction,
-      isPhysicalDevice,
-      nodeEnv: process.env.NODE_ENV
-    });
     
     // Use real voice on physical devices, mock voice only on simulators/web
     // If isDevice is undefined, we should assume it's a physical device to be safe
     const shouldUseMock = Constants.isDevice === false || (isWebDev && !isProduction);
-    console.log('🔍 [DEBUG] shouldUseMockVoice result:', shouldUseMock);
-    
+
+    EnvironmentDetection._shouldUseMockVoiceResult = shouldUseMock;
     return shouldUseMock;
   }
 

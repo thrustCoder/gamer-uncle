@@ -82,7 +82,7 @@ namespace GamerUncle.Api.Tests
         public void FormatGamesForRag_ShouldIncludeRatingInformation()
         {
             // Arrange
-            var testGame = new GameDocument
+            var testGame = new GameSummary
             {
                 id = "bgg-1",
                 name = "Test Game",
