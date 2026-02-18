@@ -139,7 +139,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | 🟠 |
 | 2 | [Consolidate dev AFD onto prod profile](#2-consolidate-dev-afd-onto-prod-profile) | Dev | **9** | **2** | $35/mo | Safe at scale | ✅ |
 | 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | 🟠 |
-| 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $20–33/mo | Safe at scale | 🟠 |
+| 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $25–31/mo | Safe at scale | ✅ |
 | 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | 🟠 |
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | 🟠 |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
@@ -211,8 +211,8 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 |---|---|
 | **Cost Contributor** | 8/10 |
 | **Risk** | 3/10 |
-| **Savings** | $20–33/mo |
-| **Implemented** | 🟠 |
+| **Savings** | $25–31/mo |
+| **Implemented** | ✅ (Feb 2026) |
 
 **Current state**: Dev runs on **B1** (Basic tier, 1 instance) at ~$33/mo. This provides 1.75 GB RAM, 1 core.
 
@@ -222,10 +222,27 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 |--------|:----------:|:-------:|-----------|
 | Keep B1 | ~$54 | – | Current setup |
 | Downgrade to **F1** (Free) | $0 | $33/mo | 60 min/day compute, 1 GB memory, no custom domain, no always-on |
-| Downgrade to **B1** but **stop when not testing** | ~$15–20 | $15–20/mo | Manual start/stop or scheduled |
+| ~~Downgrade to **B1** but **stop when not testing**~~ | ~~$2–8~~ | ~~$25–31/mo~~ | ~~Manual start/stop or scheduled~~ |
 | Use **D1** (Shared) | ~$10 | $23/mo | Shared compute, limited features |
 
-**Recommendation**: Since dev is only for verification, schedule the App Service to stop during nights/weekends using Azure Automation, or downgrade to F1 if 60 min/day is sufficient for CI/CD and manual testing.
+**What was done**: Implemented the **B1 ↔ F1 toggle** approach with full automation:
+
+1. **Nightly scale-down schedule** (`pipelines/dev-scaledown-schedule.yml`): A separate Azure DevOps scheduled pipeline runs at 11:00 PM PT every night. It scales the dev App Service Plan from B1 → F1 (free), stopping all billing. The app deployment is preserved.
+
+2. **Pipeline auto-scale-up** (`pipelines/azure-pipelines.yml`): The `DevDeployApi` stage now scales the plan up to B1 before deploying, with a 30s stabilization wait. This ensures CI/CD merges to `main` always succeed even if the plan was parked on F1.
+
+3. **Manual scale-up/down script** (`scripts/dev-appservice-toggle.ps1`): For on-demand use:
+   ```powershell
+   .\scripts\dev-appservice-toggle.ps1 start    # Scale to B1 for testing
+   .\scripts\dev-appservice-toggle.ps1 stop     # Park on F1 (free)
+   .\scripts\dev-appservice-toggle.ps1 status   # Check current SKU
+   ```
+
+4. **"testit" command integration**: When `API_ENVIRONMENT` is `dev`, the testit command automatically scales the dev App Service to B1 before starting. Not needed for `local` (uses localhost) or `prod` (always running).
+
+**How billing works**: Azure App Service Plans bill for the plan VM regardless of whether the app is running. `az webapp stop` does NOT save money on B1. The only way to eliminate charges is to scale the SKU to F1 (free). The app deployment stays intact across SKU changes.
+
+**Cost estimate**: With nightly parking (11 PM–next pipeline/testit scale-up), dev runs on B1 for ~8–12 hrs/day on workdays = ~$2–8/mo instead of ~$33/mo. **Savings: ~$25–31/mo.**
 
 ---
 
@@ -474,7 +491,7 @@ These savings apply **now** while traffic is low. Some are temporary and will be
 | #1 — Downgrade prod App Service to S1 | – | $45 | Temporary (3 mo) | Upgrade to S2/P1v3 at 500+ users |
 | #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ Dev endpoint on prod AFD profile |
 | #3 — Lower Cosmos DB autoscale to 1000 | – | $54 | Temporary (2–3 mo) | Raise back to 4000 at 500+ users |
-| #4 — Downgrade dev App Service (stop at night) | $15–20 | – | Permanent | Dev stays lean |
+| #4 — Downgrade dev App Service (nightly F1 parking) | $25–31 | – | Permanent | ✅ Nightly scale-down + auto scale-up |
 | #5 — Reserved Instance | – | – | Deferred | Wait until tier stabilizes (Month 4+) |
 | #6 — Optimize Cosmos indexing | – | $5–15 | Permanent | Reduces RU consumption |
 | #7 — Route to mini model | $0.25 | $0.50 | Permanent | Complementary to scaling |
@@ -493,7 +510,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 | #1 — App Service tier | – | **$0** (back to S2/P1v3) | Upgraded for autoscaling at 1,000 users |
 | #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ |
 | #3 — Cosmos DB autoscale | – | **$0** (back to 4000 max) | Restored for burst traffic capacity |
-| #4 — Dev App Service | $15–20 | – | Permanent |
+| #4 — Dev App Service | $25–31 | – | Permanent ✅ |
 | #5 — Reserved Instance | – | $30 | Purchase RI once tier is stable (Month 4+) |
 | #6 — Cosmos indexing | – | $5–15 | Permanent; saves more RUs at higher traffic |
 | #7 — Mini model routing | $0.25 | $5–15 | Grows with scale; significant at 1,000 users |
@@ -520,13 +537,17 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 
 ### Phase 1 — Quick Wins (This Week, ~$134/mo immediate savings)
 - [x] **#2**: Consolidate dev AFD onto prod profile → **$35/mo saved** (permanent) — completed Feb 2026
-- [ ] **#8**: Delete `gamer-uncle-dev-foundry-eastus2` resource → **$0–2/mo saved** (permanent)
+- [x] **#8**: Delete `gamer-uncle-dev-foundry-eastus2` resource → **$0–2/mo saved** (permanent) — completed Feb 2026
 - [ ] **#3**: Lower prod Cosmos DB autoscale max from 4000 to 1000 RU/s → **$54/mo saved** (temporary)
   - ⚠️ **Prerequisite**: Fix CosmosClientOptions (scaling Finding #4) first
 - [ ] **#1**: Downgrade prod App Service from P1v3 to S1 → **$45/mo saved** (temporary)
 
 ### Phase 2 — Moderate Effort (Next Sprint, $20/mo additional savings)
-- [ ] **#4**: Schedule dev App Service stop at nights/weekends → **$15–20/mo saved** (permanent)
+- [x] **#4**: Nightly F1 parking + auto scale-up in pipeline/testit → **$25–31/mo saved** (permanent) — completed Feb 2026
+  - Nightly scale-down: `pipelines/dev-scaledown-schedule.yml` (11 PM PT daily)
+  - Pipeline scale-up: `DevDeployApi` stage auto-scales to B1 before deploying
+  - Manual toggle: `scripts/dev-appservice-toggle.ps1 start|stop|status`
+  - testit integration: Auto-scales when `API_ENVIRONMENT=dev`
 - [ ] **#10**: Set dev Log Analytics daily cap to 0.5 GB → **$1–2/mo saved** (permanent)
 - [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
 
