@@ -1,9 +1,11 @@
 using System.Reflection;
 using GamerUncle.Api.Services.AgentService;
+using GamerUncle.Api.Services.ThreadMapping;
 using GamerUncle.Shared.Models;
 using GamerUncle.Api.Services.Interfaces;
 using Microsoft.ApplicationInsights;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GamerUncle.Api.Tests
@@ -24,7 +26,8 @@ namespace GamerUncle.Api.Tests
                 {"AgentService:AgentId", "agent-test"},
                 {"ASPNETCORE_ENVIRONMENT", "Testing"}
             }).Build();
-            return new AgentServiceClient(config, new FakeCosmos(), null, null);
+            var threadStore = new InMemoryThreadMappingStore(NullLogger<InMemoryThreadMappingStore>.Instance, config);
+            return new AgentServiceClient(config, new FakeCosmos(), threadStore, null, null);
         }
 
         private static bool InvokeIsLowQuality(AgentServiceClient client, string? text)

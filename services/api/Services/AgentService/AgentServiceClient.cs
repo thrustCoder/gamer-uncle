@@ -1,5 +1,4 @@
 using System.Text;
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Azure;
 using Azure.AI.Agents.Persistent;
@@ -17,7 +16,7 @@ namespace GamerUncle.Api.Services.AgentService
 {
     public class AgentServiceClient : IAgentServiceClient
     {
-        private static readonly ConcurrentDictionary<string, string> _conversationThreadMap = new();
+        private readonly IThreadMappingStore _threadMappingStore;
         private readonly AIProjectClient _projectClient;
         private readonly PersistentAgentsClient _agentsClient;
         private readonly string _criteriaAgentId; // A3: Fast model for criteria extraction (gpt-4.1-mini)
@@ -39,7 +38,7 @@ namespace GamerUncle.Api.Services.AgentService
         // HTTP status codes considered transient and eligible for retry
         private static readonly int[] TransientStatusCodes = { 408, 429, 502, 503, 504 };
 
-        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
+        public AgentServiceClient(IConfiguration config, ICosmosDbService cosmosDbService, IThreadMappingStore threadMappingStore, ICriteriaCache? criteriaCache = null, TelemetryClient? telemetryClient = null, ILogger<AgentServiceClient>? logger = null)
         {
             var endpoint = new Uri(config["AgentService:Endpoint"] ?? throw new InvalidOperationException("Agent endpoint missing"));
             // A3: Use separate agents for criteria extraction (fast) and main responses (quality)
@@ -56,6 +55,7 @@ namespace GamerUncle.Api.Services.AgentService
             _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential(credentialOptions));
             _agentsClient = _projectClient.GetPersistentAgentsClient();
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
+            _threadMappingStore = threadMappingStore ?? throw new ArgumentNullException(nameof(threadMappingStore));
             _criteriaCache = criteriaCache; // Optional: gracefully degrades if not configured
             _telemetryClient = telemetryClient;
             _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<AgentServiceClient>.Instance;
@@ -412,15 +412,9 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                 if (!string.IsNullOrEmpty(threadId) && !threadId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Treat provided id as conversation id
-                    if (_conversationThreadMap.TryGetValue(threadId, out var mapped))
-                    {
-                        internalThreadId = mapped;
-                    }
-                    else
-                    {
-                        internalThreadId = null; // force create new
-                    }
+                    // Treat provided id as conversation id — look up AI thread from distributed store
+                    var mapped = await _threadMappingStore.GetThreadIdAsync(threadId);
+                    internalThreadId = mapped; // null if not found → will create new thread
                 }
 
                 PersistentAgentThread thread;
@@ -437,7 +431,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                         thread = _agentsClient.Threads.CreateThread();
                         if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                         {
-                            _conversationThreadMap[originalId] = thread.Id;
+                            await _threadMappingStore.SetThreadIdAsync(originalId, thread.Id);
                         }
                     }
                 }
@@ -447,7 +441,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     thread = _agentsClient.Threads.CreateThread();
                     if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                     {
-                        _conversationThreadMap[originalId] = thread.Id;
+                        await _threadMappingStore.SetThreadIdAsync(originalId, thread.Id);
                     }
                 }
 
@@ -517,14 +511,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             string? internalThreadId = threadId;
             if (!string.IsNullOrEmpty(threadId) && !threadId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
             {
-                if (_conversationThreadMap.TryGetValue(threadId, out var mapped))
-                {
-                    internalThreadId = mapped;
-                }
-                else
-                {
-                    internalThreadId = null;
-                }
+                var mapped = await _threadMappingStore.GetThreadIdAsync(threadId);
+                internalThreadId = mapped; // null if not found
             }
 
             PersistentAgentThread thread;
@@ -532,26 +520,26 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             {
                 if (!string.IsNullOrEmpty(internalThreadId))
                 {
-                    Console.WriteLine($"Using existing thread for criteria extraction: {internalThreadId}");
+                    _logger.LogInformation("Using existing thread for criteria extraction: {ThreadId}", internalThreadId);
                     thread = _agentsClient.Threads.GetThread(internalThreadId);
                 }
                 else
                 {
-                    Console.WriteLine("Creating new thread for criteria extraction");
+                    _logger.LogInformation("Creating new thread for criteria extraction");
                     thread = _agentsClient.Threads.CreateThread();
                     if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                     {
-                        _conversationThreadMap[originalId] = thread.Id;
+                        await _threadMappingStore.SetThreadIdAsync(originalId, thread.Id);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving thread {internalThreadId}: {ex.Message}. Creating new thread.");
+                _logger.LogWarning(ex, "Error retrieving thread {ThreadId} for criteria extraction. Creating new thread.", internalThreadId);
                 thread = _agentsClient.Threads.CreateThread();
                 if (!string.IsNullOrEmpty(originalId) && !originalId.StartsWith("thread_", StringComparison.OrdinalIgnoreCase))
                 {
-                    _conversationThreadMap[originalId] = thread.Id;
+                    await _threadMappingStore.SetThreadIdAsync(originalId, thread.Id);
                 }
             }
 

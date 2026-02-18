@@ -4,6 +4,7 @@ using GamerUncle.Api.Services.Cosmos;
 using GamerUncle.Api.Services.Authentication;
 using GamerUncle.Api.Services.GameData;
 using GamerUncle.Api.Services.Speech;
+using GamerUncle.Api.Services.ThreadMapping;
 using GamerUncle.Mcp.Extensions;
 using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
@@ -278,6 +279,25 @@ else
 {
     // Cache disabled - don't register ICriteriaCache, AgentServiceClient handles null gracefully
 }
+
+// Finding #2: Distributed thread mapping store (conversation → AI thread)
+// Uses Redis when available for multi-instance support; falls back to in-memory with TTL.
+builder.Services.AddSingleton<IThreadMappingStore>(sp =>
+{
+    var redis = sp.GetService<StackExchange.Redis.IConnectionMultiplexer>();
+    if (redis != null && redis.IsConnected)
+    {
+        return new RedisThreadMappingStore(
+            redis,
+            sp.GetRequiredService<ILogger<RedisThreadMappingStore>>(),
+            sp.GetService<Microsoft.ApplicationInsights.TelemetryClient>(),
+            sp.GetRequiredService<IConfiguration>());
+    }
+
+    return new InMemoryThreadMappingStore(
+        sp.GetRequiredService<ILogger<InMemoryThreadMappingStore>>(),
+        sp.GetRequiredService<IConfiguration>());
+});
 
 // Use fake agent only when explicitly requested
 if (Environment.GetEnvironmentVariable("AGENT_USE_FAKE") == "true")

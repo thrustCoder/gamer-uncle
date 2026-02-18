@@ -41,7 +41,7 @@
 | # | Finding | Priority | Criticality (1-10) | Category | Effort | Implemented? |
 |---|---------|----------|---------------------|----------|--------|:------------:|
 | 1 | [Three separate CosmosClient instances](#1-three-separate-cosmosclient-instances) | P0 | **9** | Connection Management | 2–4 hours | ✅ Yes |
-| 2 | [In-memory conversation thread map](#2-in-memory-conversation-thread-map) | P0 | **9** | Statefulness | 4–6 hours | 🟠 No |
+| 2 | [In-memory conversation thread map](#2-in-memory-conversation-thread-map) | P0 | **9** | Statefulness | 4–6 hours | ✅ Yes |
 | 3 | [No CosmosClientOptions configuration](#3-no-cosmosclientoptions-configuration) | P0 | **8** | Connection Management | 1–2 hours | ✅ Yes |
 | 4 | [No autoscaling rules](#4-no-autoscaling-rules) | P1 | **8** | Infrastructure | 2–4 hours | 🟠 No |
 | 5 | [Rate limiting is per-instance](#5-rate-limiting-is-per-instance-not-distributed) | P1 | **7** | Distributed Systems | 4–8 hours | 🟠 No |
@@ -83,18 +83,22 @@
 |---|---|
 | **Priority** | P0 |
 | **Criticality** | 9/10 |
-| **Implemented** | No |
+| **Implemented** | Yes (Feb 2026) |
 
 **Location**: `services/api/Services/AgentService/AgentServiceClient.cs:20`
 
-**Problem**: Conversation-to-AI-thread mappings are stored in a static `ConcurrentDictionary<string, string>`. This is an in-process, volatile data structure.
+**Problem**: Conversation-to-AI-thread mappings were stored in a static `ConcurrentDictionary<string, string>`. This was an in-process, volatile data structure.
 
 **Impact at scale**:
-- **App restart**: All mappings are lost — users lose conversation context mid-session.
-- **Multiple instances**: Each App Service instance has its own dictionary. Load-balanced requests hitting different instances lose thread tracking.
-- **No eviction**: Dictionary grows unbounded with no TTL or cleanup.
+- **App restart**: All mappings were lost — users lost conversation context mid-session.
+- **Multiple instances**: Each App Service instance had its own dictionary. Load-balanced requests hitting different instances lost thread tracking.
+- **No eviction**: Dictionary grew unbounded with no TTL or cleanup.
 
-**Fix**: Move thread mappings to Upstash (already available in the stack) with TTL-based expiry matching conversation lifetime (~2 hours).
+**Fix**: Introduced `IThreadMappingStore` abstraction with two implementations:
+- **`RedisThreadMappingStore`**: Distributed, durable store using Upstash (already in the stack) with configurable TTL (default 2 hours). Refreshes TTL on access to keep active conversations alive. Fails silently on Redis errors (worst case: new thread created).
+- **`InMemoryThreadMappingStore`**: Fallback when Redis is unavailable, with TTL-based expiry and periodic cleanup of expired entries.
+- Registration in `Program.cs` auto-selects Redis-backed store when connected, otherwise falls back to in-memory.
+- `AgentServiceClient` constructor now accepts `IThreadMappingStore` via DI instead of using a static dictionary.
 
 ---
 
@@ -253,7 +257,7 @@ For 1,000 installed users (~150 DAU, ~50 peak concurrent):
 
 ### Sprint 1 — Pre-scaling (before marketing push)
 - [x] **#1 + #3**: Consolidate CosmosClient to singleton with configured options
-- [ ] **#2**: Move conversation thread map to Upstash
+- [x] **#2**: Move conversation thread map to Upstash with TTL-based expiry
 - [ ] **#4**: Configure App Service autoscaling (2 min, 4–6 max)
 
 ### Sprint 2 — Resilience hardening
