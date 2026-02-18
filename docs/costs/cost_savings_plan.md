@@ -85,7 +85,6 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gamer-uncle-afd-dev | Front Door | Standard_AzureFrontDoor | ~$35 |
 | gameuncledevwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD |
 | gamer-uncle-dev-foundry | AI Services | S0 | Pay-per-use |
-| gamer-uncle-dev-foundry-eastus2 | AI Services | S0 | Pay-per-use |
 | gamer-uncle-dev-speech | Speech Services | **F0** (Free) | $0 |
 | gamer-uncle-dev-cosmos | Cosmos DB | **Free Tier** enabled | $0 |
 | gamer-uncle-dev-vault | Key Vault | Standard | ~$0 |
@@ -102,8 +101,6 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 |------------------|-------|-----|:-------:|
 | gamer-uncle-dev-foundry | gpt-4.1 | GlobalStandard | 50K |
 | gamer-uncle-dev-foundry | gpt-4.1-mini | GlobalStandard | 10K |
-| gamer-uncle-dev-foundry-eastus2 | gpt-realtime | GlobalStandard | 5K |
-| gamer-uncle-dev-foundry-eastus2 | gpt-4o | GlobalStandard | 10K |
 
 ### Prod Resources (Queried from Azure)
 
@@ -146,7 +143,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | No |
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | No |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | No |
-| 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | No |
+| 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | **Yes** |
 | 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | No |
 | 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | No |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | No |
@@ -216,15 +213,26 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Cost Contributor** | 3/10 |
 | **Risk** | 1/10 |
 | **Savings** | $0–2/mo |
-| **Implemented** | No |
+| **Implemented** | **Yes** (Feb 2026) |
 
-**Current state**: Dev has **two** AI Foundry resources:
-- `gamer-uncle-dev-foundry` (primary, referenced in all appsettings) — has gpt-4.1 + gpt-4.1-mini
-- `gamer-uncle-dev-foundry-eastus2` (secondary) — has gpt-realtime + gpt-4o
+**What was done**:
 
-**Deep analysis — confirmed safe to delete**:
+1. **Deleted Azure resource** `gamer-uncle-dev-foundry-eastus2` (eastus2 region) and its model deployments (gpt-realtime 5K TPM, gpt-4o 10K TPM). Resource purged from soft-delete.
 
-A thorough codebase investigation was conducted to determine if this resource is actually used:
+2. **Deleted 7 dead code files** — all orphaned by the removal of the WebRTC/Foundry voice path that was never completed:
+   - `scripts/fix-dev-app-config.ps1` — historical one-off fix script hardcoding eastus2 endpoint
+   - `services/api/Services/Interfaces/IFoundryVoiceService.cs` — dead interface (no implementation, no DI registration)
+   - `services/shared/models/VoiceSessionResponse.cs` — only consumer was IFoundryVoiceService
+   - `services/shared/models/VoiceSessionRequest.cs` — only consumer was IFoundryVoiceService
+   - `apps/mobile/services/foundryVoiceService.ts` — 794-line deprecated WebSocket client (never imported by any screen)
+   - `apps/mobile/hooks/useFoundryVoiceSession.ts` — React hook wrapping the above (never imported by any source file)
+   - `apps/mobile/services/audioUtils.ts` — audio utilities only used by foundryVoiceService.ts
+
+3. **Cleaned 2 config/script files**:
+   - `services/api/appsettings.Testing.json` — removed `VoiceService` section (mock config for nonexistent service)
+   - `scripts/diagnose-agent-issue.ps1` — updated stale "eastus2 region" diagnostic hint
+
+**Previous analysis** (preserved for reference):
 
 | Check | Result |
 |-------|--------|
@@ -232,17 +240,9 @@ A thorough codebase investigation was conducted to determine if this resource is
 | `appsettings.Development.json` | Points to `gamer-uncle-dev-foundry` only — **no reference** to eastus2 |
 | `appsettings.Production.json` | Points to prod foundry — **no reference** to eastus2 |
 | Source code (`services/api/`) | **Zero references** to `gamer-uncle-dev-foundry-eastus2` in any `.cs` or `.json` source file |
-| `IFoundryVoiceService` | Interface exists but has **no implementation** — dead code. Not registered in DI (`Program.cs`), not injected into any controller |
 | `VoiceController.cs` | Uses `IAudioProcessingService` (STT→AI→TTS pipeline), **not** `IFoundryVoiceService` |
-| `VoiceService` config | Only configured in `appsettings.Testing.json` with mock URLs — **not configured** in Dev or Prod |
 | `gpt-realtime` usage in dev | Per [model_usage.md](../model_usage.md): "WebRTC Voice: Only available in **production**" — dev has no gpt-realtime usage |
-| `scripts/fix-dev-app-config.ps1` | Historical one-off fix script that hardcoded the eastus2 endpoint — **not part of CI/CD pipeline** or regular deployment |
-| `bin/Release/` reference | Stale build artifact in `bin/Release/net8.0/appsettings.Development.json` — not a source file |
 | `gpt-4o` model | Superseded by gpt-4.1 (deployed on the primary foundry resource) |
-
-**Recommendation**: **Delete `gamer-uncle-dev-foundry-eastus2`** and its model deployments (gpt-realtime, gpt-4o). No application code or configuration depends on it. Also clean up the stale `scripts/fix-dev-app-config.ps1` script.
-
-**Risk**: Very low. Exhaustive search confirmed no runtime dependency.
 
 ---
 
