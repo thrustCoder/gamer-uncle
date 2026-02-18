@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { getApiBaseUrl, getGameSearchAppKey } from '../config/apiConfig';
+import { getApiBaseUrl, getAppKey } from '../config/apiConfig';
 
 /**
  * Game search result from the API (lightweight for type-ahead)
@@ -55,7 +55,7 @@ class GameSearchService {
       baseURL: getApiBaseUrl(),
       headers: {
         'Content-Type': 'application/json',
-        'X-GamerUncle-AppKey': getGameSearchAppKey(),
+        'X-GamerUncle-AppKey': getAppKey(),
       },
     });
   }

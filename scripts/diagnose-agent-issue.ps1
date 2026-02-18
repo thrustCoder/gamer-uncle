@@ -84,6 +84,6 @@ try {
 
 Write-Host "`n💡 Recommendations:" -ForegroundColor Green
 Write-Host "1. Check if agents in AI Foundry are using correct deployment names" -ForegroundColor Gray
-Write-Host "2. Verify model deployment health in eastus2 region" -ForegroundColor Gray  
+Write-Host "2. Verify model deployment health in the deployed region" -ForegroundColor Gray  
 Write-Host "3. Check Application Insights for 'AgentResponse.FallbackUsed' events" -ForegroundColor Gray
 Write-Host "4. Consider standardizing deployment names between environments" -ForegroundColor Gray

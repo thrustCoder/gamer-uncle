@@ -24,7 +24,7 @@ namespace GamerUncle.Api.Tests.Authentication
             bool isTestEnvironment = false)
         {
             var configurationMock = new Mock<IConfiguration>();
-            configurationMock.Setup(c => c["GameSearch:AppKey"]).Returns(configuredAppKey);
+            configurationMock.Setup(c => c["ApiAuthentication:AppKey"]).Returns(configuredAppKey);
             configurationMock.Setup(c => c.GetSection("Testing:DisableRateLimit").Value)
                 .Returns(isTestEnvironment ? "true" : "false");
 

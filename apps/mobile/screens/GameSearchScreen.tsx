@@ -24,6 +24,7 @@ import gameSearchService, {
   GameSearchResult,
   GameDetails,
 } from '../services/GameSearchService';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 type ViewState = 'search' | 'details';
 
@@ -63,6 +64,7 @@ export default function GameSearchScreen() {
     setIsSearching(true);
     setSearchError(null);
     setHasSearched(true);
+    trackEvent(AnalyticsEvents.SEARCH_QUERY_SUBMITTED, { query });
     
     try {
       const response = await gameSearchService.searchGames(query);
@@ -70,6 +72,7 @@ export default function GameSearchScreen() {
     } catch (error: any) {
       setSearchError(error.message || 'Failed to search games');
       setSearchResults([]);
+      trackEvent(AnalyticsEvents.ERROR_SEARCH, { query, error: error.message || 'Unknown' });
     } finally {
       setIsSearching(false);
     }
@@ -78,11 +81,13 @@ export default function GameSearchScreen() {
   const handleSelectGame = async (game: GameSearchResult) => {
     setIsLoadingDetails(true);
     setDetailsError(null);
+    trackEvent(AnalyticsEvents.SEARCH_RESULT_TAPPED, { gameId: game.id, gameName: game.name });
     
     try {
       const details = await gameSearchService.getGameDetails(game.id);
       setSelectedGame(details);
       setViewState('details');
+      trackEvent(AnalyticsEvents.SEARCH_DETAILS_VIEWED, { gameId: game.id, gameName: details.name });
     } catch (error: any) {
       setDetailsError(error.message || 'Failed to load game details');
     } finally {
@@ -104,12 +109,14 @@ export default function GameSearchScreen() {
   };
 
   const handleOpenRules = useCallback((url: string) => {
+    trackEvent(AnalyticsEvents.SEARCH_RULES_OPENED, { url });
     Linking.openURL(url).catch((err) => {
       console.error('Failed to open rules URL:', err);
     });
   }, []);
 
   const handleAskUncle = (gameName?: string) => {
+    trackEvent(AnalyticsEvents.SEARCH_ASK_UNCLE_TAPPED, { gameName: gameName || searchQuery, source: gameName ? 'details' : 'no-results' });
     if (gameName) {
       // Navigate to chat with game context
       navigation.navigate('Chat', {

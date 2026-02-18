@@ -219,10 +219,17 @@ namespace GamerUncle.Functions
         
         [Function("GameSyncTimerTriggerDev")]
         public async Task GameSyncTimerTriggerDev(
-            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 0 1 * *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
+            [Microsoft.Azure.Functions.Worker.TimerTrigger("0 0 0 1 */3 *", RunOnStartup = false)] Microsoft.Azure.Functions.Worker.TimerInfo timerInfo,
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
+            var log = context.GetLogger("GameSyncTimerTriggerDev");
+
+            // DISABLED: BGG XML API now requires Bearer token authentication.
+            // Re-enable once BggApiBearerToken is configured. See docs/bgg/sync/api_access.md
+            log.LogWarning("Dev ranked sync trigger fired but is DISABLED — BGG API requires authentication. Skipping.");
+            return;
+
             var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
             
             // Only run in development environments
@@ -230,8 +237,6 @@ namespace GamerUncle.Functions
             {
                 return;
             }
-            
-            var log = context.GetLogger("GameSyncTimerTriggerDev");
             
             // Check if this is a past due execution (e.g., after restart/deployment)
             if (timerInfo.IsPastDue)
@@ -266,6 +271,13 @@ namespace GamerUncle.Functions
             [DurableClient] DurableTaskClient client,
             FunctionContext context)
         {
+            var log = context.GetLogger("GameSyncTimerTriggerProd");
+
+            // DISABLED: BGG XML API now requires Bearer token authentication.
+            // Re-enable once BggApiBearerToken is configured. See docs/bgg/sync/api_access.md
+            log.LogWarning("Prod ranked sync trigger fired but is DISABLED — BGG API requires authentication. Skipping.");
+            return;
+
             var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
             
             // Only run in production environments
@@ -273,8 +285,6 @@ namespace GamerUncle.Functions
             {
                 return;
             }
-            
-            var log = context.GetLogger("GameSyncTimerTriggerProd");
             
             // Check if this is a past due execution (e.g., after restart/deployment)
             if (timerInfo.IsPastDue)
