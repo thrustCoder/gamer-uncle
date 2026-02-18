@@ -870,6 +870,7 @@ stages:
     - script: |
         export TEST_ENVIRONMENT=Dev
         export API_BASE_URL=https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net
+        export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
         echo "Running functional tests against Dev environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)
@@ -1286,6 +1287,7 @@ stages:
     - script: |
         export TEST_ENVIRONMENT=Prod
         export API_BASE_URL=https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net
+        export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
         echo "Running functional tests against Prod environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)
