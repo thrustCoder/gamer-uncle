@@ -956,6 +956,92 @@ stages:
         appName: 'gamer-uncle-prod-app-svc'
         package: '$(Pipeline.Workspace)/dropApi'
 
+    - task: AzureCLI@2
+      displayName: 'Configure Prod Autoscaling'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Configuring autoscaling for production App Service Plan..."
+          
+          PLAN_ID=$(az appservice plan show \
+            --name gamer-uncle-prod-app-plan \
+            --resource-group gamer-uncle-prod-rg \
+            --query "id" -o tsv 2>/dev/null)
+          
+          if [ -z "$PLAN_ID" ]; then
+            echo "❌ Could not find App Service Plan"
+            exit 1
+          fi
+          
+          PLAN_SKU=$(az appservice plan show \
+            --name gamer-uncle-prod-app-plan \
+            --resource-group gamer-uncle-prod-rg \
+            --query "sku.tier" -o tsv 2>/dev/null)
+          
+          case "$PLAN_SKU" in
+            Free|Shared|Basic)
+              echo "⚠️ Plan tier '$PLAN_SKU' does not support autoscaling. Skipping."
+              exit 0
+              ;;
+          esac
+          
+          echo "Plan tier: $PLAN_SKU — autoscaling supported"
+          
+          # Check if autoscale setting already exists
+          EXISTING=$(az monitor autoscale show \
+            --name gamer-uncle-prod-autoscale \
+            --resource-group gamer-uncle-prod-rg \
+            -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$EXISTING" ]; then
+            echo "✅ Autoscale setting already exists, updating..."
+            az monitor autoscale update \
+              --name gamer-uncle-prod-autoscale \
+              --resource-group gamer-uncle-prod-rg \
+              --min-count 2 \
+              --max-count 4 \
+              --count 2 \
+              --output none 2>/dev/null || true
+          else
+            echo "Creating autoscale setting (min=2, max=4, default=2)..."
+            az monitor autoscale create \
+              --name gamer-uncle-prod-autoscale \
+              --resource-group gamer-uncle-prod-rg \
+              --resource "$PLAN_ID" \
+              --min-count 2 \
+              --max-count 4 \
+              --count 2 \
+              --output none
+            
+            echo "Adding scale-out rule (CPU > 70% avg 5m -> +1 instance)..."
+            az monitor autoscale rule create \
+              --autoscale-name gamer-uncle-prod-autoscale \
+              --resource-group gamer-uncle-prod-rg \
+              --condition "CpuPercentage > 70 avg 5m" \
+              --scale out 1 \
+              --cooldown 5 \
+              --output none
+            
+            echo "Adding scale-in rule (CPU < 30% avg 10m -> -1 instance)..."
+            az monitor autoscale rule create \
+              --autoscale-name gamer-uncle-prod-autoscale \
+              --resource-group gamer-uncle-prod-rg \
+              --condition "CpuPercentage < 30 avg 10m" \
+              --scale in 1 \
+              --cooldown 5 \
+              --output none
+          fi
+          
+          # Verify
+          RULE_COUNT=$(az monitor autoscale show \
+            --name gamer-uncle-prod-autoscale \
+            --resource-group gamer-uncle-prod-rg \
+            --query "length(profiles[0].rules)" -o tsv 2>/dev/null)
+          
+          echo "✅ Autoscale configured: min=2, max=4, rules=$RULE_COUNT"
+
 - stage: ProdDeployFunctions
   displayName: 'Prod Deploy Functions'
   dependsOn: 

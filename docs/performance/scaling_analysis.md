@@ -43,7 +43,7 @@
 | 1 | [Three separate CosmosClient instances](#1-three-separate-cosmosclient-instances) | P0 | **9** | Connection Management | 2–4 hours | ✅ Yes |
 | 2 | [In-memory conversation thread map](#2-in-memory-conversation-thread-map) | P0 | **9** | Statefulness | 4–6 hours | ✅ Yes |
 | 3 | [No CosmosClientOptions configuration](#3-no-cosmosclientoptions-configuration) | P0 | **8** | Connection Management | 1–2 hours | ✅ Yes |
-| 4 | [No autoscaling rules](#4-no-autoscaling-rules) | P1 | **8** | Infrastructure | 2–4 hours | 🟠 No |
+| 4 | [No autoscaling rules](#4-no-autoscaling-rules) | P1 | **8** | Infrastructure | 2–4 hours | ✅ Yes |
 | 5 | [Rate limiting is per-instance](#5-rate-limiting-is-per-instance-not-distributed) | P1 | **7** | Distributed Systems | 4–8 hours | ✅ Yes |
 | 6 | [Polly referenced but not used](#6-polly-referenced-but-not-used--no-resilience-policies) | P1 | **7** | Resilience | 4–6 hours | ✅ Yes |
 | 7 | [CORS allows all origins](#7-cors-allows-all-origins) | P2 | **4** | Security | 30 min | 🟠 No |
@@ -131,7 +131,7 @@
 |---|---|
 | **Priority** | P1 |
 | **Criticality** | 8/10 |
-| **Implemented** | No |
+| **Implemented** | Yes (Feb 2026) |
 
 **Location**: Pipeline deploys to `gamer-uncle-dev-app-svc` and `gamer-uncle-prod-app-svc` with no autoscaling configuration.
 
@@ -140,6 +140,14 @@
 **Impact at scale**: A gaming recommendation app has bursty traffic (evenings/weekends). Peak concurrent usage of ~50 users sending AI-powered recommendation requests will overwhelm a single B1/S1 instance, resulting in 503 errors and high response latency.
 
 **Fix**: Configure autoscaling: minimum 2 instances, maximum 4–6, scale-out at 70% CPU. Can be done via Azure portal or CLI in ~2 hours.
+
+**Implementation**: Configured autoscaling on the production App Service Plan (`gamer-uncle-prod-app-plan`, P1v3 tier):
+- **Autoscale setting**: `gamer-uncle-prod-autoscale` with min 2, max 4, default 2 instances.
+- **Scale-out rule**: Add 1 instance when average CPU > 70% over 5 minutes (5 min cooldown).
+- **Scale-in rule**: Remove 1 instance when average CPU < 30% over 10 minutes (5 min cooldown).
+- **Pipeline integration**: `ProdDeployApi` stage includes an `AzureCLI` task that creates or verifies the autoscale setting on each deployment, ensuring the rules are maintained as infrastructure-as-code.
+- **Config script**: `scripts/configure-autoscale.ps1` for manual (re)application with `-DryRun` support.
+- **Dev note**: The dev App Service Plan (`B1/Basic`) does not support autoscaling. This is acceptable at current dev usage (~9 DAU). Upgrade to Standard (S1+) if dev autoscaling is needed in the future.
 
 ---
 
@@ -265,7 +273,7 @@ For 1,000 installed users (~150 DAU, ~50 peak concurrent):
 ### Sprint 1 — Pre-scaling (before marketing push)
 - [x] **#1 + #3**: Consolidate CosmosClient to singleton with configured options
 - [x] **#2**: Move conversation thread map to Upstash with TTL-based expiry
-- [ ] **#4**: Configure App Service autoscaling (2 min, 4–6 max)
+- [x] **#4**: Configure App Service autoscaling (2 min, 4 max) — prod only (dev is B1/Basic)
 
 ### Sprint 2 — Resilience hardening
 - [x] **#6**: Add Polly timeout + retry policies on AI agent calls
