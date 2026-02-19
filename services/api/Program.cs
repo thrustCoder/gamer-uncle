@@ -65,10 +65,18 @@ if (isValidAppInsightsConnectionString)
         });
 
     // Add traditional Application Insights as well for compatibility
+    // (needed for TelemetryClient.TrackEvent() in TelemetryController)
     builder.Services.AddApplicationInsightsTelemetry(options =>
     {
         options.ConnectionString = appInsightsConnectionString;
         options.DeveloperMode = builder.Environment.IsDevelopment();
+    });
+
+    // Configure AAD/RBAC authentication on the classic SDK's telemetry channel
+    // so that TelemetryClient.TrackEvent() calls can ingest via managed identity.
+    builder.Services.Configure<Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration>(config =>
+    {
+        config.SetAzureTokenCredential(new DefaultAzureCredential());
     });
 }
 
