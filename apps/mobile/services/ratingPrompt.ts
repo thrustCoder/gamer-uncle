@@ -1,6 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, Platform } from 'react-native';
-import * as StoreReview from 'expo-store-review';
+import { getInstalledVersion } from './AppConfigService';
+
+// expo-store-review is loaded lazily to avoid crashing when the native module
+// is not present in the current dev build (requires a rebuild to pick up).
+let StoreReview: typeof import('expo-store-review') | null = null;
+try {
+  StoreReview = require('expo-store-review');
+} catch {
+  // Native module not available in this build — fallback to store deep link
+}
 
 // ── Storage keys ───────────────────────────────────────────────
 const DISMISSED_AT_KEY = '@rating_prompt_dismissed_at';
@@ -14,10 +23,18 @@ const LAST_ACTIVE_KEY = '@telemetry_last_active';
 const COOLDOWN_DAYS = 7;
 
 // Store IDs for deep-link fallback
-const IOS_APP_STORE_URL = 'https://apps.apple.com/app/gamer-uncle/id6740017798';
+const IOS_APP_STORE_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
 const ANDROID_PLAY_STORE_URL = 'market://details?id=com.thrustCoder.gamerUncle';
 
 // ── Helpers ────────────────────────────────────────────────────
+
+/**
+ * Extract the major version number from a semver string.
+ * e.g. '3.2.7' → '3'
+ */
+const getMajorVersion = (version: string): string => {
+  return version.split('.')[0] ?? '0';
+};
 
 /**
  * Returns the number of calendar days between two dates (UTC).
@@ -35,7 +52,8 @@ const daysBetween = (a: Date, b: Date): number => {
  * Evaluate whether the rating prompt should be displayed.
  *
  * Returns `true` only when ALL of these conditions are met:
- * 1. The user has NOT previously tapped "Rate" (permanent suppression).
+ * 1. The user has NOT tapped "Rate" for the current major version.
+ *    (If the app upgrades to a new major version, the prompt reappears.)
  * 2. The user has NOT dismissed the prompt within the last 7 days.
  * 3. The user is a returning visitor (first open and last active are different calendar days).
  * 4. The user has sent at least 1 message in the current session.
@@ -52,9 +70,14 @@ export const shouldShowRatingPrompt = async (
     // Condition 5: No errors this session
     if (hasSessionErrors) return false;
 
-    // Condition 1: Not already rated
-    const rated = await AsyncStorage.getItem(RATED_KEY);
-    if (rated === 'true') return false;
+    // Condition 1: Not already rated for this major version
+    const ratedMajor = await AsyncStorage.getItem(RATED_KEY);
+    if (ratedMajor) {
+      const currentMajor = getMajorVersion(getInstalledVersion());
+      // Suppress if the stored major version matches the running one.
+      // Legacy value 'true' (pre-version-aware) also suppresses.
+      if (ratedMajor === currentMajor || ratedMajor === 'true') return false;
+    }
 
     // Condition 2: Cooldown – dismissed < 7 days ago
     const dismissedAt = await AsyncStorage.getItem(DISMISSED_AT_KEY);
@@ -98,11 +121,12 @@ export const recordDismissal = async (): Promise<void> => {
 
 /**
  * Record that the user tapped "Rate".
- * Permanently suppresses future prompts.
+ * Suppresses future prompts until the app upgrades to a new major version.
  */
 export const recordRated = async (): Promise<void> => {
   try {
-    await AsyncStorage.setItem(RATED_KEY, 'true');
+    const majorVersion = getMajorVersion(getInstalledVersion());
+    await AsyncStorage.setItem(RATED_KEY, majorVersion);
   } catch {
     // best-effort
   }
@@ -114,10 +138,12 @@ export const recordRated = async (): Promise<void> => {
  */
 export const requestStoreReview = async (): Promise<void> => {
   try {
-    const available = await StoreReview.isAvailableAsync();
-    if (available) {
-      await StoreReview.requestReview();
-      return;
+    if (StoreReview) {
+      const available = await StoreReview.isAvailableAsync();
+      if (available) {
+        await StoreReview.requestReview();
+        return;
+      }
     }
   } catch {
     // Native review not available, fall through to deep link
@@ -130,6 +156,16 @@ export const requestStoreReview = async (): Promise<void> => {
   } catch {
     // Can't open store — silently fail
   }
+};
+
+/**
+ * In __DEV__ mode, clear persisted rating state so the banner can
+ * be triggered again on every fresh app load. No-op in production.
+ */
+export const resetRatingStateForDev = async (): Promise<void> => {
+  if (!__DEV__) return;
+  await AsyncStorage.removeItem(DISMISSED_AT_KEY);
+  await AsyncStorage.removeItem(RATED_KEY);
 };
 
 // ── Test helpers ────────────────────────────────────────────────
@@ -152,3 +188,6 @@ export const _constants = {
   LAST_ACTIVE_KEY,
   COOLDOWN_DAYS,
 } as const;
+
+/** Exposed for tests. */
+export const _getMajorVersion = getMajorVersion;

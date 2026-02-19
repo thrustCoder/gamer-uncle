@@ -180,11 +180,13 @@ jest.mock('expo-av', () => ({
 
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
+  __esModule: true,
   default: {
     expoConfig: {
       extra: {},
+      version: '3.2.7',
     },
-    appVersion: '1.0.0',
+    appVersion: '3.2.7',
   },
 }));
 

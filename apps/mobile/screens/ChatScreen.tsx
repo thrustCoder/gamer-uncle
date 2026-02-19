@@ -27,7 +27,7 @@ import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker'
 import { debugLogger } from '../utils/debugLogger';
 import { useChat, ChatMessage } from '../store/ChatContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
-import { shouldShowRatingPrompt, recordDismissal, recordRated, requestStoreReview } from '../services/ratingPrompt';
+import { shouldShowRatingPrompt, recordDismissal, recordRated, requestStoreReview, resetRatingStateForDev } from '../services/ratingPrompt';
 import RatingBanner from '../components/RatingBanner';
 
 // Define route params type for Chat screen
@@ -510,6 +510,11 @@ export default function ChatScreen() {
       }
     };
     checkPerms();
+  }, []);
+
+  // ── Dev-mode: clear persisted rating state on mount ──────────
+  useEffect(() => {
+    resetRatingStateForDev();
   }, []);
 
   // ── Rating prompt evaluation ─────────────────────────────────

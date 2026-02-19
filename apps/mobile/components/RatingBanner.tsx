@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -23,10 +23,12 @@ export interface RatingBannerProps {
 export default function RatingBanner({ visible, onRate, onDismiss }: RatingBannerProps) {
   const slideAnim = useRef(new Animated.Value(-80)).current; // start off-screen
   const isShowing = useRef(false);
+  const [renderBanner, setRenderBanner] = useState(false);
 
   useEffect(() => {
     if (visible && !isShowing.current) {
       isShowing.current = true;
+      setRenderBanner(true);
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 300,
@@ -38,17 +40,19 @@ export default function RatingBanner({ visible, onRate, onDismiss }: RatingBanne
         );
       });
     } else if (!visible && isShowing.current) {
-      isShowing.current = false;
       Animated.timing(slideAnim, {
         toValue: -80,
         duration: 200,
         useNativeDriver: true,
-      }).start();
+      }).start(() => {
+        // Only unmount after slide-out animation completes
+        isShowing.current = false;
+        setRenderBanner(false);
+      });
     }
   }, [visible, slideAnim]);
 
-  // Always render to allow slide-out animation; keep hidden until first show
-  if (!visible && !isShowing.current) return null;
+  if (!renderBanner) return null;
 
   return (
     <Animated.View

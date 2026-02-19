@@ -3,8 +3,10 @@ import {
   shouldShowRatingPrompt,
   recordDismissal,
   recordRated,
+  resetRatingStateForDev,
   _resetForTesting,
   _constants,
+  _getMajorVersion,
 } from '../services/ratingPrompt';
 
 // AsyncStorage is auto-mocked by jest-expo / __mocks__
@@ -59,8 +61,27 @@ describe('ratingPrompt', () => {
       expect(result).toBe(true);
     });
 
-    it('returns false when already rated', async () => {
+    it('returns false when already rated for the current major version', async () => {
       await setupReturningUser();
+      // Stored major version matches current (mock is 3.2.7 → major '3')
+      await AsyncStorage.setItem(_constants.RATED_KEY, '3');
+
+      const result = await shouldShowRatingPrompt(2, false);
+      expect(result).toBe(false);
+    });
+
+    it('returns true when rated for a previous major version (app upgraded)', async () => {
+      await setupReturningUser();
+      // Rated on major version 2, but current is 3.x.y
+      await AsyncStorage.setItem(_constants.RATED_KEY, '2');
+
+      const result = await shouldShowRatingPrompt(2, false);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when legacy rated value "true" is stored', async () => {
+      await setupReturningUser();
+      // Pre-version-aware flag
       await AsyncStorage.setItem(_constants.RATED_KEY, 'true');
 
       const result = await shouldShowRatingPrompt(2, false);
@@ -151,14 +172,15 @@ describe('ratingPrompt', () => {
   // ── recordRated ────────────────────────────────────────────
 
   describe('recordRated', () => {
-    it('sets the rated flag to "true"', async () => {
+    it('stores the current major version', async () => {
       await recordRated();
 
       const stored = await AsyncStorage.getItem(_constants.RATED_KEY);
-      expect(stored).toBe('true');
+      // Mock expo-constants version is 3.2.7 → major '3'
+      expect(stored).toBe('3');
     });
 
-    it('permanently suppresses the prompt', async () => {
+    it('suppresses the prompt for the same major version', async () => {
       // Set up a returning user who would normally see the prompt
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
@@ -174,9 +196,23 @@ describe('ratingPrompt', () => {
       // Before rating: should show
       expect(await shouldShowRatingPrompt(2, false)).toBe(true);
 
-      // After rating: should NOT show
+      // After rating: should NOT show (same major version)
       await recordRated();
       expect(await shouldShowRatingPrompt(2, false)).toBe(false);
+    });
+  });
+
+  // ── resetRatingStateForDev ──────────────────────────────────
+
+  describe('resetRatingStateForDev', () => {
+    it('clears rated and dismissed keys in dev mode', async () => {
+      await AsyncStorage.setItem(_constants.RATED_KEY, 'true');
+      await AsyncStorage.setItem(_constants.DISMISSED_AT_KEY, new Date().toISOString());
+
+      await resetRatingStateForDev();
+
+      expect(await AsyncStorage.getItem(_constants.RATED_KEY)).toBeNull();
+      expect(await AsyncStorage.getItem(_constants.DISMISSED_AT_KEY)).toBeNull();
     });
   });
 
@@ -185,12 +221,26 @@ describe('ratingPrompt', () => {
   describe('_resetForTesting', () => {
     it('clears dismissed_at and rated keys', async () => {
       await AsyncStorage.setItem(_constants.DISMISSED_AT_KEY, 'some-date');
-      await AsyncStorage.setItem(_constants.RATED_KEY, 'true');
+      await AsyncStorage.setItem(_constants.RATED_KEY, '3');
 
       await _resetForTesting();
 
       expect(await AsyncStorage.getItem(_constants.DISMISSED_AT_KEY)).toBeNull();
       expect(await AsyncStorage.getItem(_constants.RATED_KEY)).toBeNull();
+    });
+  });
+
+  // ── _getMajorVersion ─────────────────────────────────────
+
+  describe('_getMajorVersion', () => {
+    it('extracts major version from semver string', () => {
+      expect(_getMajorVersion('3.2.7')).toBe('3');
+      expect(_getMajorVersion('4.0.0')).toBe('4');
+      expect(_getMajorVersion('10.1.2')).toBe('10');
+    });
+
+    it('returns "0" for empty or malformed input', () => {
+      expect(_getMajorVersion('')).toBe('');
     });
   });
 });
