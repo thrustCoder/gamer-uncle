@@ -62,6 +62,11 @@ export const AnalyticsEvents = {
   SEARCH_RULES_OPENED: 'Search.Rules.Opened',
   SEARCH_ASK_UNCLE_TAPPED: 'Search.AskUncle.Tapped',
 
+  // ── Rating Prompt ─────────────────────────────────────────────
+  RATING_PROMPT_SHOWN: 'Rating.Prompt.Shown',
+  RATING_PROMPT_RATED: 'Rating.Prompt.Rated',
+  RATING_PROMPT_DISMISSED: 'Rating.Prompt.Dismissed',
+
   // ── Errors ───────────────────────────────────────────────────
   ERROR_API: 'Error.Api',
   ERROR_VOICE: 'Error.Voice',

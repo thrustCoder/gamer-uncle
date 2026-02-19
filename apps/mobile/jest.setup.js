@@ -196,3 +196,9 @@ jest.mock('react-native-svg', () => ({
   G: 'G',
   Text: 'Text',
 }));
+
+// Mock expo-store-review
+jest.mock('expo-store-review', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(false)),
+  requestReview: jest.fn(() => Promise.resolve()),
+}));
