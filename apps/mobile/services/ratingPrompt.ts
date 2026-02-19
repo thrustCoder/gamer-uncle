@@ -65,14 +65,17 @@ export const shouldShowRatingPrompt = async (
     }
 
     // Condition 3: Multi-session user (first open ≠ last active, calendar-day-wise)
-    const firstOpen = await AsyncStorage.getItem(FIRST_OPEN_KEY);
-    const lastActive = await AsyncStorage.getItem(LAST_ACTIVE_KEY);
+    // In dev mode, skip this check so the banner can be triggered with a single message.
+    if (!__DEV__) {
+      const firstOpen = await AsyncStorage.getItem(FIRST_OPEN_KEY);
+      const lastActive = await AsyncStorage.getItem(LAST_ACTIVE_KEY);
 
-    if (!firstOpen || !lastActive) return false;
+      if (!firstOpen || !lastActive) return false;
 
-    const firstDate = new Date(firstOpen);
-    const lastDate = new Date(lastActive);
-    if (daysBetween(firstDate, lastDate) === 0) return false;
+      const firstDate = new Date(firstOpen);
+      const lastDate = new Date(lastActive);
+      if (daysBetween(firstDate, lastDate) === 0) return false;
+    }
 
     return true;
   } catch {
