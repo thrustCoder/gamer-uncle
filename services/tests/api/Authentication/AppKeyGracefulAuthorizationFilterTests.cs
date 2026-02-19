@@ -1,3 +1,6 @@
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Channel;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +22,9 @@ namespace GamerUncle.Api.Tests.Authentication
         private const string AppKeyHeaderName = "X-GamerUncle-AppKey";
         private const string DeprecatedResponseHeader = "X-AppKey-Deprecated";
 
-        private static AppKeyGracefulAuthorizationFilter CreateFilter(
+        private readonly MockTelemetryChannel _channel = new();
+
+        private AppKeyGracefulAuthorizationFilter CreateFilter(
             string? configuredAppKey = ValidAppKey,
             bool isTestEnvironment = false)
         {
@@ -34,10 +39,18 @@ namespace GamerUncle.Api.Tests.Authentication
             environmentMock.Setup(e => e.EnvironmentName)
                 .Returns(isTestEnvironment ? "Testing" : "Development");
 
+            var telemetryConfig = new TelemetryConfiguration
+            {
+                TelemetryChannel = _channel,
+                ConnectionString = "InstrumentationKey=test-key-00000000-0000-0000-0000-000000000000"
+            };
+            var telemetryClient = new TelemetryClient(telemetryConfig);
+
             return new AppKeyGracefulAuthorizationFilter(
                 configurationMock.Object,
                 loggerMock.Object,
-                environmentMock.Object);
+                environmentMock.Object,
+                telemetryClient);
         }
 
         private static ActionExecutingContext CreateActionContext(
@@ -322,6 +335,97 @@ namespace GamerUncle.Api.Tests.Authentication
             Assert.False(nextCalled);
             Assert.IsType<UnauthorizedObjectResult>(context.Result);
             Assert.False(context.HttpContext.Response.Headers.ContainsKey(DeprecatedResponseHeader));
+        }
+
+        /// <summary>
+        /// In-memory telemetry channel for capturing sent items in tests.
+        /// </summary>
+        private class MockTelemetryChannel : ITelemetryChannel
+        {
+            public List<ITelemetry> SentItems { get; } = new();
+            public bool? DeveloperMode { get; set; }
+            public string EndpointAddress { get; set; } = "";
+
+            public void Dispose() { }
+            public void Flush() { }
+            public void Send(ITelemetry item) => SentItems.Add(item);
+        }
+
+        // ── Structured telemetry event tests ─────────────────────────────
+
+        [Fact]
+        public async Task OnActionExecutionAsync_ValidKey_TracksEventWithValidOutcome()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext(ValidAppKey);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert
+            var eventItem = _channel.SentItems.OfType<Microsoft.ApplicationInsights.DataContracts.EventTelemetry>()
+                .FirstOrDefault(e => e.Name == "AppKey.GraceModeRequest");
+            Assert.NotNull(eventItem);
+            Assert.Equal("Valid", eventItem!.Properties["Outcome"]);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_MissingKey_TracksEventWithMissingOutcome()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext(appKeyHeader: null);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert
+            var eventItem = _channel.SentItems.OfType<Microsoft.ApplicationInsights.DataContracts.EventTelemetry>()
+                .FirstOrDefault(e => e.Name == "AppKey.GraceModeRequest");
+            Assert.NotNull(eventItem);
+            Assert.Equal("Missing", eventItem!.Properties["Outcome"]);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_InvalidKey_TracksEventWithInvalidOutcome()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext("wrong-key");
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert
+            var eventItem = _channel.SentItems.OfType<Microsoft.ApplicationInsights.DataContracts.EventTelemetry>()
+                .FirstOrDefault(e => e.Name == "AppKey.GraceModeRequest");
+            Assert.NotNull(eventItem);
+            Assert.Equal("Invalid", eventItem!.Properties["Outcome"]);
+            Assert.Contains("Path", eventItem.Properties.Keys);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_TestEnvironment_DoesNotTrackEvent()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey, isTestEnvironment: true);
+            var context = CreateActionContext(appKeyHeader: null);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert — no events in test env
+            var eventItems = _channel.SentItems.OfType<Microsoft.ApplicationInsights.DataContracts.EventTelemetry>().ToList();
+            Assert.Empty(eventItems);
         }
     }
 }

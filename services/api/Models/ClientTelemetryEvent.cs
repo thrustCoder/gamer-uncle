@@ -36,5 +36,8 @@ namespace GamerUncle.Api.Models
 
         /// <summary>Client platform (ios / android / web).</summary>
         public string? Platform { get; set; }
+
+        /// <summary>Client app version (e.g. "3.2.7").</summary>
+        public string? AppVersion { get; set; }
     }
 }

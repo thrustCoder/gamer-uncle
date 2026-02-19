@@ -157,6 +157,7 @@ describe('Telemetry Service', () => {
       expect(testEvent!.deviceId).toBeTruthy();
       expect(testEvent!.platform).toBeTruthy();
       expect(testEvent!.timestamp).toBeTruthy();
+      expect(testEvent!.appVersion).toBeTruthy();
     });
 
     it('should persist queue to AsyncStorage', async () => {
@@ -284,6 +285,12 @@ describe('Telemetry Service', () => {
       expect(AnalyticsEvents.RATING_PROMPT_SHOWN).toBe('Rating.Prompt.Shown');
       expect(AnalyticsEvents.RATING_PROMPT_RATED).toBe('Rating.Prompt.Rated');
       expect(AnalyticsEvents.RATING_PROMPT_DISMISSED).toBe('Rating.Prompt.Dismissed');
+    });
+
+    it('should include upgrade funnel events', () => {
+      expect(AnalyticsEvents.UPGRADE_PROMPTED).toBe('Upgrade.Prompted');
+      expect(AnalyticsEvents.UPGRADE_ACCEPTED).toBe('Upgrade.Accepted');
+      expect(AnalyticsEvents.UPGRADE_DISMISSED).toBe('Upgrade.Dismissed');
     });
   });
 });

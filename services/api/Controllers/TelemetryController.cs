@@ -53,6 +53,7 @@ namespace GamerUncle.Api.Controllers
                     ["SessionId"] = evt.SessionId ?? string.Empty,
                     ["DeviceId"] = evt.DeviceId ?? string.Empty,
                     ["ClientPlatform"] = evt.Platform ?? string.Empty,
+                    ["AppVersion"] = evt.AppVersion ?? string.Empty,
                 };
 
                 // Merge caller-supplied properties

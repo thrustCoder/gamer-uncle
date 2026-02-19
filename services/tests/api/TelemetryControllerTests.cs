@@ -126,7 +126,8 @@ namespace GamerUncle.Api.Tests
                         SessionId = "sess-abc",
                         DeviceId = "dev-xyz",
                         Platform = "android",
-                        Timestamp = "2026-02-17T12:00:00Z"
+                        Timestamp = "2026-02-17T12:00:00Z",
+                        AppVersion = "3.2.7"
                     }
                 }
             };
@@ -144,6 +145,7 @@ namespace GamerUncle.Api.Tests
             Assert.Equal("sess-abc", telemetryItem.Properties["SessionId"]);
             Assert.Equal("dev-xyz", telemetryItem.Properties["DeviceId"]);
             Assert.Equal("android", telemetryItem.Properties["ClientPlatform"]);
+            Assert.Equal("3.2.7", telemetryItem.Properties["AppVersion"]);
         }
 
         [Fact]
