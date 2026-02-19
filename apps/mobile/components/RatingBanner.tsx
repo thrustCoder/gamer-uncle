@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
   Platform,
   AccessibilityInfo,
@@ -55,13 +56,19 @@ export default function RatingBanner({ visible, onRate, onDismiss }: RatingBanne
   if (!renderBanner) return null;
 
   return (
-    <Animated.View
-      style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
-      testID="rating-banner"
-      {...(Platform.OS === 'web' && { 'data-testid': 'rating-banner' })}
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
-    >
+    <>
+      {/* Translucent backdrop — tap anywhere outside the banner to dismiss */}
+      <TouchableWithoutFeedback onPress={onDismiss} testID="rating-banner-backdrop">
+        <View style={styles.backdrop} />
+      </TouchableWithoutFeedback>
+
+      <Animated.View
+        style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+        testID="rating-banner"
+        {...(Platform.OS === 'web' && { 'data-testid': 'rating-banner' })}
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+      >
       <Text style={styles.starEmoji}>⭐</Text>
 
       <Text style={styles.promptText}>Enjoying Gamer Uncle? Rate us!</Text>
@@ -85,7 +92,8 @@ export default function RatingBanner({ visible, onRate, onDismiss }: RatingBanne
       >
         <Text style={styles.dismissText}>✕</Text>
       </TouchableOpacity>
-    </Animated.View>
+      </Animated.View>
+    </>
   );
 }
 
@@ -131,13 +139,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
+    zIndex: 4,
+  },
   dismissButton: {
     marginLeft: 8,
-    padding: 4,
+    padding: 8,
   },
   dismissText: {
-    fontSize: 16,
+    fontSize: 20,
     color: Colors.grayDark,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

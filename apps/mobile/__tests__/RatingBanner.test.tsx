@@ -79,4 +79,14 @@ describe('RatingBanner', () => {
 
     expect(getByText('⭐')).toBeTruthy();
   });
+
+  it('calls onDismiss when backdrop is tapped', () => {
+    const onDismiss = jest.fn();
+    const { getByTestId } = render(
+      <RatingBanner {...defaultProps} onDismiss={onDismiss} />,
+    );
+
+    fireEvent.press(getByTestId('rating-banner-backdrop'));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
 });
