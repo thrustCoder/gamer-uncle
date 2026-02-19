@@ -57,11 +57,46 @@ namespace GamerUncle.Api.Tests.Configuration
             {
                 // Act — mirrors the fallback logic in Program.cs
                 var configValue = configuration["ApplicationInsights:ConnectionString"];
-                var resolved = !string.IsNullOrEmpty(configValue)
-                    ? configValue
-                    : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+                var resolved =
+                    (!string.IsNullOrEmpty(configValue) && !configValue.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
+                        ? configValue
+                        : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
 
                 // Assert
+                Assert.Equal(envVarValue, resolved);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING", null);
+            }
+        }
+
+        [Fact]
+        public void ConnectionString_FallsBackToEnvVar_WhenConfigIsKeyVaultReference()
+        {
+            // Arrange — simulates what happens when appsettings.Production.json has a KV reference
+            // that App Service does NOT resolve (it only resolves KV refs in App Settings, not appsettings.json)
+            var kvRef = "@Microsoft.KeyVault(SecretUri=https://gamer-uncle-prod-vault.vault.azure.net/secrets/AppInsightsConnectionString)";
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ApplicationInsights:ConnectionString"] = kvRef
+                })
+                .Build();
+
+            var envVarValue = "InstrumentationKey=real-key-from-env";
+            Environment.SetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING", envVarValue);
+
+            try
+            {
+                // Act — mirrors the fallback logic in Program.cs
+                var configValue = configuration["ApplicationInsights:ConnectionString"];
+                var resolved =
+                    (!string.IsNullOrEmpty(configValue) && !configValue.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
+                        ? configValue
+                        : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+
+                // Assert — should fall through to env var, NOT use the literal KV reference
                 Assert.Equal(envVarValue, resolved);
             }
             finally
@@ -88,11 +123,12 @@ namespace GamerUncle.Api.Tests.Configuration
             {
                 // Act — mirrors the fallback logic in Program.cs
                 var configValue = configuration["ApplicationInsights:ConnectionString"];
-                var resolved = !string.IsNullOrEmpty(configValue)
-                    ? configValue
-                    : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+                var resolved =
+                    (!string.IsNullOrEmpty(configValue) && !configValue.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
+                        ? configValue
+                        : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
 
-                // Assert — config value wins
+                // Assert — config value wins (it's a real connection string, not a KV ref)
                 Assert.Equal(configConnStr, resolved);
             }
             finally

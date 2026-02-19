@@ -32,9 +32,14 @@ authValidator.ValidateConfiguration(builder.Configuration);
 
 // Configure Application Insights with RBAC (Managed Identity)
 // Check appsettings first, then fall back to APPLICATIONINSIGHTS_CONNECTION_STRING env var
-// (set automatically by Azure App Service when App Insights is attached)
-var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
-    ?? Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+// (set automatically by Azure App Service when App Insights is attached).
+// Note: App Service only resolves @Microsoft.KeyVault(...) for App Settings, NOT for
+// values inside appsettings.json files. So we must also check the env var.
+var configConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+var appInsightsConnectionString =
+    (!string.IsNullOrEmpty(configConnectionString) && !configConnectionString.StartsWith("@Microsoft.KeyVault", StringComparison.OrdinalIgnoreCase))
+        ? configConnectionString
+        : Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
 
 // Validate the connection string contains the required InstrumentationKey before use.
 // This guards against environment variable overrides providing a non-empty but invalid string
