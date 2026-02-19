@@ -754,7 +754,7 @@ stages:
 
     - script: |
         echo "Starting API in background with Testing environment..."
-        ASPNETCORE_ENVIRONMENT=Testing dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --urls "http://localhost:5000" &
+        ASPNETCORE_ENVIRONMENT=Testing AGENT_USE_FAKE=true dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --urls "http://localhost:5000" &
         API_PID=$!
         echo "API PID: $API_PID"
         

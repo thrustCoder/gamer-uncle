@@ -35,7 +35,13 @@ authValidator.ValidateConfiguration(builder.Configuration);
 // (set automatically by Azure App Service when App Insights is attached)
 var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
     ?? Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
-if (!string.IsNullOrEmpty(appInsightsConnectionString))
+
+// Validate the connection string contains the required InstrumentationKey before use.
+// This guards against environment variable overrides providing a non-empty but invalid string
+// (e.g. pipeline agents that inject partial connection strings).
+var isValidAppInsightsConnectionString = !string.IsNullOrEmpty(appInsightsConnectionString)
+    && appInsightsConnectionString.Contains("InstrumentationKey=", StringComparison.OrdinalIgnoreCase);
+if (isValidAppInsightsConnectionString)
 {
     // Use OpenTelemetry with Azure Monitor for modern telemetry
     builder.Services.AddOpenTelemetry()

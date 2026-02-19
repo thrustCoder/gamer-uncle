@@ -37,6 +37,24 @@ namespace GamerUncle.Pipeline.Tests
         }
 
         [TestMethod]
+        public void FunctionalTestsPR_ShouldUseFakeAgent()
+        {
+            // The PR functional tests run without Azure credentials, so the API must
+            // use FakeAgentServiceClient (AGENT_USE_FAKE=true) to avoid startup failures.
+            var pipelineContent = File.ReadAllText(_pipelineConfigPath);
+
+            // Find the FunctionalTestsPR stage section
+            var stageStart = pipelineContent.IndexOf("stage: FunctionalTestsPR");
+            Assert.IsTrue(stageStart >= 0, "Pipeline should have FunctionalTestsPR stage");
+
+            // Look for AGENT_USE_FAKE=true in the API start command within this stage
+            var stageSection = pipelineContent.Substring(stageStart, 
+                Math.Min(3000, pipelineContent.Length - stageStart));
+            Assert.IsTrue(stageSection.Contains("AGENT_USE_FAKE=true"),
+                "FunctionalTestsPR API startup must include AGENT_USE_FAKE=true since the pipeline agent has no Azure credentials");
+        }
+
+        [TestMethod]
         public void DevTest_ShouldDependOnDevBuild()
         {
             // Arrange

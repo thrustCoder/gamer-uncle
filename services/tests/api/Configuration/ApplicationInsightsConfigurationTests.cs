@@ -113,6 +113,26 @@ namespace GamerUncle.Api.Tests.Configuration
             Assert.Equal(expectedNonEmpty, !string.IsNullOrEmpty(value));
         }
 
+        [Theory]
+        [InlineData(null, false)]
+        [InlineData("", false)]
+        [InlineData("InstrumentationKey=test-key", true)]
+        [InlineData("InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://westus-0.in.applicationinsights.azure.com/", true)]
+        [InlineData("instrumentationkey=case-insensitive", true)]
+        [InlineData("some-random-string-without-key", false)]
+        [InlineData("IngestionEndpoint=https://example.com/", false)]
+        [InlineData("@Microsoft.KeyVault(SecretUri=https://vault.azure.net/secrets/AppInsights)", false)]
+        public void ConnectionString_InstrumentationKeyValidation_MatchesProgramCs(string? value, bool expectedValid)
+        {
+            // This mirrors the validation guard added in Program.cs:
+            //   !string.IsNullOrEmpty(value) && value.Contains("InstrumentationKey=", OrdinalIgnoreCase)
+            // A Key Vault reference is NOT a valid connection string — it must be resolved first.
+            var isValid = !string.IsNullOrEmpty(value)
+                && value.Contains("InstrumentationKey=", StringComparison.OrdinalIgnoreCase);
+
+            Assert.Equal(expectedValid, isValid);
+        }
+
         [Fact]
         public void ProductionConfig_ShouldContainKeyVaultReference()
         {
@@ -171,6 +191,61 @@ namespace GamerUncle.Api.Tests.Configuration
             Assert.Contains("@Microsoft.KeyVault", connectionString!,
                 StringComparison.OrdinalIgnoreCase);
             Assert.Contains("AppInsightsConnectionString", connectionString!);
+        }
+
+        [Fact]
+        public void TestingConfig_ShouldDisableCriteriaCache()
+        {
+            // The Testing environment runs in CI/CD without Azure credentials.
+            // CriteriaCache must be disabled to avoid Key Vault resolution failures.
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(FindApiProjectRoot())
+                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.Testing.json", optional: false)
+                .Build();
+
+            // Act
+            var cacheEnabled = configuration.GetValue<bool>("CriteriaCache:Enabled");
+
+            // Assert — cache disabled in Testing
+            Assert.False(cacheEnabled,
+                "CriteriaCache:Enabled must be false in Testing environment to avoid Key Vault resolution failures in CI/CD.");
+        }
+
+        [Fact]
+        public void TestingConfig_ShouldHaveEmptyAppInsightsConnectionString()
+        {
+            // The Testing environment must not configure real Application Insights.
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(FindApiProjectRoot())
+                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.Testing.json", optional: false)
+                .Build();
+
+            // Act
+            var connectionString = configuration["ApplicationInsights:ConnectionString"];
+
+            // Assert — should be empty for CI/CD safety
+            Assert.True(string.IsNullOrEmpty(connectionString),
+                "Testing ApplicationInsights:ConnectionString must be empty to prevent startup crashes in CI/CD.");
+        }
+
+        [Fact]
+        public void TestingConfig_ShouldDisableHttpsRedirection()
+        {
+            // Pipeline agents run HTTP, not HTTPS.
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(FindApiProjectRoot())
+                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.Testing.json", optional: false)
+                .Build();
+
+            // Act
+            var disableHttps = configuration.GetValue<bool>("DisableHttpsRedirection");
+
+            // Assert
+            Assert.True(disableHttps,
+                "DisableHttpsRedirection must be true in Testing environment for pipeline HTTP endpoints.");
         }
 
         /// <summary>
