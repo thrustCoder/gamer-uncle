@@ -14,8 +14,10 @@ import { Audio } from 'expo-av';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import RatingModal from '../components/RatingModal';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
+import { useRatingPrompt } from '../hooks/useRatingPrompt';
 
 const MAX_PLAYERS = 20;
 
@@ -26,6 +28,10 @@ export default function TeamRandomizerScreen() {
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
   const hasRandomizedOnce = useRef(false);
+
+  // Rating prompt
+  const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
+    useRatingPrompt('teamRandomizer');
   
   // Animation values for celebration
   const celebrationScale = useRef(new Animated.Value(0)).current;
@@ -148,6 +154,9 @@ export default function TeamRandomizerScreen() {
     }
     const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/fanfare.mp3'));
     await sound.playAsync();
+
+    // Track engagement for rating prompt
+    await trackEngagement();
   };
 
   // hydrate cache on mount
@@ -313,7 +322,10 @@ export default function TeamRandomizerScreen() {
             </Text>
           </Animated.View>
         )}
-      </View>
-    </ImageBackground>
+      </View>      <RatingModal
+        visible={showRatingModal}
+        onRate={handleRate}
+        onDismiss={handleDismiss}
+      />    </ImageBackground>
   );
 }

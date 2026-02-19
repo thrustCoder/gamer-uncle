@@ -1,8 +1,46 @@
 # Rating Prompt — Implementation Plan
 
+## Rating Prompt Overview — All Features
+
+The table below provides a single view of the rating prompt lifecycle across every feature.
+
+### Trigger Criteria & Thresholds
+
+| Feature | Trigger Action | Threshold (Prod) | Threshold (Dev) | Counter Type | Storage Key |
+|---|---|---|---|---|---|
+| **Chat** | User sends a message + AI responds | > 1 message (session) | ≥ 1 message (session) | Per-session (in-memory) | N/A (in-memory `sessionMessageCount`) |
+| **Score Tracker — Leaderboard** | User adds a leaderboard entry | ≥ 2 entries (cumulative) | ≥ 1 entry (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_scoreTracker_leaderboard` |
+| **Score Tracker — Game Score** | User adds a round | ≥ 2 rounds (cumulative) | ≥ 1 round (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_scoreTracker_gameScore` |
+| **Turn Selector** | User spins the wheel | ≥ 3 spins (cumulative) | ≥ 1 spin (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_turnSelector` |
+| **Game Search** | Successful game details loaded | ≥ 3 successful lookups (cumulative) | ≥ 1 lookup (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_gameSearch` |
+| **Team Randomizer** | User generates random teams | ≥ 3 randomizations (cumulative) | ≥ 1 randomization (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_teamRandomizer` |
+| **Game Setup** | User clicks "Get Game Setup" and gets a response | ≥ 3 successful setups (cumulative) | ≥ 1 setup (cumulative) | Cumulative (AsyncStorage) | `@rating_engagement_gameSetup` |
+
+### Global Suppression Rules
+
+| Rule | Behavior | Dev Override |
+|---|---|---|
+| **Rated for current major version** | Suppressed until app upgrades to next major version (e.g., 3.x → 4.x) | Auto-cleared on app load |
+| **Dismissed** | 7-day cooldown from dismiss timestamp | Auto-cleared on app load |
+| **Multi-session requirement** | Must have opened app on ≥ 2 different calendar days | Bypassed in dev |
+| **Counter reset on prompt shown** | All cumulative counters reset to 0 when prompt is displayed | Same |
+
+### UX by Feature
+
+| Feature | UX Style | Trigger Timing |
+|---|---|---|
+| **Chat** | Dismissible **banner** at top of chat | 2 seconds after AI response |
+| **Score Tracker** | Centered **modal popup** | Immediately after saving score/round |
+| **Turn Selector** | Centered **modal popup** | After spin animation completes |
+| **Game Search** | Centered **modal popup** | After game details load successfully |
+| **Team Randomizer** | Centered **modal popup** | After randomize animation completes |
+| **Game Setup** | Centered **modal popup** | After setup response renders |
+
+---
+
 ## Overview
 
-Nudge engaged users to rate **Gamer Uncle** on the App Store / Play Store after a positive interaction in the chat screen. The prompt is conservative by design: it targets returning users who have demonstrated multi-session engagement, appears as a dismissible banner (non-modal), and respects a 7-day cooldown after dismissal.
+Nudge engaged users to rate **Gamer Uncle** on the App Store / Play Store after positive interactions across all app features. The prompt is conservative by design: it targets returning users who have demonstrated engagement, uses a banner in chat and a modal popup in other screens, and respects a 7-day cooldown after dismissal.
 
 ---
 
@@ -10,7 +48,7 @@ Nudge engaged users to rate **Gamer Uncle** on the App Store / Play Store after 
 
 | Decision | Choice |
 |---|---|
-| **Trigger** | Multi-session engagement — user has opened the app in **≥ 2 separate sessions** AND has **sent ≥ 1 chat message** in the current session |
+| **Trigger** | Multi-session engagement — user has opened the app in **≥ 2 separate sessions** AND has **sent > 1 chat message** (at least 2 messages) in the current session |
 | **UX** | Dismissible **banner at the top** of the chat screen |
 | **Suppression** | 7-day cooldown after dismissal; permanent suppression after the user taps "Rate" |
 | **Store API** | `expo-store-review` (native in-app review) with fallback to deep-link to the store listing |
@@ -22,7 +60,7 @@ Nudge engaged users to rate **Gamer Uncle** on the App Store / Play Store after 
 The rating prompt should appear when **all** of the following are true:
 
 1. **Multi-session user** — the telemetry `@telemetry_last_active` key shows at least one prior session on a different calendar day (i.e., the user is a return visitor).
-2. **Current-session engagement** — the user has sent **at least 1 message** in the current session (tracked locally via a counter in `ChatScreen`).
+2. **Current-session engagement** — the user has sent **more than 1 message** (at least 2 messages) in the current session (tracked locally via a counter in `ChatScreen`).
 3. **No API errors this session** — if an `Error.Api` event has been tracked in this session, suppress the prompt (no "rate us" after a broken experience).
 4. **Cooldown respected** — the last dismissal was > 7 days ago (or never dismissed).
 5. **Not already rated** — the user has not previously tapped "Rate" (tracked in AsyncStorage).
@@ -89,7 +127,7 @@ requestStoreReview(): Promise<void>          // expo-store-review → fallback
   - Reads `@rating_prompt_rated` — if `"true"`, return `false`.
   - Reads `@rating_prompt_dismissed_at` — if < 7 days ago, return `false`.
   - Reads `@telemetry_first_open` and `@telemetry_last_active` — if they are on the **same calendar day**, return `false` (first-session user).
-  - Accepts a `sessionMessageCount: number` param — if `0`, return `false`.
+  - Accepts a `sessionMessageCount: number` param — if `<= 1`, return `false` (requires at least 2 messages).
   - Accepts a `hasSessionErrors: boolean` param — if `true`, return `false`.
   - Otherwise return `true`.
 
@@ -126,12 +164,13 @@ Unit tests for `ratingPrompt.ts`:
 | Test Case | Setup | Expected |
 |---|---|---|
 | First-session user → no prompt | `first_open === last_active` (same day) | `false` |
-| Returning user, 1+ messages, no errors → prompt | Different days, messageCount=2, noErrors | `true` |
+| Returning user, 2+ messages, no errors → prompt | Different days, messageCount=2, noErrors | `true` |
 | Already rated → no prompt | `@rating_prompt_rated = "true"` | `false` |
 | Dismissed < 7 days ago → no prompt | `dismissed_at` = 3 days ago | `false` |
 | Dismissed > 7 days ago → prompt | `dismissed_at` = 8 days ago | `true` |
 | Has session errors → no prompt | `hasSessionErrors = true` | `false` |
 | Zero messages → no prompt | `sessionMessageCount = 0` | `false` |
+| One message → no prompt | `sessionMessageCount = 1` | `false` |
 
 #### 4. `apps/mobile/__tests__/RatingBanner.test.tsx` (new)
 
@@ -170,8 +209,8 @@ c. **Set `hasSessionErrors` to `true`** in the API error catch block.
 d. **Evaluate and show the banner** after a successful AI response is rendered. Add a `useEffect` that watches for new system messages:
 ```typescript
 useEffect(() => {
-  // Only evaluate after we have a new AI response
-  if (sessionMessageCount === 0) return;
+  // Only evaluate after we have enough messages (> 1)
+  if (sessionMessageCount <= 1) return;
   
   const timer = setTimeout(async () => {
     const shouldShow = await shouldShowRatingPrompt(sessionMessageCount, hasSessionErrors);

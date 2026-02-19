@@ -4,6 +4,11 @@ import {
   recordDismissal,
   recordRated,
   resetRatingStateForDev,
+  incrementEngagement,
+  getEngagementCount,
+  resetAllEngagementCounters,
+  shouldShowFeatureRatingPrompt,
+  RatingFeatureKeys,
   _resetForTesting,
   _constants,
   _getMajorVersion,
@@ -47,10 +52,10 @@ describe('ratingPrompt', () => {
       expect(result).toBe(true); // __DEV__ bypasses the multi-session condition
     });
 
-    it('returns true for a returning user with 1+ messages and no errors', async () => {
+    it('returns true for a returning user with 2+ messages and no errors', async () => {
       await setupReturningUser();
 
-      const result = await shouldShowRatingPrompt(1, false);
+      const result = await shouldShowRatingPrompt(2, false);
       expect(result).toBe(true);
     });
 
@@ -128,6 +133,20 @@ describe('ratingPrompt', () => {
 
       const result = await shouldShowRatingPrompt(0, false);
       expect(result).toBe(false);
+    });
+
+    it('returns false when session message count is 1', async () => {
+      await setupReturningUser();
+
+      const result = await shouldShowRatingPrompt(1, false);
+      expect(result).toBe(false);
+    });
+
+    it('returns true when session message count is 2 or more', async () => {
+      await setupReturningUser();
+
+      const result = await shouldShowRatingPrompt(2, false);
+      expect(result).toBe(true);
     });
 
     it('returns true in dev mode even when first_open is missing (bypassed)', async () => {
@@ -241,6 +260,127 @@ describe('ratingPrompt', () => {
 
     it('returns "0" for empty or malformed input', () => {
       expect(_getMajorVersion('')).toBe('');
+    });
+  });
+
+  // ── Engagement counters ────────────────────────────────────
+
+  describe('incrementEngagement', () => {
+    it('starts at 1 on first call', async () => {
+      const count = await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+      expect(count).toBe(1);
+    });
+
+    it('increments cumulatively across calls', async () => {
+      await incrementEngagement(RatingFeatureKeys.GAME_SEARCH);
+      await incrementEngagement(RatingFeatureKeys.GAME_SEARCH);
+      const count = await incrementEngagement(RatingFeatureKeys.GAME_SEARCH);
+      expect(count).toBe(3);
+    });
+
+    it('tracks different feature keys independently', async () => {
+      await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+      await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+      await incrementEngagement(RatingFeatureKeys.GAME_SETUP);
+
+      const ts = await getEngagementCount(RatingFeatureKeys.TURN_SELECTOR);
+      const gs = await getEngagementCount(RatingFeatureKeys.GAME_SETUP);
+      expect(ts).toBe(2);
+      expect(gs).toBe(1);
+    });
+  });
+
+  describe('getEngagementCount', () => {
+    it('returns 0 when no engagement recorded', async () => {
+      const count = await getEngagementCount(RatingFeatureKeys.TEAM_RANDOMIZER);
+      expect(count).toBe(0);
+    });
+
+    it('returns the correct count after increments', async () => {
+      await incrementEngagement(RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD);
+      await incrementEngagement(RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD);
+      const count = await getEngagementCount(RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD);
+      expect(count).toBe(2);
+    });
+  });
+
+  describe('resetAllEngagementCounters', () => {
+    it('clears all feature counters', async () => {
+      await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+      await incrementEngagement(RatingFeatureKeys.GAME_SEARCH);
+      await incrementEngagement(RatingFeatureKeys.TEAM_RANDOMIZER);
+      await incrementEngagement(RatingFeatureKeys.GAME_SETUP);
+      await incrementEngagement(RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD);
+      await incrementEngagement(RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE);
+
+      await resetAllEngagementCounters();
+
+      for (const key of Object.values(RatingFeatureKeys)) {
+        const count = await getEngagementCount(key);
+        expect(count).toBe(0);
+      }
+    });
+  });
+
+  describe('shouldShowFeatureRatingPrompt', () => {
+    it('returns true when engagement meets threshold (dev threshold = 1)', async () => {
+      await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+
+      const result = await shouldShowFeatureRatingPrompt(RatingFeatureKeys.TURN_SELECTOR);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when engagement count is 0', async () => {
+      const result = await shouldShowFeatureRatingPrompt(RatingFeatureKeys.GAME_SEARCH);
+      expect(result).toBe(false);
+    });
+
+    it('returns false when global conditions block (already rated)', async () => {
+      await incrementEngagement(RatingFeatureKeys.GAME_SETUP);
+      // Mark as rated for current major version
+      await AsyncStorage.setItem(_constants.RATED_KEY, '3');
+
+      const result = await shouldShowFeatureRatingPrompt(RatingFeatureKeys.GAME_SETUP);
+      expect(result).toBe(false);
+    });
+
+    it('returns false when within cooldown period', async () => {
+      await incrementEngagement(RatingFeatureKeys.TEAM_RANDOMIZER);
+      // Dismissed just now
+      await AsyncStorage.setItem(
+        _constants.DISMISSED_AT_KEY,
+        new Date().toISOString(),
+      );
+
+      const result = await shouldShowFeatureRatingPrompt(RatingFeatureKeys.TEAM_RANDOMIZER);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('RatingFeatureKeys', () => {
+    it('has all expected feature keys', () => {
+      expect(RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD).toBe('scoreTracker_leaderboard');
+      expect(RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE).toBe('scoreTracker_gameScore');
+      expect(RatingFeatureKeys.TURN_SELECTOR).toBe('turnSelector');
+      expect(RatingFeatureKeys.GAME_SEARCH).toBe('gameSearch');
+      expect(RatingFeatureKeys.TEAM_RANDOMIZER).toBe('teamRandomizer');
+      expect(RatingFeatureKeys.GAME_SETUP).toBe('gameSetup');
+    });
+  });
+
+  describe('resetRatingStateForDev clears engagement counters', () => {
+    it('clears all engagement counters along with rating keys', async () => {
+      await incrementEngagement(RatingFeatureKeys.TURN_SELECTOR);
+      await incrementEngagement(RatingFeatureKeys.GAME_SEARCH);
+      await AsyncStorage.setItem(_constants.RATED_KEY, '3');
+      await AsyncStorage.setItem(_constants.DISMISSED_AT_KEY, new Date().toISOString());
+
+      await resetRatingStateForDev();
+
+      expect(await AsyncStorage.getItem(_constants.RATED_KEY)).toBeNull();
+      expect(await AsyncStorage.getItem(_constants.DISMISSED_AT_KEY)).toBeNull();
+      expect(await getEngagementCount(RatingFeatureKeys.TURN_SELECTOR)).toBe(0);
+      expect(await getEngagementCount(RatingFeatureKeys.GAME_SEARCH)).toBe(0);
     });
   });
 });

@@ -19,6 +19,42 @@ const RATED_KEY = '@rating_prompt_rated';
 const FIRST_OPEN_KEY = '@telemetry_first_open';
 const LAST_ACTIVE_KEY = '@telemetry_last_active';
 
+// ── Engagement counter keys ────────────────────────────────────
+const ENGAGEMENT_KEY_PREFIX = '@rating_engagement_';
+
+/**
+ * Feature keys used for cumulative engagement counters.
+ * Each maps to an AsyncStorage key: `@rating_engagement_<featureKey>`.
+ */
+export const RatingFeatureKeys = {
+  SCORE_TRACKER_LEADERBOARD: 'scoreTracker_leaderboard',
+  SCORE_TRACKER_GAME_SCORE: 'scoreTracker_gameScore',
+  TURN_SELECTOR: 'turnSelector',
+  GAME_SEARCH: 'gameSearch',
+  TEAM_RANDOMIZER: 'teamRandomizer',
+  GAME_SETUP: 'gameSetup',
+} as const;
+
+export type RatingFeatureKey = typeof RatingFeatureKeys[keyof typeof RatingFeatureKeys];
+
+/**
+ * Engagement thresholds per feature.
+ * In __DEV__ mode, all thresholds are 1 for easy testing.
+ */
+const FEATURE_THRESHOLDS: Record<RatingFeatureKey, number> = {
+  [RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD]: 2,
+  [RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE]: 2,
+  [RatingFeatureKeys.TURN_SELECTOR]: 3,
+  [RatingFeatureKeys.GAME_SEARCH]: 3,
+  [RatingFeatureKeys.TEAM_RANDOMIZER]: 3,
+  [RatingFeatureKeys.GAME_SETUP]: 3,
+};
+
+const getThreshold = (featureKey: RatingFeatureKey): number => {
+  if (__DEV__) return 1;
+  return FEATURE_THRESHOLDS[featureKey];
+};
+
 // ── Configuration ──────────────────────────────────────────────
 const COOLDOWN_DAYS = 7;
 
@@ -64,8 +100,8 @@ export const shouldShowRatingPrompt = async (
   hasSessionErrors: boolean,
 ): Promise<boolean> => {
   try {
-    // Condition 4: Must have sent at least 1 message
-    if (sessionMessageCount === 0) return false;
+    // Condition 4: Must have sent more than 1 message
+    if (sessionMessageCount <= 1) return false;
 
     // Condition 5: No errors this session
     if (hasSessionErrors) return false;
@@ -166,6 +202,79 @@ export const resetRatingStateForDev = async (): Promise<void> => {
   if (!__DEV__) return;
   await AsyncStorage.removeItem(DISMISSED_AT_KEY);
   await AsyncStorage.removeItem(RATED_KEY);
+  // Also clear all engagement counters in dev
+  const counterKeys = Object.values(RatingFeatureKeys).map(
+    (k) => `${ENGAGEMENT_KEY_PREFIX}${k}`,
+  );
+  await Promise.all(counterKeys.map((k) => AsyncStorage.removeItem(k)));
+};
+
+// ── Engagement counters (cumulative, persisted) ────────────────
+
+/**
+ * Increment the cumulative engagement counter for a feature.
+ * Returns the new count.
+ */
+export const incrementEngagement = async (
+  featureKey: RatingFeatureKey,
+): Promise<number> => {
+  const storageKey = `${ENGAGEMENT_KEY_PREFIX}${featureKey}`;
+  try {
+    const current = await AsyncStorage.getItem(storageKey);
+    const newCount = (current ? parseInt(current, 10) : 0) + 1;
+    await AsyncStorage.setItem(storageKey, String(newCount));
+    return newCount;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Get the current engagement count for a feature.
+ */
+export const getEngagementCount = async (
+  featureKey: RatingFeatureKey,
+): Promise<number> => {
+  const storageKey = `${ENGAGEMENT_KEY_PREFIX}${featureKey}`;
+  try {
+    const value = await AsyncStorage.getItem(storageKey);
+    return value ? parseInt(value, 10) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Reset all engagement counters. Called when the rating prompt is shown
+ * so the user must re-engage after the cooldown expires.
+ */
+export const resetAllEngagementCounters = async (): Promise<void> => {
+  const counterKeys = Object.values(RatingFeatureKeys).map(
+    (k) => `${ENGAGEMENT_KEY_PREFIX}${k}`,
+  );
+  await Promise.all(counterKeys.map((k) => AsyncStorage.removeItem(k)));
+};
+
+/**
+ * Check whether a feature's cumulative engagement has met its threshold
+ * AND the global rating conditions are satisfied (not rated, cooldown, multi-session).
+ *
+ * Use this for non-chat screens that use cumulative counters.
+ */
+export const shouldShowFeatureRatingPrompt = async (
+  featureKey: RatingFeatureKey,
+): Promise<boolean> => {
+  try {
+    const count = await getEngagementCount(featureKey);
+    const threshold = getThreshold(featureKey);
+    if (count < threshold) return false;
+
+    // Reuse global conditions (rated, cooldown, multi-session)
+    // Pass sessionMessageCount=2 and hasSessionErrors=false to skip those checks
+    return shouldShowRatingPrompt(2, false);
+  } catch {
+    return false;
+  }
 };
 
 // ── Test helpers ────────────────────────────────────────────────
@@ -176,6 +285,7 @@ export const resetRatingStateForDev = async (): Promise<void> => {
 export const _resetForTesting = async (): Promise<void> => {
   await AsyncStorage.removeItem(DISMISSED_AT_KEY);
   await AsyncStorage.removeItem(RATED_KEY);
+  await resetAllEngagementCounters();
 };
 
 /**
@@ -187,6 +297,8 @@ export const _constants = {
   FIRST_OPEN_KEY,
   LAST_ACTIVE_KEY,
   COOLDOWN_DAYS,
+  ENGAGEMENT_KEY_PREFIX,
+  FEATURE_THRESHOLDS,
 } as const;
 
 /** Exposed for tests. */

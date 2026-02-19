@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,18 @@ import BackButton from '../components/BackButton';
 import { useScoreTracker } from '../store/ScoreTrackerContext';
 import { appCache } from '../services/storage/appCache';
 import GameSearchModal from '../components/scoreTracker/GameSearchModal';
+import RatingModal from '../components/RatingModal';
+import {
+  incrementEngagement,
+  shouldShowFeatureRatingPrompt,
+  resetAllEngagementCounters,
+  recordDismissal,
+  recordRated,
+  requestStoreReview,
+  resetRatingStateForDev,
+  RatingFeatureKeys,
+} from '../services/ratingPrompt';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import type { GameInfo, ScoreInputMode } from '../types/scoreTracker';
 
 type RouteParams = {
@@ -59,6 +71,7 @@ export default function ScoreInputScreen() {
   const [selectedGame, setSelectedGame] = useState<GameInfo | null>(existingGame || null);
   const [showGameSearch, setShowGameSearch] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // Determine if we need game selection (for leaderboard or new game score)
   const needsGameSelection = mode === 'addLeaderboard' || mode === 'editLeaderboard' || isNewGame;
@@ -119,6 +132,35 @@ export default function ScoreInputScreen() {
     }
   }, [isNewGame, selectedGame, isInitialized]);
 
+  // Clear rating state in dev for easy re-testing
+  useEffect(() => {
+    resetRatingStateForDev();
+  }, []);
+
+  // Rating modal handlers — navigate back after user interacts
+  const handleRatingRate = useCallback(async () => {
+    setShowRatingModal(false);
+    await recordRated();
+    await requestStoreReview();
+    trackEvent(AnalyticsEvents.RATING_PROMPT_RATED, {
+      source: isLeaderboardMode
+        ? RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD
+        : RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE,
+    });
+    navigation.goBack();
+  }, [isLeaderboardMode, navigation]);
+
+  const handleRatingDismiss = useCallback(async () => {
+    setShowRatingModal(false);
+    await recordDismissal();
+    trackEvent(AnalyticsEvents.RATING_PROMPT_DISMISSED, {
+      source: isLeaderboardMode
+        ? RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD
+        : RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE,
+    });
+    navigation.goBack();
+  }, [isLeaderboardMode, navigation]);
+
   const handleScoreChange = (playerName: string, value: string) => {
     const numValue = value === '' || value === '-' ? 0 : parseInt(value, 10);
     setScores((prev) => ({
@@ -146,7 +188,7 @@ export default function ScoreInputScreen() {
     setShowGameSearch(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate
     if (needsGameSelection && !selectedGame) {
       Alert.alert('Missing Game', 'Please select a game first.');
@@ -176,6 +218,23 @@ export default function ScoreInputScreen() {
         addRound(scores);
       } else if (mode === 'editRound' && roundNumber !== undefined) {
         updateRound(roundNumber, scores);
+      }
+    }
+
+    // Track engagement for rating prompt (skip for edit modes)
+    if (!isEditMode) {
+      const featureKey = isLeaderboardMode
+        ? RatingFeatureKeys.SCORE_TRACKER_LEADERBOARD
+        : RatingFeatureKeys.SCORE_TRACKER_GAME_SCORE;
+
+      await incrementEngagement(featureKey);
+      const shouldShow = await shouldShowFeatureRatingPrompt(featureKey);
+
+      if (shouldShow) {
+        await resetAllEngagementCounters();
+        setShowRatingModal(true);
+        trackEvent(AnalyticsEvents.RATING_PROMPT_SHOWN, { source: featureKey });
+        return; // Don't navigate back — modal handlers will do it
       }
     }
 
@@ -333,6 +392,13 @@ export default function ScoreInputScreen() {
           }
         }}
         onSelectGame={handleGameSelect}
+      />
+
+      {/* Rating Prompt Modal */}
+      <RatingModal
+        visible={showRatingModal}
+        onRate={handleRatingRate}
+        onDismiss={handleRatingDismiss}
       />
     </ImageBackground>
   );
