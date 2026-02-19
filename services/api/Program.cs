@@ -31,7 +31,10 @@ var authValidator = new AzureAuthenticationValidator(
 authValidator.ValidateConfiguration(builder.Configuration);
 
 // Configure Application Insights with RBAC (Managed Identity)
-var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+// Check appsettings first, then fall back to APPLICATIONINSIGHTS_CONNECTION_STRING env var
+// (set automatically by Azure App Service when App Insights is attached)
+var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
+    ?? Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
 if (!string.IsNullOrEmpty(appInsightsConnectionString))
 {
     // Use OpenTelemetry with Azure Monitor for modern telemetry
