@@ -322,10 +322,12 @@ export default function TeamRandomizerScreen() {
             </Text>
           </Animated.View>
         )}
-      </View>      <RatingModal
+      </View>
+      <RatingModal
         visible={showRatingModal}
         onRate={handleRate}
         onDismiss={handleDismiss}
-      />    </ImageBackground>
+      />
+    </ImageBackground>
   );
 }
