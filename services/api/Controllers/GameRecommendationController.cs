@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using GamerUncle.Api.Models;
 using GamerUncle.Shared.Models;
+using GamerUncle.Api.Services.Authentication;
 
 namespace GamerUncle.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("GameRecommendations")]
+    [RequireAppKeyGraceful]
     public class RecommendationsController : ControllerBase
     {
         private readonly IAgentServiceClient _agentService;

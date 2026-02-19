@@ -16,7 +16,9 @@ import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import MarkdownText from '../components/MarkdownText';
+import RatingModal from '../components/RatingModal';
 import { getRecommendations } from '../services/ApiClient';
+import { useRatingPrompt } from '../hooks/useRatingPrompt';
 
 const MAX_PLAYERS = 20;
 
@@ -37,6 +39,10 @@ export default function GameSetupScreen() {
   const [setupResponse, setSetupResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userId] = useState(generateUserId());
+
+  // Rating prompt
+  const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
+    useRatingPrompt('gameSetup');
 
   const showPlayerCountPicker = () => {
     Alert.alert(
@@ -78,6 +84,8 @@ Please provide step-by-step setup instructions including:
 
       if (response && response.responseText) {
         setSetupResponse(response.responseText);
+        // Track engagement for rating prompt
+        await trackEngagement();
       } else {
         setError('No setup instructions received. Please try again.');
       }
@@ -218,6 +226,11 @@ Please provide step-by-step setup instructions including:
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <RatingModal
+        visible={showRatingModal}
+        onRate={handleRate}
+        onDismiss={handleDismiss}
+      />
     </ImageBackground>
   );
 }

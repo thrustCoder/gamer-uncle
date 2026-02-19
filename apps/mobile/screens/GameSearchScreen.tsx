@@ -19,7 +19,9 @@ import { gameSearchStyles as styles } from '../styles/gameSearchStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
 import StarRating from '../components/StarRating';
+import RatingModal from '../components/RatingModal';
 import { useDebounce } from '../hooks/useDebounce';
+import { useRatingPrompt } from '../hooks/useRatingPrompt';
 import gameSearchService, {
   GameSearchResult,
   GameDetails,
@@ -30,6 +32,10 @@ type ViewState = 'search' | 'details';
 
 export default function GameSearchScreen() {
   const navigation = useNavigation<any>();
+  
+  // Rating prompt
+  const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
+    useRatingPrompt('gameSearch');
   
   // View state
   const [viewState, setViewState] = useState<ViewState>('search');
@@ -90,6 +96,8 @@ export default function GameSearchScreen() {
       setSelectedGame(details);
       setViewState('details');
       trackEvent(AnalyticsEvents.SEARCH_DETAILS_VIEWED, { gameId: game.id, gameName: details.name });
+      // Track engagement for rating prompt
+      await trackEngagement();
     } catch (error: any) {
       setDetailsError(error.message || 'Failed to load game details');
       setFailedGameName(game.name);
@@ -488,6 +496,11 @@ export default function GameSearchScreen() {
           {viewState === 'search' ? renderSearchView() : renderDetailsView()}
         </ScrollView>
       </KeyboardAvoidingView>
+      <RatingModal
+        visible={showRatingModal}
+        onRate={handleRate}
+        onDismiss={handleDismiss}
+      />
     </ImageBackground>
   );
 }

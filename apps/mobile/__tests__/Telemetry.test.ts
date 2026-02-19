@@ -279,5 +279,11 @@ describe('Telemetry Service', () => {
       const unique = new Set(values);
       expect(unique.size).toBe(values.length);
     });
+
+    it('should include rating prompt events', () => {
+      expect(AnalyticsEvents.RATING_PROMPT_SHOWN).toBe('Rating.Prompt.Shown');
+      expect(AnalyticsEvents.RATING_PROMPT_RATED).toBe('Rating.Prompt.Rated');
+      expect(AnalyticsEvents.RATING_PROMPT_DISMISSED).toBe('Rating.Prompt.Dismissed');
+    });
   });
 });

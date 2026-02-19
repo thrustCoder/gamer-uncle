@@ -7,6 +7,7 @@
 # The "testit" command also scales up when API_ENVIRONMENT is 'dev'.
 
 trigger: none  # No CI trigger — schedule only
+pr: none        # No PR trigger — schedule only
 
 schedules:
   - cron: '0 7 * * *'  # 07:00 UTC = 11:00 PM PT (PST: UTC-8) / 12:00 AM PT (PDT: UTC-7)

@@ -27,6 +27,8 @@ import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker'
 import { debugLogger } from '../utils/debugLogger';
 import { useChat, ChatMessage } from '../store/ChatContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
+import { shouldShowRatingPrompt, recordDismissal, recordRated, requestStoreReview, resetRatingStateForDev } from '../services/ratingPrompt';
+import RatingBanner from '../components/RatingBanner';
 
 // Define route params type for Chat screen
 type ChatRouteParams = {
@@ -172,6 +174,13 @@ export default function ChatScreen() {
     microphone: 'undetermined',
     camera: 'undetermined'
   });
+
+  // Rating prompt state
+  const [showRatingBanner, setShowRatingBanner] = useState(false);
+  const [sessionMessageCount, setSessionMessageCount] = useState(0);
+  const [hasSessionErrors, setHasSessionErrors] = useState(false);
+  const ratingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const ratingPromptShownRef = useRef(false);
   
   // Track if we've already handled the prefill context (to avoid duplicate messages)
   const prefillHandledRef = useRef(false);
@@ -501,6 +510,70 @@ export default function ChatScreen() {
       }
     };
     checkPerms();
+  }, []);
+
+  // ── Dev-mode: clear persisted rating state on mount ──────────
+  useEffect(() => {
+    resetRatingStateForDev();
+  }, []);
+
+  // ── Rating prompt evaluation ─────────────────────────────────
+  // Evaluate after a successful AI response with 2-second delay.
+  // Cancels if user starts typing in the meantime.
+  useEffect(() => {
+    // Only evaluate once per session, and only when we have messages
+    if (ratingPromptShownRef.current || sessionMessageCount === 0) return;
+
+    // Look for the last message being a system (AI) response
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.type !== 'system') return;
+
+    // Clear any previous timer
+    if (ratingTimerRef.current) {
+      clearTimeout(ratingTimerRef.current);
+    }
+
+    ratingTimerRef.current = setTimeout(async () => {
+      const shouldShow = await shouldShowRatingPrompt(
+        sessionMessageCount,
+        hasSessionErrors,
+      );
+      if (shouldShow) {
+        ratingPromptShownRef.current = true;
+        setShowRatingBanner(true);
+        trackEvent(AnalyticsEvents.RATING_PROMPT_SHOWN);
+      }
+    }, 2000);
+
+    return () => {
+      if (ratingTimerRef.current) {
+        clearTimeout(ratingTimerRef.current);
+        ratingTimerRef.current = null;
+      }
+    };
+  }, [messages, sessionMessageCount, hasSessionErrors]);
+
+  // Cancel rating prompt timer when user starts typing
+  const handleInputChange = useCallback((text: string) => {
+    setInput(text);
+    if (ratingTimerRef.current) {
+      clearTimeout(ratingTimerRef.current);
+      ratingTimerRef.current = null;
+    }
+  }, []);
+
+  // Rating banner callbacks
+  const handleRatingRate = useCallback(async () => {
+    await recordRated();
+    await requestStoreReview();
+    trackEvent(AnalyticsEvents.RATING_PROMPT_RATED);
+    setShowRatingBanner(false);
+  }, []);
+
+  const handleRatingDismiss = useCallback(async () => {
+    await recordDismissal();
+    trackEvent(AnalyticsEvents.RATING_PROMPT_DISMISSED);
+    setShowRatingBanner(false);
   }, []);
 
   // Clean up orphaned processing indicators on mount
@@ -885,6 +958,7 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    setSessionMessageCount(prev => prev + 1);
     trackEvent(AnalyticsEvents.CHAT_MESSAGE_SENT, { inputMethod: 'text' }, { messageLength: input.trim().length });
     
     // Stop TTS if playing/paused when user sends a text message
@@ -975,6 +1049,7 @@ export default function ChatScreen() {
       }
     } catch (error) {
       console.error('Error calling API:', error);
+      setHasSessionErrors(true);
       trackEvent(AnalyticsEvents.ERROR_API, { source: 'chat', error: String(error) });
       setMessages(prev => prev.filter(msg => msg.id !== typingId));
       const errorMessage: ChatMessage = {
@@ -1124,6 +1199,11 @@ export default function ChatScreen() {
                     // Clear conversation using context
                     clearChat();
                     setInput('');
+                    // Reset rating prompt session tracking
+                    setSessionMessageCount(0);
+                    setHasSessionErrors(false);
+                    ratingPromptShownRef.current = false;
+                    setShowRatingBanner(false);
                   }
                 }
               ]
@@ -1159,6 +1239,13 @@ export default function ChatScreen() {
             </View>
           )}
 
+          {/* Rating prompt banner */}
+          <RatingBanner
+            visible={showRatingBanner}
+            onRate={handleRatingRate}
+            onDismiss={handleRatingDismiss}
+          />
+
           {/* This wrapper must have flex: 1 */}
           <View style={styles.messagesWrapper}>
             <FlatList
@@ -1183,7 +1270,7 @@ export default function ChatScreen() {
               <TextInput
                 ref={textInputRef}
                 value={input}
-                onChangeText={setInput}
+                onChangeText={handleInputChange}
                 placeholder="Message"
                 placeholderTextColor={Colors.grayPlaceholder}
                 style={styles.input}

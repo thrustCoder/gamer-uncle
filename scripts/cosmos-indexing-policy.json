@@ -1,0 +1,22 @@
+{
+  "indexingMode": "consistent",
+  "automatic": true,
+  "includedPaths": [
+    { "path": "/*" }
+  ],
+  "excludedPaths": [
+    { "path": "/overview/?" },
+    { "path": "/bggRating/?" },
+    { "path": "/yearPublished/?" },
+    { "path": "/imageUrl/?" },
+    { "path": "/shopLink/?" },
+    { "path": "/setupGuide/?" },
+    { "path": "/rulesUrl/?" },
+    { "path": "/ruleQnA/*" },
+    { "path": "/moderatorScripts/*" },
+    { "path": "/narrationTTS/*" },
+    { "path": "/type/?" },
+    { "path": "/updatedAt/?" },
+    { "path": "/\"_etag\"/?" }
+  ]
+}

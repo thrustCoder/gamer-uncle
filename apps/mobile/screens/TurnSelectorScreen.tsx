@@ -17,6 +17,8 @@ import SpinningWheel from '../components/SpinningWheel';
 import BackButton from '../components/BackButton';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
+import RatingModal from '../components/RatingModal';
+import { useRatingPrompt } from '../hooks/useRatingPrompt';
 
 const MAX_PLAYERS = 20;
 
@@ -25,6 +27,10 @@ export default function TurnSelectorScreen() {
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [winner, setWinner] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
+
+  // Rating prompt
+  const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
+    useRatingPrompt('turnSelector');
 
   // Animation values for celebration
   const celebrationScale = useRef(new Animated.Value(0)).current;
@@ -91,6 +97,9 @@ export default function TurnSelectorScreen() {
     
     // Start celebration animation
     setTimeout(() => startCelebrationAnimation(), 100);
+
+    // Track engagement for rating prompt
+    await trackEngagement();
   };
 
   const showPlayerCountPicker = () => {
@@ -260,6 +269,11 @@ export default function TurnSelectorScreen() {
           </Text>
         </Animated.View>
       )}
+      <RatingModal
+        visible={showRatingModal}
+        onRate={handleRate}
+        onDismiss={handleDismiss}
+      />
     </ImageBackground>
   );
 }

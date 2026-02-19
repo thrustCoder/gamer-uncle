@@ -16,7 +16,7 @@ module.exports = {
     '^.+\\.(js|jsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|expo|@expo|expo-modules-core|react-native-vector-icons|react-native-svg|react-native-reanimated|react-native-gesture-handler|react-native-webrtc|react-native-markdown-display)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|expo|@expo|expo-modules-core|expo-store-review|react-native-vector-icons|react-native-svg|react-native-reanimated|react-native-gesture-handler|react-native-webrtc|react-native-markdown-display)/)',
   ],
   collectCoverageFrom: [
     'screens/**/*.{ts,tsx}',

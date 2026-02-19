@@ -141,7 +141,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | 🟠 |
 | 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $25–31/mo | Safe at scale | ✅ |
 | 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | 🟠 |
-| 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | 🟠 |
+| 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | ✅ |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
 | 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
@@ -407,29 +407,64 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 | **Cost Contributor** | 5/10 |
 | **Risk** | 3/10 |
 | **Savings** | $5–15/mo (RU reduction) |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ (Feb 2026) |
 
-**Current state**: Prod Cosmos DB uses the **default indexing policy** — `includedPaths: [/*]`. This indexes every property in every document.
+**What was done**: Applied an optimized indexing policy to the `Games` container in both dev and prod Cosmos DB. The policy excludes 12 read-only fields from indexing while keeping all queried/filtered/sorted fields indexed.
 
-**Why it matters**: The Games container stores board game data with fields like `description`, `image`, `thumbnail` that are never queried but are fully indexed. Each write consumes extra RUs for index maintenance, and index storage contributes to size.
+**Query analysis performed**: All 8 Cosmos DB operations across `CosmosDbService`, `GameSearchService`, `GameDataService`, and `DurableGameUpsertFunction` were analyzed to identify which fields appear in WHERE, ORDER BY, and ARRAY_CONTAINS clauses.
 
-**Recommendation**: Exclude paths that are never filtered on:
-```json
-{
-  "indexingMode": "consistent",
-  "includedPaths": [{ "path": "/*" }],
-  "excludedPaths": [
-    { "path": "/description/?" },
-    { "path": "/image/?" },
-    { "path": "/thumbnail/?" },
-    { "path": "/mechanics/?" },
-    { "path": "/categories/?" },
-    { "path": "/\"_etag\"/?" }
-  ]
-}
+**Important correction**: The original recommendation incorrectly proposed excluding `description`, `mechanics`, and `categories`. Query analysis revealed:
+- `description` — used in `CONTAINS(UPPER(c.description), ...)` in `GameDataService.GetRelevantGamesForQueryAsync`
+- `mechanics` — used in `ARRAY_CONTAINS(c.mechanics, ...)` in dynamic criteria queries
+- `categories` — used in `ARRAY_CONTAINS(c.categories, ...)` in dynamic criteria queries
+
+These fields **must remain indexed**.
+
+**Fields excluded from indexing** (never appear in WHERE/ORDER BY):
+
+| Excluded Path | Type | Reason |
+|---------------|------|--------|
+| `/overview/?` | string | Only projected in SELECT, never filtered |
+| `/bggRating/?` | double | Only returned in responses |
+| `/yearPublished/?` | int | Only returned in responses |
+| `/imageUrl/?` | string | Only projected/returned, never filtered |
+| `/shopLink/?` | string | Never queried or projected |
+| `/setupGuide/?` | string | Only in full `SELECT *` reads |
+| `/rulesUrl/?` | string | Only returned in responses |
+| `/ruleQnA/*` | array of objects | Complex nested data, only returned in full reads |
+| `/moderatorScripts/*` | array of objects | Complex nested data, only returned in full reads |
+| `/narrationTTS/*` | nested object | Complex nested data, only returned in full reads |
+| `/type/?` | string | Always `"game"`, never filtered |
+| `/updatedAt/?` | DateTime | Never filtered or sorted |
+| `/"_etag"/?` | system property | Standard exclusion |
+
+**Fields kept indexed** (actively queried):
+
+| Field | Usage |
+|-------|-------|
+| `id` | Partition key + point reads |
+| `name` | `CONTAINS()` text search |
+| `description` | `CONTAINS()` text search |
+| `minPlayers`, `maxPlayers` | Range comparisons (`<=`, `>=`) |
+| `minPlaytime`, `maxPlaytime` | Range comparisons |
+| `weight` | Range comparison (`<=`) |
+| `averageRating` | Range comparison (`>=`) + ORDER BY DESC |
+| `ageRequirement` | Range comparison (`<=`) |
+| `numVotes` | ORDER BY DESC |
+| `mechanics` | `ARRAY_CONTAINS()` |
+| `categories` | `ARRAY_CONTAINS()` |
+
+**Implementation**: Policy stored in `scripts/cosmos-indexing-policy.json`. Applied via:
+```powershell
+# Dev
+az cosmosdb sql container update --account-name gamer-uncle-dev-cosmos --database-name gamer-uncle-dev-cosmos-container --name Games --resource-group gamer-uncle-dev-rg --idx "@scripts/cosmos-indexing-policy.json"
+# Prod
+az cosmosdb sql container update --account-name gamer-uncle-prod-cosmos --database-name gamer-uncle-prod-cosmos-container --name Games --resource-group gamer-uncle-prod-rg --idx "@scripts/cosmos-indexing-policy.json"
 ```
 
-**Risk**: Low if you exclude only paths not used in WHERE clauses. Verify against actual queries in CosmosDbService, GameDataService, and GameSearchService.
+**Impact**: Dev (450 docs, 1.8 MB) and Prod (3,626 docs, 15.2 MB). Index rebuild runs in background with zero downtime — queries continue using the old index until the new one completes. Write RU savings are immediate for new upserts; read query performance is unchanged for indexed fields.
+
+**Risk**: Low. Only read-only fields excluded. If a future feature needs to filter on an excluded field (e.g., `yearPublished`), add it back by removing from `excludedPaths` in the policy JSON and re-applying.
 
 ---
 
@@ -552,7 +587,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 - [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
 
 ### Phase 3 — Optimization at Scale (Before Marketing Push)
-- [ ] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale)
+- [x] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale) — completed Feb 2026
 - [ ] **#7**: Evaluate mini model routing for simple queries → growing savings (permanent)
 
 ### Phase 4 — Scale-Up Actions (When Traffic Grows)

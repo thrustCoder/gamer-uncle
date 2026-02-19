@@ -7,6 +7,7 @@ using GamerUncle.Api.Services.RateLimiting;
 using GamerUncle.Api.Services.Resilience;
 using GamerUncle.Api.Services.Speech;
 using GamerUncle.Api.Services.ThreadMapping;
+using GamerUncle.Api.Models;
 using GamerUncle.Mcp.Extensions;
 using GamerUncle.Mcp.Services;
 using GamerUncle.Shared.Models;
@@ -30,8 +31,17 @@ var authValidator = new AzureAuthenticationValidator(
 authValidator.ValidateConfiguration(builder.Configuration);
 
 // Configure Application Insights with RBAC (Managed Identity)
-var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
-if (!string.IsNullOrEmpty(appInsightsConnectionString))
+// Check appsettings first, then fall back to APPLICATIONINSIGHTS_CONNECTION_STRING env var
+// (set automatically by Azure App Service when App Insights is attached)
+var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
+    ?? Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+
+// Validate the connection string contains the required InstrumentationKey before use.
+// This guards against environment variable overrides providing a non-empty but invalid string
+// (e.g. pipeline agents that inject partial connection strings).
+var isValidAppInsightsConnectionString = !string.IsNullOrEmpty(appInsightsConnectionString)
+    && appInsightsConnectionString.Contains("InstrumentationKey=", StringComparison.OrdinalIgnoreCase);
+if (isValidAppInsightsConnectionString)
 {
     // Use OpenTelemetry with Azure Monitor for modern telemetry
     builder.Services.AddOpenTelemetry()
@@ -218,6 +228,9 @@ if (!isTestEnv)
         return client.GetContainer(databaseName, containerName);
     });
 }
+
+// Bind AppVersionPolicy from configuration (used by AppConfigController)
+builder.Services.Configure<AppVersionPolicy>(builder.Configuration.GetSection("AppVersionPolicy"));
 
 // DI registration
 builder.Services.AddSingleton<ICosmosDbService, CosmosDbService>();
