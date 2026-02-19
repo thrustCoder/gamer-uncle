@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Linking, Platform } from 'react-native';
 import { Colors } from '../styles/colors';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 interface ForceUpgradeModalProps {
   visible: boolean;
@@ -19,12 +20,29 @@ export default function ForceUpgradeModal({
   forceUpgrade,
   onDismiss,
 }: ForceUpgradeModalProps) {
+  // Track when the upgrade prompt is shown
+  useEffect(() => {
+    if (visible) {
+      trackEvent(AnalyticsEvents.UPGRADE_PROMPTED, {
+        forceUpgrade: String(forceUpgrade),
+      });
+    }
+  }, [visible, forceUpgrade]);
+
   const handleUpdate = () => {
+    trackEvent(AnalyticsEvents.UPGRADE_ACCEPTED, {
+      forceUpgrade: String(forceUpgrade),
+    });
     if (upgradeUrl) {
       Linking.openURL(upgradeUrl).catch((err) => {
         console.error('Failed to open upgrade URL:', err);
       });
     }
+  };
+
+  const handleDismiss = () => {
+    trackEvent(AnalyticsEvents.UPGRADE_DISMISSED);
+    onDismiss?.();
   };
 
   return (
@@ -55,7 +73,7 @@ export default function ForceUpgradeModal({
           {!forceUpgrade && (
             <TouchableOpacity
               style={styles.laterButton}
-              onPress={onDismiss}
+              onPress={handleDismiss}
               testID="dismiss-button"
               accessibilityRole="button"
               accessibilityLabel="Dismiss update prompt"

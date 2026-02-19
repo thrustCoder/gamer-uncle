@@ -1,3 +1,4 @@
+using Microsoft.ApplicationInsights;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -19,15 +20,18 @@ namespace GamerUncle.Api.Services.Authentication
         private const string DeprecatedResponseHeader = "X-AppKey-Deprecated";
         private readonly string? _configuredAppKey;
         private readonly ILogger<AppKeyGracefulAuthorizationFilter> _logger;
+        private readonly TelemetryClient? _telemetryClient;
         private readonly bool _isTestEnvironment;
 
         public AppKeyGracefulAuthorizationFilter(
             IConfiguration configuration,
             ILogger<AppKeyGracefulAuthorizationFilter> logger,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            TelemetryClient? telemetryClient = null)
         {
             _configuredAppKey = configuration["ApiAuthentication:AppKey"];
             _logger = logger;
+            _telemetryClient = telemetryClient;
             _isTestEnvironment = environment.EnvironmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase)
                                || configuration.GetValue<bool>("Testing:DisableRateLimit");
         }
@@ -63,6 +67,8 @@ namespace GamerUncle.Api.Services.Authentication
                     "Unauthenticated access to this endpoint will be removed in a future release.",
                     clientIp, userAgent, path);
 
+                TrackAuthEvent("AppKey.GraceModeRequest", "Missing", clientIp, userAgent, path);
+
                 context.HttpContext.Response.Headers[DeprecatedResponseHeader] = "true";
                 await next();
                 return;
@@ -75,12 +81,30 @@ namespace GamerUncle.Api.Services.Authentication
                     "AppKey graceful validation failed - invalid key. IP: {ClientIp}, UserAgent: {UserAgent}, Path: {Path}",
                     clientIp, userAgent, path);
 
+                TrackAuthEvent("AppKey.GraceModeRequest", "Invalid", clientIp, userAgent, path);
+
                 context.Result = new UnauthorizedObjectResult(new { error = "Invalid or missing app key" });
                 return;
             }
 
             _logger.LogDebug("AppKey graceful validation successful for request from IP: {ClientIp}", clientIp);
+            TrackAuthEvent("AppKey.GraceModeRequest", "Valid", clientIp, userAgent, path);
             await next();
+        }
+
+        /// <summary>
+        /// Track a structured custom event in Application Insights for auth filter outcomes.
+        /// Enables dashboards and KQL queries on structured dimensions rather than string log parsing.
+        /// </summary>
+        private void TrackAuthEvent(string eventName, string outcome, string clientIp, string userAgent, string path)
+        {
+            _telemetryClient?.TrackEvent(eventName, new Dictionary<string, string>
+            {
+                ["Outcome"] = outcome,
+                ["Path"] = path,
+                ["ClientIp"] = clientIp,
+                ["UserAgent"] = userAgent,
+            });
         }
     }
 

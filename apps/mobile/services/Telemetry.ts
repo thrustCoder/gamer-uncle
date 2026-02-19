@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import axios from 'axios';
 import { getApiBaseUrl, getAppKey } from '../config/apiConfig';
 
@@ -25,6 +26,7 @@ export interface TelemetryEvent {
   sessionId: string;
   deviceId: string;
   platform: string;
+  appVersion: string;
 }
 
 /**
@@ -71,6 +73,11 @@ export const AnalyticsEvents = {
   ERROR_API: 'Error.Api',
   ERROR_VOICE: 'Error.Voice',
   ERROR_SEARCH: 'Error.Search',
+
+  // ── Upgrade Funnel ────────────────────────────────────────────
+  UPGRADE_PROMPTED: 'Upgrade.Prompted',
+  UPGRADE_ACCEPTED: 'Upgrade.Accepted',
+  UPGRADE_DISMISSED: 'Upgrade.Dismissed',
 } as const;
 
 // --- Internal state ---
@@ -186,6 +193,7 @@ export const trackEvent = (
     sessionId: _sessionId ?? 'unknown',
     deviceId: _deviceId ?? 'unknown',
     platform: Platform.OS,
+    appVersion: Constants.expoConfig?.version ?? '0.0.0',
   };
 
   if (__DEV__) {
