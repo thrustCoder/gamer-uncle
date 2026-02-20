@@ -6,7 +6,6 @@ import { getApiBaseUrl } from '../config/apiConfig';
  */
 export interface AppVersionPolicy {
   minVersion: string;
-  latestVersion: string;
   upgradeUrl?: string;
   upgradeUrlAndroid?: string;
   message?: string;
