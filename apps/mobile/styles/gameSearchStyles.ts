@@ -478,4 +478,26 @@ export const gameSearchStyles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+
+  // BGG Attribution Footer (search view)
+  bggAttributionContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  bggAttributionText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.themeBrownDark,
+    opacity: 0.7,
+    textDecorationLine: 'underline',
+  },
+
+  // BGG Game Page Link (inline in overview text)
+  bggLinkText: {
+    fontSize: 13,
+    color: Colors.themeYellow,
+    opacity: 0.6,
+    textDecorationLine: 'underline',
+  },
 });
