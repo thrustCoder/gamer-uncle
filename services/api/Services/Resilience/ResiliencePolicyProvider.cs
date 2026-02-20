@@ -40,16 +40,20 @@ namespace GamerUncle.Api.Services.Resilience
         /// Builds a combined timeout + retry policy for AI Agent calls.
         /// Structure: [Retry (outer)] → [Timeout (inner)]
         /// Each individual call gets a timeout. If it times out, the retry policy kicks in.
+        /// Uses Pessimistic timeout strategy to forcibly abandon hung calls even when the
+        /// delegate (Azure AI SDK) does not honor CancellationToken.
         /// </summary>
         private IAsyncPolicy BuildAgentCallPolicy(ResilienceSettings settings)
         {
             // Inner policy: timeout per individual call attempt
+            // Pessimistic strategy ensures the timeout fires even if the underlying
+            // Azure SDK call ignores cancellation (e.g., hung HTTP connections).
             var timeoutPolicy = Policy.TimeoutAsync(
                 TimeSpan.FromSeconds(settings.AgentCallTimeoutSeconds),
-                TimeoutStrategy.Optimistic,
+                TimeoutStrategy.Pessimistic,
                 onTimeoutAsync: (context, timespan, task) =>
                 {
-                    _logger.LogWarning("AI Agent call timed out after {Timeout}s", timespan.TotalSeconds);
+                    _logger.LogWarning("AI Agent call timed out after {Timeout}s (pessimistic)", timespan.TotalSeconds);
                     return Task.CompletedTask;
                 });
 

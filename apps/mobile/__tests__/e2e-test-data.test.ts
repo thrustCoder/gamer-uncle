@@ -20,7 +20,7 @@ describe('E2E Test Data Configuration', () => {
       jest.resetModules();
       const { TIMEOUTS: ciTimeouts } = require('../e2e/test-data');
       
-      expect(ciTimeouts.API_RESPONSE).toBe(45000);
+      expect(ciTimeouts.API_RESPONSE).toBe(30000);
       expect(ciTimeouts.TYPING_INDICATOR).toBe(8000);
       expect(ciTimeouts.MESSAGE_APPEAR).toBe(20000);
       expect(ciTimeouts.PAGE_LOAD).toBe(25000);
@@ -34,7 +34,7 @@ describe('E2E Test Data Configuration', () => {
       jest.resetModules();
       const { TIMEOUTS: devTimeouts } = require('../e2e/test-data');
       
-      expect(devTimeouts.API_RESPONSE).toBe(45000);
+      expect(devTimeouts.API_RESPONSE).toBe(30000);
       expect(devTimeouts.TYPING_INDICATOR).toBe(5000);
       expect(devTimeouts.MESSAGE_APPEAR).toBe(15000);
       expect(devTimeouts.PAGE_LOAD).toBe(15000);

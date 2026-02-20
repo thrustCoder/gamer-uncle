@@ -106,7 +106,7 @@ test.describe('Voice Chat Functionality', () => {
  */
 test.describe('Voice Chat Integration @integration', () => {
   test.beforeEach(async ({ page }) => {
-    test.setTimeout(45000); // Longer timeout for integration tests
+    test.setTimeout(30000); // 30 second timeout for voice integration tests
     await page.goto('/');
     await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 10000 });
   });

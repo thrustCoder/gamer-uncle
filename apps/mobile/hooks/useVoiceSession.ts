@@ -133,7 +133,7 @@ export const useVoiceSession = (
       });
       
       const response = await api.post('voice/sessions', request, {
-        timeout: 45000, // 45 second timeout for Azure AI Foundry
+        timeout: 30000, // 30 second timeout for voice session creation
         headers: {
           'Content-Type': 'application/json',
         },

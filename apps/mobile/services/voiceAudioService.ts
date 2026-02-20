@@ -230,7 +230,7 @@ export class VoiceAudioService {
           gameContext,
         } as AudioProcessingRequest,
         {
-          timeout: 45000, // 45 second timeout for audio processing
+          timeout: 30000, // 30 second timeout for audio processing
           headers: {
             'Content-Type': 'application/json',
             'X-GamerUncle-AppKey': this.appKey,
