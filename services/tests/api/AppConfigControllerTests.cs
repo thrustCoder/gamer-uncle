@@ -26,7 +26,6 @@ namespace GamerUncle.Api.Tests
         private static AppVersionPolicy CreateDefaultPolicy() => new()
         {
             MinVersion = "3.2.0",
-            LatestVersion = "3.2.7",
             UpgradeUrl = "https://apps.apple.com/app/gamer-uncle/id6740043763",
             UpgradeUrlAndroid = "https://play.google.com/store/apps/details?id=com.gameruncle",
             Message = "Please update to continue.",
@@ -47,7 +46,6 @@ namespace GamerUncle.Api.Tests
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedPolicy = Assert.IsType<AppVersionPolicy>(okResult.Value);
             Assert.Equal("3.2.0", returnedPolicy.MinVersion);
-            Assert.Equal("3.2.7", returnedPolicy.LatestVersion);
             Assert.False(returnedPolicy.ForceUpgrade);
         }
 
@@ -108,7 +106,6 @@ namespace GamerUncle.Api.Tests
             var policy = new AppVersionPolicy
             {
                 MinVersion = "1.0.0",
-                LatestVersion = "1.0.0",
                 UpgradeUrl = null,
                 UpgradeUrlAndroid = null,
                 Message = null,

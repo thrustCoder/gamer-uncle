@@ -13,11 +13,6 @@ namespace GamerUncle.Api.Models
         public required string MinVersion { get; set; }
 
         /// <summary>
-        /// Latest available app version in the stores.
-        /// </summary>
-        public required string LatestVersion { get; set; }
-
-        /// <summary>
         /// App Store / TestFlight URL for iOS upgrades.
         /// </summary>
         public string? UpgradeUrl { get; set; }

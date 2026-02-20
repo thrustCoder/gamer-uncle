@@ -76,7 +76,6 @@ describe('checkAppVersion', () => {
       ok: true,
       json: async () => ({
         minVersion: '3.0.0',
-        latestVersion: '3.2.7',
         forceUpgrade: false,
       }),
     });
@@ -90,7 +89,6 @@ describe('checkAppVersion', () => {
       ok: true,
       json: async () => ({
         minVersion: '4.0.0',
-        latestVersion: '4.0.0',
         upgradeUrl: 'https://apps.apple.com/app/test',
         message: 'Please update',
         forceUpgrade: true,
@@ -125,7 +123,6 @@ describe('checkAppVersion', () => {
       ok: true,
       json: async () => ({
         minVersion: '1.0.0',
-        latestVersion: '3.2.7',
         forceUpgrade: false,
       }),
     });
@@ -139,7 +136,6 @@ describe('checkAppVersion', () => {
       ok: true,
       json: async () => ({
         minVersion: '99.0.0',
-        latestVersion: '99.0.0',
         upgradeUrl: 'https://apps.apple.com/ios',
         upgradeUrlAndroid: 'https://play.google.com/android',
         message: 'Update',
@@ -156,7 +152,6 @@ describe('checkAppVersion', () => {
       ok: true,
       json: async () => ({
         minVersion: '3.2.7',
-        latestVersion: '3.2.7',
         forceUpgrade: false,
       }),
     });
