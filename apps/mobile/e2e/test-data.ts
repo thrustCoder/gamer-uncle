@@ -73,7 +73,7 @@ export const SELECTORS = {
  * Increased timeouts for CI to handle slower loading and resource constraints
  */
 export const TIMEOUTS = {
-  API_RESPONSE: process.env.CI ? 45000 : 45000, // Generous timeout for API responses
+  API_RESPONSE: process.env.CI ? 30000 : 30000, // 30 second timeout for API responses
   TYPING_INDICATOR: process.env.CI ? 8000 : 5000, // Longer in CI for typing indicator to appear
   MESSAGE_APPEAR: process.env.CI ? 20000 : 15000, // Longer in CI for messages to appear
   PAGE_LOAD: process.env.CI ? 25000 : 15000, // Much longer in CI for page loads

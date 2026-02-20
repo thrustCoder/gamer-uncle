@@ -446,6 +446,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // A3: Use main quality agent for response generation
                 PersistentAgent agent = _agentsClient.Administration.GetAgent(_responseAgentId);
                 _logger.LogInformation("Retrieved agent {AgentId} successfully", _responseAgentId);
@@ -491,6 +493,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 // Modify the request payload to include instructions for JSON response
                 var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Handle Azure OpenAI content length limits (max 2560 characters per content field)
                 var serializedPayload = JsonSerializer.Serialize(modifiedPayload);
                 try
@@ -506,6 +510,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     _logger.LogInformation("Created truncated message in thread {ThreadId}", thread.Id);
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
                 _logger.LogInformation("Started run {RunId} in thread {ThreadId}", run.Id, thread.Id);
 
@@ -515,6 +521,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 {
                     var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
                     await Task.Delay(delayMs, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                     run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                     pollCount++;
                 } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);
@@ -586,8 +593,12 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 }
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             // For criteria extraction, use the payload as-is without modification
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             ThreadRun run = _agentsClient.Runs.CreateRun(thread.Id, agent.Id);
 
@@ -597,6 +608,7 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             {
                 var delayMs = AdaptivePollDelaysMs[Math.Min(pollCount, AdaptivePollDelaysMs.Length - 1)];
                 await Task.Delay(delayMs, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 run = _agentsClient.Runs.GetRun(thread.Id, run.Id);
                 pollCount++;
             } while ((run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress) && pollCount < 60);

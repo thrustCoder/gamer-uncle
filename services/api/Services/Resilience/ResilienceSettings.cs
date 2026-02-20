@@ -10,15 +10,17 @@ namespace GamerUncle.Api.Services.Resilience
 
         /// <summary>
         /// Timeout in seconds for each individual AI Agent call attempt.
-        /// Default: 30 seconds.
+        /// Uses Pessimistic strategy to forcibly abandon hung Azure SDK calls.
+        /// Default: 15 seconds (allows retry within 30s frontend timeout).
         /// </summary>
-        public int AgentCallTimeoutSeconds { get; set; } = 30;
+        public int AgentCallTimeoutSeconds { get; set; } = 15;
 
         /// <summary>
         /// Maximum number of retry attempts for transient AI Agent errors.
-        /// Default: 2 (total 3 attempts including the initial call).
+        /// Default: 1 (total 2 attempts including the initial call).
+        /// Budget: STT ~3s + attempt1 15s + delay 1s + attempt2 ~10s + TTS ~1s = ~30s.
         /// </summary>
-        public int AgentCallMaxRetries { get; set; } = 2;
+        public int AgentCallMaxRetries { get; set; } = 1;
 
         /// <summary>
         /// Base delay in seconds for exponential backoff between retries.

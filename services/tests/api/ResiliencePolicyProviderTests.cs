@@ -191,6 +191,38 @@ namespace GamerUncle.Api.Tests
         }
 
         [Fact]
+        public async Task AgentCallPolicy_PessimisticTimeout_ForciblyAbandonsHungCall()
+        {
+            // Arrange — simulates the exact production scenario where Azure SDK
+            // ignores CancellationToken and the call hangs indefinitely.
+            // Pessimistic timeout must forcibly abandon it.
+            var settings = new ResilienceSettings
+            {
+                AgentCallTimeoutSeconds = 1, // 1 second timeout
+                AgentCallMaxRetries = 0, // No retries so we isolate timeout behavior
+                AgentCallRetryBaseDelaySeconds = 0.05
+            };
+            var provider = new ResiliencePolicyProvider(settings, _mockLogger.Object);
+            var delegateStarted = new TaskCompletionSource<bool>();
+
+            // Act & Assert — delegate ignores CancellationToken (simulating hung Azure SDK call)
+            await Assert.ThrowsAsync<TimeoutRejectedException>(async () =>
+            {
+                await provider.AgentCallPolicy.ExecuteAsync(async ct =>
+                {
+                    delegateStarted.SetResult(true);
+                    // Simulate a hung call that ignores CancellationToken entirely
+                    // (using Thread.Sleep instead of Task.Delay to avoid honoring ct)
+                    await Task.Run(() => Thread.Sleep(TimeSpan.FromSeconds(30)));
+                    return "should not reach here";
+                }, CancellationToken.None);
+            });
+
+            // Verify the delegate was actually started (ensures Pessimistic kicked in)
+            Assert.True(await delegateStarted.Task);
+        }
+
+        [Fact]
         public async Task AgentCallPolicy_TimeoutTriggersRetry()
         {
             // Arrange — timeout triggers, then retry succeeds quickly
@@ -314,8 +346,8 @@ namespace GamerUncle.Api.Tests
         {
             var settings = new ResilienceSettings();
 
-            Assert.Equal(30, settings.AgentCallTimeoutSeconds);
-            Assert.Equal(2, settings.AgentCallMaxRetries);
+            Assert.Equal(15, settings.AgentCallTimeoutSeconds);
+            Assert.Equal(1, settings.AgentCallMaxRetries);
             Assert.Equal(1.0, settings.AgentCallRetryBaseDelaySeconds);
             Assert.Equal(2, settings.RedisMaxRetries);
             Assert.Equal(100, settings.RedisRetryBaseDelayMs);
