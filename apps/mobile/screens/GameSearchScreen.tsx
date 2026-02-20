@@ -136,6 +136,11 @@ export default function GameSearchScreen() {
     });
   };
 
+  const getBggUrl = (gameId: string): string => {
+    const numericId = gameId.replace('bgg-', '');
+    return `https://boardgamegeek.com/boardgame/${numericId}`;
+  };
+
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
@@ -290,6 +295,15 @@ export default function GameSearchScreen() {
         </View>
       )}
 
+      {/* BGG Attribution Footer */}
+      <TouchableOpacity
+        style={styles.bggAttributionContainer}
+        onPress={() => Linking.openURL('https://boardgamegeek.com')}
+        testID="bgg-attribution"
+      >
+        <Text style={styles.bggAttributionText}>Powered by BoardGameGeek</Text>
+      </TouchableOpacity>
+
       {/* Loading Details Overlay */}
       {isLoadingDetails && (
         <View style={styles.loadingContainer}>
@@ -397,7 +411,20 @@ export default function GameSearchScreen() {
                   <Ionicons name="document-text" size={18} color={Colors.themeYellow} style={styles.sectionIcon} />
                   <Text style={styles.sectionTitle}>Overview</Text>
                 </View>
-                <Text style={styles.overviewText}>{selectedGame.overview}</Text>
+                <Text style={styles.overviewText}>
+                  {selectedGame.overview}{' '}
+                  <Text
+                    style={styles.bggLinkText}
+                    onPress={() => {
+                      const url = getBggUrl(selectedGame.id);
+                      trackEvent(AnalyticsEvents.SEARCH_RULES_OPENED, { url, source: 'bgg-game-link' });
+                      Linking.openURL(url);
+                    }}
+                    testID="bgg-game-link"
+                  >
+                    More on BGG →
+                  </Text>
+                </Text>
               </>
             )}
           </View>
