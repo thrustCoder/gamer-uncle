@@ -137,13 +137,13 @@ builder.Services.AddRateLimiter(options =>
     {
         // Strict limits for rate limiting integration tests
         var permitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 1);
-        var windowMinutes = builder.Configuration.GetValue<int>("RateLimiting:WindowMinutes", 1);
+        var windowSeconds = builder.Configuration.GetValue<int>("RateLimiting:WindowSeconds", 60);
         var queueLimit = builder.Configuration.GetValue<int>("RateLimiting:QueueLimit", 0);
 
         options.AddFixedWindowLimiter("GameRecommendations", configure =>
         {
             configure.PermitLimit = permitLimit;
-            configure.Window = TimeSpan.FromSeconds(5); // Use shorter window for tests
+            configure.Window = TimeSpan.FromSeconds(windowSeconds);
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = queueLimit;
         });
@@ -152,7 +152,7 @@ builder.Services.AddRateLimiter(options =>
         options.AddFixedWindowLimiter("McpSsePolicy", configure =>
         {
             configure.PermitLimit = 1; // Very restrictive for testing
-            configure.Window = TimeSpan.FromSeconds(5);
+            configure.Window = TimeSpan.FromSeconds(windowSeconds);
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 0;
         });
@@ -161,7 +161,7 @@ builder.Services.AddRateLimiter(options =>
         options.AddFixedWindowLimiter("GameSearch", configure =>
         {
             configure.PermitLimit = 1;
-            configure.Window = TimeSpan.FromSeconds(5);
+            configure.Window = TimeSpan.FromSeconds(windowSeconds);
             configure.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             configure.QueueLimit = 0;
         });
