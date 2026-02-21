@@ -1,14 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Threading.RateLimiting;
 using Xunit;
 using GamerUncle.Api.Models;
 using GamerUncle.Shared.Models;
@@ -36,8 +33,8 @@ namespace GamerUncle.Api.Tests
                     {
                         ["Testing:DisableRateLimit"] = "false",
                         ["RateLimiting:PermitLimit"] = "2",       // Allow 2 requests for more predictable testing
-                        ["RateLimiting:WindowSeconds"] = "2",     // Use seconds instead of minutes for faster tests
-                        ["RateLimiting:QueueLimit"] = "0"        // No queue for simpler testing
+                        ["RateLimiting:WindowSeconds"] = "60",    // Long window to avoid boundary-crossing flakiness
+                        ["RateLimiting:QueueLimit"] = "0"         // No queue for simpler testing
                     });
                 });
 
@@ -49,22 +46,6 @@ namespace GamerUncle.Api.Tests
                         services.Remove(descriptor);
 
                     services.AddTransient(_ => _mockAgentService.Object);
-
-                    // Override rate limiting configuration for testing
-                    services.Configure<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>(options =>
-                    {
-                        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                        {
-                            return RateLimitPartition.GetFixedWindowLimiter("test-partition",
-                                _ => new FixedWindowRateLimiterOptions
-                                {
-                                    PermitLimit = 2,
-                                    Window = TimeSpan.FromSeconds(1), // Very short window for testing
-                                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                                    QueueLimit = 0
-                                });
-                        });
-                    });
                 });
             });
         }
