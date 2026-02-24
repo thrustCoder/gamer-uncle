@@ -21,15 +21,6 @@ function ensurePermissions(config) {
       plist[MICROPHONE_KEY] = micMessage;
     }
 
-    // Ensure background audio is preserved
-    if (Array.isArray(plist.UIBackgroundModes)) {
-      if (!plist.UIBackgroundModes.includes('audio')) {
-        plist.UIBackgroundModes.push('audio');
-      }
-    } else {
-      plist.UIBackgroundModes = ['audio'];
-    }
-
     return config;
   });
 }
