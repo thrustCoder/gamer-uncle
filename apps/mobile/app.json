@@ -23,10 +23,6 @@
         "NSCameraUsageDescription": "This app includes WebRTC capabilities for future video features. Currently, only voice chat is enabled.",
         "NSPhotoLibraryUsageDescription": "This app may access your photo library to allow you to share images related to board games and gaming discussions.",
         "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice messages into text for an enhanced chat experience with AI-powered game recommendations.",
-        "UIBackgroundModes": [
-          "audio",
-          "audio"
-        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },

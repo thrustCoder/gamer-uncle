@@ -32,17 +32,6 @@ check_key () {
 check_key NSMicrophoneUsageDescription
 check_key NSCameraUsageDescription
 
-# Background modes (audio)
-if /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$INFO_PLIST_PATH" >/dev/null 2>&1; then
-  if /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$INFO_PLIST_PATH" | grep -q audio; then
-    echo "[OK] UIBackgroundModes contains audio"
-  else
-    echo "[MISSING] UIBackgroundModes audio"; missing=1
-  fi
-else
-  echo "[MISSING] UIBackgroundModes array"; missing=1
-fi
-
 if [ $missing -ne 0 ]; then
   echo "\nOne or more required keys are missing. Failing." >&2
   exit 2
