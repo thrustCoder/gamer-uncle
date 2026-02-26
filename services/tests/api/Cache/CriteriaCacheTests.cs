@@ -202,6 +202,10 @@ public class CriteriaCacheTests
     [Theory]
     [InlineData("games for 4 players", "games for 4 players")] // Same query
     [InlineData("Games For 4 Players", "games for 4 players")] // Different case
+    [InlineData("How many players can play the game of chess?", "how many players can play the game of chess")] // Punctuation + case
+    [InlineData("Can you tell me about chess?", "tell me about chess")] // Filler words
+    [InlineData("Are there any variations in chess which can be played in a group of four or more?",
+                "are there any variations in chess which can be played in a group of four or more")] // Voice STT typical output
     public async Task GetAsync_NormalizesQueries_ForConsistentCacheKeys(string query1, string query2)
     {
         // Both queries should hit the same cache key after normalization
@@ -215,6 +219,51 @@ public class CriteriaCacheTests
 
         // Assert - should find it due to normalization
         Assert.Equal(criteriaJson, result);
+    }
+
+    [Theory]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData(null, "")]
+    public void NormalizeQuery_HandlesEmptyAndNull(string? input, string expected)
+    {
+        var result = CriteriaCache.NormalizeQuery(input!);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void NormalizeQuery_StripsPunctuation()
+    {
+        // "chess?" and "chess" should produce the same key
+        var withPunctuation = CriteriaCache.NormalizeQuery("What about chess?");
+        var withoutPunctuation = CriteriaCache.NormalizeQuery("what about chess");
+        Assert.Equal(withPunctuation, withoutPunctuation);
+    }
+
+    [Fact]
+    public void NormalizeQuery_RemovesExpandedFillerWords()
+    {
+        // All these conversational fillers should be stripped
+        var verbose = CriteriaCache.NormalizeQuery("Can you please tell me about some good strategy games?");
+        var concise = CriteriaCache.NormalizeQuery("good strategy games");
+        Assert.Equal(concise, verbose);
+    }
+
+    [Fact]
+    public void NormalizeQuery_SortsWordsForOrderIndependence()
+    {
+        var variant1 = CriteriaCache.NormalizeQuery("4 player games");
+        var variant2 = CriteriaCache.NormalizeQuery("games 4 player");
+        Assert.Equal(variant1, variant2);
+    }
+
+    [Fact]
+    public void NormalizeQuery_VoiceVsChatVariations_ProduceSameKey()
+    {
+        // Simulates voice STT vs typed chat for semantically identical queries
+        var voiceQuery = CriteriaCache.NormalizeQuery("How many players can play the game of chess?");
+        var chatQuery = CriteriaCache.NormalizeQuery("players play chess game");
+        Assert.Equal(voiceQuery, chatQuery);
     }
 
     [Fact]

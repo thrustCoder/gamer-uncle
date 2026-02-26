@@ -346,7 +346,7 @@ namespace GamerUncle.Api.Tests
         {
             var settings = new ResilienceSettings();
 
-            Assert.Equal(15, settings.AgentCallTimeoutSeconds);
+            Assert.Equal(20, settings.AgentCallTimeoutSeconds);
             Assert.Equal(1, settings.AgentCallMaxRetries);
             Assert.Equal(1.0, settings.AgentCallRetryBaseDelaySeconds);
             Assert.Equal(2, settings.RedisMaxRetries);
