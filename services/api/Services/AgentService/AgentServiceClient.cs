@@ -478,6 +478,41 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         }
 
         /// <summary>
+        /// Cancels any active (queued or in-progress) runs on the given thread.
+        /// This is critical when retrying after a Polly timeout: the pessimistic timeout
+        /// abandons the local call but the run keeps executing on Azure's side.
+        /// Without cancellation, the next CreateMessage call fails with
+        /// "Can't add messages while a run is active" (HTTP 400).
+        /// </summary>
+        private async Task CancelActiveRunsAsync(string threadId)
+        {
+            try
+            {
+                var runs = _agentsClient.Runs.GetRuns(threadId);
+                foreach (var run in runs)
+                {
+                    if (run.Status == RunStatus.Queued || run.Status == RunStatus.InProgress)
+                    {
+                        _logger.LogWarning(
+                            "Cancelling active run {RunId} (status={Status}) on thread {ThreadId} before adding new message",
+                            run.Id, run.Status, threadId);
+                        _agentsClient.Runs.CancelRun(threadId, run.Id);
+
+                        // Brief wait for cancellation to propagate
+                        await Task.Delay(500);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: if listing/cancelling fails, the CreateMessage call will
+                // surface the error and the outer retry/error handling will deal with it.
+                _logger.LogWarning(ex,
+                    "Failed to cancel active runs on thread {ThreadId}. Proceeding anyway.", threadId);
+            }
+        }
+
+        /// <summary>
         /// Determines if an HTTP status code represents a transient error eligible for retry.
         /// </summary>
         public static bool IsTransientHttpError(int statusCode)
@@ -561,6 +596,11 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                 var modifiedPayload = ModifyPayloadForJsonResponse(requestPayload);
 
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // Cancel any active runs on the thread before adding a new message.
+                // This prevents "Can't add messages while a run is active" errors that
+                // occur when a Polly timeout abandons a call but the run continues on Azure's side.
+                await CancelActiveRunsAsync(thread.Id);
 
                 // Handle Azure OpenAI content length limits (max 2560 characters per content field)
                 var serializedPayload = JsonSerializer.Serialize(modifiedPayload);
@@ -661,6 +701,9 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Cancel any active runs on the thread before adding a new message.
+            await CancelActiveRunsAsync(thread.Id);
 
             // For criteria extraction, use the payload as-is without modification
             _agentsClient.Messages.CreateMessage(thread.Id, MessageRole.User, JsonSerializer.Serialize(requestPayload));

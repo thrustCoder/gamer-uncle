@@ -19,7 +19,7 @@ namespace GamerUncle.Api.Services.Cache
         /// - New criteria fields are added
         /// - Normalization logic changes
         /// </summary>
-        private const string CacheVersion = "v1";
+        private const string CacheVersion = "v2";
         
         private readonly IMemoryCache _l1Cache;
         private readonly IConnectionMultiplexer? _redis;
@@ -196,19 +196,44 @@ namespace GamerUncle.Api.Services.Cache
 
         /// <summary>
         /// Normalizes query for cache key consistency.
-        /// Handles variations like "4 player games" vs "games for 4 players".
+        /// Strips punctuation, removes conversational filler words common in both typed
+        /// and voice-transcribed queries, and sorts remaining words so that
+        /// "4 player games" and "games for 4 players" produce the same cache key.
         /// </summary>
-        private static string NormalizeQuery(string query)
+        internal static string NormalizeQuery(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
                 return string.Empty;
 
-            // Lowercase and normalize whitespace
+            // Lowercase, trim, and strip punctuation ("chess?" == "chess")
             var normalized = query.ToLowerInvariant().Trim();
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^\w\s]", "");
 
-            // Remove common filler words that don't affect criteria extraction
-            var fillerWords = new[] { "a", "an", "the", "for", "with", "and", "or", "to", "me", "i", "want", "need", "looking", "please", "can", "you", "suggest", "recommend" };
-            
+            // Remove common filler/stop words that don't affect criteria extraction.
+            // Expanded set covers conversational phrasing from voice STT output
+            // (e.g., "Can you tell me about any variations of chess which can be played...")
+            var fillerWords = new HashSet<string>(StringComparer.Ordinal)
+            {
+                // Articles & conjunctions
+                "a", "an", "the", "and", "or", "but", "nor",
+                // Prepositions
+                "for", "with", "to", "of", "in", "on", "at", "by", "from",
+                // Pronouns
+                "me", "i", "my", "we", "us", "you", "your", "it", "its",
+                // Common verbs / auxiliaries
+                "is", "are", "was", "were", "be", "been", "being",
+                "do", "does", "did", "have", "has", "had",
+                "can", "could", "would", "should", "will", "shall", "may", "might",
+                // Conversational fillers (typed & voice)
+                "want", "need", "looking", "please", "suggest", "recommend",
+                "tell", "about", "show", "find", "give", "get", "know",
+                "how", "many", "what", "which", "where", "when", "who",
+                "there", "any", "some", "that", "this", "those", "these",
+                // Question helpers common in voice
+                "also", "just", "like", "really", "very", "so", "too",
+                "hey", "hi", "ok", "okay", "well", "um", "uh",
+            };
+
             var words = normalized
                 .Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                 .Where(w => !fillerWords.Contains(w))
