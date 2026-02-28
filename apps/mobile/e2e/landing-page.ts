@@ -18,24 +18,24 @@ export class LandingPage {
     // Additional landing page specific checks
     await this.page.waitForLoadState('networkidle', { timeout: TIMEOUTS.APP_INIT });
     
-    // Ensure we have the header element visible with multiple attempts
-    await this.waitForUncleHeaderWithRetries();
+    // Ensure we have the center circle element visible with multiple attempts
+    await this.waitForCenterCircleWithRetries();
     
     console.log('✅ Landing page fully loaded');
   }
 
-  private async waitForUncleHeaderWithRetries(): Promise<void> {
+  private async waitForCenterCircleWithRetries(): Promise<void> {
     const maxRetries = TIMEOUTS.MAX_RETRIES;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔍 Checking for uncle header (attempt ${attempt}/${maxRetries})`);
+        console.log(`🔍 Checking for center circle (attempt ${attempt}/${maxRetries})`);
         
-        const uncleHeader = this.page.locator('[data-testid="uncle-header"]');
-        await uncleHeader.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
-        await expect(uncleHeader).toBeVisible();
+        const centerCircle = this.page.locator('[data-testid="center-circle"]');
+        await centerCircle.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE });
+        await expect(centerCircle).toBeVisible();
         
-        console.log('✅ Uncle header found and visible');
+        console.log('✅ Center circle found and visible');
         return;
       } catch (error) {
         console.log(`❌ Attempt ${attempt} failed: ${error}`);
@@ -43,7 +43,7 @@ export class LandingPage {
         if (attempt === maxRetries) {
           // Final attempt with detailed debugging
           await this.debugPageState();
-          throw new Error(`Uncle header not found after ${maxRetries} attempts`);
+          throw new Error(`Center circle not found after ${maxRetries} attempts`);
         }
         
         await this.page.waitForTimeout(TIMEOUTS.RETRY_DELAY);
@@ -63,9 +63,9 @@ export class LandingPage {
       const testIdElements = await this.page.locator('[data-testid]').count();
       console.log(`🏷️  Elements with data-testid found: ${testIdElements}`);
       
-      // Check for uncle header specifically
-      const uncleHeaderExists = await this.page.locator('[data-testid="uncle-header"]').count();
-      console.log(`👨‍💼 Uncle header elements found: ${uncleHeaderExists}`);
+      // Check for center circle specifically
+      const centerCircleExists = await this.page.locator('[data-testid="center-circle"]').count();
+      console.log(`🎯 Center circle elements found: ${centerCircleExists}`);
       
       // Check for any images
       const imageCount = await this.page.locator('img').count();
@@ -90,7 +90,7 @@ export class LandingPage {
     console.log('🔍 Verifying main landing elements are visible...');
     
     // Check if all main navigation elements are visible with retries
-    await this.waitForElementWithRetries('[data-testid="uncle-header"]', 'Uncle Header');
+    await this.waitForElementWithRetries('[data-testid="center-circle"]', 'Center Circle');
     
     // Check for tool icons (using fallback selectors if testId not available)
     await this.waitForElementWithRetries('[data-testid="turn-button"]', 'Turn Button');
@@ -161,7 +161,7 @@ export class LandingPage {
   }
 
   async navigateToChat() {
-    await this.appInit.navigateToPage('uncle-header', 'Chat Screen');
+    await this.appInit.navigateToPage('center-circle', 'Chat Screen');
   }
 
   async navigateToTurnSelector() {

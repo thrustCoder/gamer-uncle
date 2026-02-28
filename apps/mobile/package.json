@@ -1,6 +1,6 @@
 {
   "name": "gamer-uncle",
-  "version": "3.3.4",
+  "version": "3.4.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -20,39 +20,42 @@
     "test:e2e:prod": "E2E_BASE_URL=https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net playwright test",
     "test:install": "playwright install --with-deps",
     "test:setup": "./setup-e2e.sh && npm run test:e2e",
-    "test:all": "npm test && npm run test:e2e"
+    "test:all": "npm test && npm run test:e2e",
+    "postinstall": "patch-package"
   },
   "dependencies": {
-    "@config-plugins/react-native-webrtc": "^12.0.0",
-    "@expo/metro-runtime": "~5.0.4",
-    "@react-native-async-storage/async-storage": "2.1.2",
+    "@config-plugins/react-native-webrtc": "^13.0.0",
+    "@expo/metro-runtime": "~6.1.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-masked-view/masked-view": "github:react-native-masked-view/masked-view",
     "@react-native-picker/picker": "2.11.1",
     "@react-native-voice/voice": "^3.2.4",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/stack": "^7.3.3",
     "axios": "^1.9.0",
-    "expo": "53.0.22",
-    "expo-audio": "~0.4.9",
-    "expo-av": "~15.1.7",
-    "expo-constants": "~17.1.6",
-    "expo-dev-client": "~5.2.4",
+    "expo": "~54.0.33",
+    "expo-asset": "~12.0.12",
+    "expo-audio": "~1.1.1",
+    "expo-av": "~16.0.8",
+    "expo-constants": "~18.0.13",
+    "expo-dev-client": "~6.0.20",
     "expo-file-system": "^19.0.17",
-    "expo-speech": "~13.1.7",
-    "expo-status-bar": "~2.2.3",
-    "expo-store-review": "~8.1.5",
-    "lottie-react-native": "7.2.2",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-native": "0.79.5",
-    "react-native-gesture-handler": "~2.24.0",
+    "expo-speech": "~14.0.8",
+    "expo-status-bar": "~3.0.9",
+    "expo-store-review": "~9.0.9",
+    "lottie-react-native": "~7.3.1",
+    "modern-screenshot": "^4.6.8",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
     "react-native-get-random-values": "^1.11.0",
     "react-native-markdown-display": "^7.0.2",
     "react-native-reanimated": "~3.17.4",
-    "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
-    "react-native-svg": "15.11.2",
-    "react-native-web": "^0.20.0",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-web": "^0.21.0",
     "react-native-webrtc": "^124.0.5"
   },
   "devDependencies": {
@@ -61,16 +64,32 @@
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.2.0",
     "@types/jest": "^29.5.12",
-    "@types/react": "~19.0.10",
+    "@types/react": "~19.1.10",
     "baseline-browser-mapping": "^2.9.11",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.0.4",
-    "jest-expo": "~53.0.10",
-    "react-test-renderer": "19.0.0",
+    "jest-expo": "~54.0.17",
+    "patch-package": "^8.0.1",
+    "react-test-renderer": "19.1.0",
     "ts-jest": "^29.1.2",
-    "typescript": "~5.8.3",
+    "typescript": "~5.9.2",
     "webpack": "^5.100.0"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-reanimated"
+      ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-webrtc",
+          "@react-native-voice/voice"
+        ]
+      }
+    }
   },
   "private": true
 }

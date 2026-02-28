@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, Platform } from 'react-native';
-import { getInstalledVersion } from './AppConfigService';
+import { getInstalledVersion, fetchRatingUrls } from './AppConfigService';
 
 // expo-store-review is loaded lazily to avoid crashing when the native module
 // is not present in the current dev build (requires a rebuild to pick up).
@@ -58,9 +58,10 @@ const getThreshold = (featureKey: RatingFeatureKey): number => {
 // ── Configuration ──────────────────────────────────────────────
 const COOLDOWN_DAYS = 7;
 
-// Store IDs for deep-link fallback
-const IOS_APP_STORE_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
-const ANDROID_PLAY_STORE_URL = 'market://details?id=com.thrustCoder.gamerUncle';
+// Hardcoded store URLs kept ONLY as compile-time fallbacks.
+// At runtime, URLs are fetched from the backend via fetchRatingUrls().
+const FALLBACK_IOS_APP_STORE_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
+const FALLBACK_ANDROID_PLAY_STORE_URL = 'market://details?id=com.thrustCoder.gamerUncle';
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ export const recordRated = async (): Promise<void> => {
 /**
  * Request a store review using native in-app review dialog.
  * Falls back to opening the store listing if the native API is unavailable.
+ * Store URLs are fetched from the backend so they can be updated without a release.
  */
 export const requestStoreReview = async (): Promise<void> => {
   try {
@@ -185,8 +187,16 @@ export const requestStoreReview = async (): Promise<void> => {
     // Native review not available, fall through to deep link
   }
 
-  // Fallback: open the store page directly
-  const url = Platform.OS === 'ios' ? IOS_APP_STORE_URL : ANDROID_PLAY_STORE_URL;
+  // Fallback: open the store page directly using backend-sourced URLs
+  let url: string;
+  try {
+    const ratingUrls = await fetchRatingUrls();
+    url = Platform.OS === 'ios' ? ratingUrls.ios : ratingUrls.android;
+  } catch {
+    // If fetching config fails, use hardcoded fallbacks
+    url = Platform.OS === 'ios' ? FALLBACK_IOS_APP_STORE_URL : FALLBACK_ANDROID_PLAY_STORE_URL;
+  }
+
   try {
     await Linking.openURL(url);
   } catch {

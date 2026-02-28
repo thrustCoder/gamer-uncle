@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native-web/dist/index.js b/node_modules/react-native-web/dist/index.js
+index 4f69987..7985bc2 100644
+--- a/node_modules/react-native-web/dist/index.js
++++ b/node_modules/react-native-web/dist/index.js
+@@ -67,3 +67,12 @@ export { default as DeviceEventEmitter } from './exports/DeviceEventEmitter';
+ export { default as useColorScheme } from './exports/useColorScheme';
+ export { default as useLocaleContext } from './exports/useLocaleContext';
+ export { default as useWindowDimensions } from './exports/useWindowDimensions';
++// Polyfill: requireNativeComponent was removed in react-native-web 0.21
++// Some packages still import it (e.g., @react-native-masked-view/masked-view)
++import View from './exports/View';
++import { forwardRef, createElement } from 'react';
++export function requireNativeComponent(viewName) {
++  return forwardRef(function NativeComponentShim(props, ref) {
++    return createElement(View, { ...props, ref });
++  });
++}

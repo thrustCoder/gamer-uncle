@@ -29,7 +29,9 @@ namespace GamerUncle.Api.Tests
             UpgradeUrl = "https://apps.apple.com/app/gamer-uncle/id6740043763",
             UpgradeUrlAndroid = "https://play.google.com/store/apps/details?id=com.gameruncle",
             Message = "Please update to continue.",
-            ForceUpgrade = false
+            ForceUpgrade = false,
+            RatingUrl = "https://apps.apple.com/us/app/gamer-uncle/id6747456645",
+            RatingUrlAndroid = "market://details?id=com.thrustCoder.gamerUncle"
         };
 
         [Fact]
@@ -84,6 +86,23 @@ namespace GamerUncle.Api.Tests
         }
 
         [Fact]
+        public void GetAppConfig_ReturnsRatingUrls()
+        {
+            // Arrange
+            var policy = CreateDefaultPolicy();
+            var controller = CreateController(policy);
+
+            // Act
+            var result = controller.GetAppConfig();
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedPolicy = Assert.IsType<AppVersionPolicy>(okResult.Value);
+            Assert.Equal("https://apps.apple.com/us/app/gamer-uncle/id6747456645", returnedPolicy.RatingUrl);
+            Assert.Equal("market://details?id=com.thrustCoder.gamerUncle", returnedPolicy.RatingUrlAndroid);
+        }
+
+        [Fact]
         public void GetAppConfig_ReturnsMessage()
         {
             // Arrange
@@ -122,6 +141,8 @@ namespace GamerUncle.Api.Tests
             Assert.Null(returnedPolicy.UpgradeUrl);
             Assert.Null(returnedPolicy.UpgradeUrlAndroid);
             Assert.Null(returnedPolicy.Message);
+            Assert.Null(returnedPolicy.RatingUrl);
+            Assert.Null(returnedPolicy.RatingUrlAndroid);
         }
 
         [Fact]

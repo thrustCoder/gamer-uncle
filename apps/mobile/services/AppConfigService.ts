@@ -10,6 +10,10 @@ export interface AppVersionPolicy {
   upgradeUrlAndroid?: string;
   message?: string;
   forceUpgrade: boolean;
+  /** iOS App Store URL for the in-app rating prompt (server-managed). */
+  ratingUrl?: string;
+  /** Android Play Store URL for the in-app rating prompt (server-managed). */
+  ratingUrlAndroid?: string;
 }
 
 /**
@@ -96,4 +100,59 @@ export const checkAppVersion = async (): Promise<VersionCheckResult | null> => {
     console.warn('AppConfig version check failed:', error);
     return null;
   }
+};
+
+/**
+ * Rating URLs returned by the backend, keyed by platform.
+ */
+export interface RatingUrls {
+  ios: string;
+  android: string;
+}
+
+// Hardcoded fallbacks — used when the backend is unreachable.
+const FALLBACK_IOS_RATING_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
+const FALLBACK_ANDROID_RATING_URL = 'market://details?id=com.thrustCoder.gamerUncle';
+
+/** In-memory cache so we fetch at most once per app session. */
+let _cachedRatingUrls: RatingUrls | null = null;
+
+/**
+ * Fetch the platform-specific store URLs for the rating prompt from
+ * the backend /api/AppConfig endpoint. Falls back to hardcoded values
+ * if the request fails or the fields are missing.
+ *
+ * Results are cached in-memory for the lifetime of the app session.
+ */
+export const fetchRatingUrls = async (): Promise<RatingUrls> => {
+  if (_cachedRatingUrls) return _cachedRatingUrls;
+
+  try {
+    const baseUrl = getApiBaseUrl();
+    const response = await fetch(`${baseUrl}AppConfig`);
+
+    if (response.ok) {
+      const policy: AppVersionPolicy = await response.json();
+      _cachedRatingUrls = {
+        ios: policy.ratingUrl || FALLBACK_IOS_RATING_URL,
+        android: policy.ratingUrlAndroid || FALLBACK_ANDROID_RATING_URL,
+      };
+      return _cachedRatingUrls;
+    }
+  } catch {
+    // Network error — fall through to defaults
+  }
+
+  _cachedRatingUrls = {
+    ios: FALLBACK_IOS_RATING_URL,
+    android: FALLBACK_ANDROID_RATING_URL,
+  };
+  return _cachedRatingUrls;
+};
+
+/**
+ * Reset the cached rating URLs (for testing).
+ */
+export const _resetRatingUrlsCache = (): void => {
+  _cachedRatingUrls = null;
 };

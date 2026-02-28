@@ -5,10 +5,10 @@ test.describe('Landing Navigation', () => {
     await page.goto('/');
     
     // Verify landing page loads
-    await expect(page.locator('[data-testid="uncle-header"]')).toBeVisible();
+    await expect(page.locator('[data-testid="center-circle"]')).toBeVisible();
     
     // Navigate to chat
-    await page.click('[data-testid="uncle-header"]');
+    await page.click('[data-testid="center-circle"]');
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible();
   });
 });
