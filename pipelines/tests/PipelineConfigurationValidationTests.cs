@@ -267,8 +267,8 @@ namespace GamerUncle.Pipeline.Tests
             var pipelineContent = File.ReadAllText(_pipelineConfigPath);
 
             // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("versionSpec: '18.x'"), 
-                "Pipeline should use Node.js 18.x");
+            Assert.IsTrue(pipelineContent.Contains("versionSpec: '20.x'"), 
+                "Pipeline should use Node.js 20.x");
         }
 
         [TestMethod]

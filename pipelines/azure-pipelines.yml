@@ -30,7 +30,7 @@ stages:
     steps:
     - task: NodeTool@0
       inputs:
-        versionSpec: '18.x'
+        versionSpec: '20.x'
       displayName: 'Install Node.js'
     
     - task: UseDotNet@2
@@ -185,7 +185,7 @@ stages:
     steps:
     - task: NodeTool@0
       inputs:
-        versionSpec: '18.x'
+        versionSpec: '20.x'
       displayName: 'Install Node.js'
 
     - script: |
@@ -696,7 +696,7 @@ stages:
     steps:
     - task: NodeTool@0
       inputs:
-        versionSpec: '18.x'
+        versionSpec: '20.x'
       displayName: 'Install Node.js'
 
     - script: |
