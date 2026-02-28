@@ -1,4 +1,4 @@
-import { compareSemver, getInstalledVersion, checkAppVersion } from '../services/AppConfigService';
+import { compareSemver, getInstalledVersion, checkAppVersion, fetchRatingUrls, _resetRatingUrlsCache } from '../services/AppConfigService';
 import Constants from 'expo-constants';
 
 // Mock apiConfig
@@ -158,5 +158,108 @@ describe('checkAppVersion', () => {
 
     const result = await checkAppVersion();
     expect(result).toEqual({ needsUpdate: false, forceUpgrade: false });
+  });
+});
+
+describe('fetchRatingUrls', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    _resetRatingUrlsCache();
+    (global.fetch as jest.Mock) = jest.fn();
+  });
+
+  it('returns backend URLs when API responds', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        minVersion: '1.0.0',
+        forceUpgrade: false,
+        ratingUrl: 'https://apps.apple.com/us/app/gamer-uncle/id9999999',
+        ratingUrlAndroid: 'market://details?id=com.custom.app',
+      }),
+    });
+
+    const urls = await fetchRatingUrls();
+    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id9999999');
+    expect(urls.android).toBe('market://details?id=com.custom.app');
+  });
+
+  it('returns fallback URLs when API fails', async () => {
+    (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+    const urls = await fetchRatingUrls();
+    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.android).toBe('market://details?id=com.thrustCoder.gamerUncle');
+  });
+
+  it('returns fallback URLs when response is not ok', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
+
+    const urls = await fetchRatingUrls();
+    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.android).toBe('market://details?id=com.thrustCoder.gamerUncle');
+  });
+
+  it('returns fallback iOS URL when ratingUrl is missing in response', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        minVersion: '1.0.0',
+        forceUpgrade: false,
+        ratingUrlAndroid: 'market://details?id=com.custom.app',
+      }),
+    });
+
+    const urls = await fetchRatingUrls();
+    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.android).toBe('market://details?id=com.custom.app');
+  });
+
+  it('caches the result across multiple calls', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        minVersion: '1.0.0',
+        forceUpgrade: false,
+        ratingUrl: 'https://cached.url',
+        ratingUrlAndroid: 'market://cached',
+      }),
+    });
+
+    await fetchRatingUrls();
+    await fetchRatingUrls();
+    await fetchRatingUrls();
+
+    // fetch should only be called once due to caching
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('cache is cleared by _resetRatingUrlsCache', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        minVersion: '1.0.0',
+        forceUpgrade: false,
+        ratingUrl: 'https://first.url',
+        ratingUrlAndroid: 'market://first',
+      }),
+    });
+
+    await fetchRatingUrls();
+    _resetRatingUrlsCache();
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        minVersion: '1.0.0',
+        forceUpgrade: false,
+        ratingUrl: 'https://second.url',
+        ratingUrlAndroid: 'market://second',
+      }),
+    });
+
+    const urls = await fetchRatingUrls();
+    expect(urls.ios).toBe('https://second.url');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

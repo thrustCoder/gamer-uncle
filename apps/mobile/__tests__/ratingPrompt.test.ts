@@ -3,6 +3,7 @@ import {
   shouldShowRatingPrompt,
   recordDismissal,
   recordRated,
+  requestStoreReview,
   resetRatingStateForDev,
   incrementEngagement,
   getEngagementCount,
@@ -13,11 +14,13 @@ import {
   _constants,
   _getMajorVersion,
 } from '../services/ratingPrompt';
+import { _resetRatingUrlsCache } from '../services/AppConfigService';
 
 // AsyncStorage is auto-mocked by jest-expo / __mocks__
 
 beforeEach(async () => {
   await AsyncStorage.clear();
+  _resetRatingUrlsCache();
 });
 
 describe('ratingPrompt', () => {
@@ -381,6 +384,53 @@ describe('ratingPrompt', () => {
       expect(await AsyncStorage.getItem(_constants.DISMISSED_AT_KEY)).toBeNull();
       expect(await getEngagementCount(RatingFeatureKeys.TURN_SELECTOR)).toBe(0);
       expect(await getEngagementCount(RatingFeatureKeys.GAME_SEARCH)).toBe(0);
+    });
+  });
+
+  // ── requestStoreReview ─────────────────────────────────────
+
+  describe('requestStoreReview', () => {
+    const mockLinking = require('react-native').Linking;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      _resetRatingUrlsCache();
+      (global.fetch as jest.Mock) = jest.fn();
+      mockLinking.openURL.mockResolvedValue(undefined);
+    });
+
+    it('opens backend-sourced iOS URL when native review is unavailable', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          minVersion: '1.0.0',
+          forceUpgrade: false,
+          ratingUrl: 'https://backend-ios-url.example.com',
+          ratingUrlAndroid: 'market://backend-android',
+        }),
+      });
+
+      await requestStoreReview();
+
+      expect(mockLinking.openURL).toHaveBeenCalledWith('https://backend-ios-url.example.com');
+    });
+
+    it('falls back to hardcoded URL when backend fetch fails', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+      await requestStoreReview();
+
+      expect(mockLinking.openURL).toHaveBeenCalledWith(
+        'https://apps.apple.com/us/app/gamer-uncle/id6747456645'
+      );
+    });
+
+    it('does not throw when Linking.openURL fails', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network'));
+      mockLinking.openURL.mockRejectedValue(new Error('Cannot open URL'));
+
+      // Should not throw
+      await expect(requestStoreReview()).resolves.toBeUndefined();
     });
   });
 });

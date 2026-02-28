@@ -32,5 +32,17 @@ namespace GamerUncle.Api.Models
         /// When false, the client may show a dismissible banner instead.
         /// </summary>
         public bool ForceUpgrade { get; set; }
+
+        /// <summary>
+        /// iOS App Store URL used by the in-app rating prompt deep-link fallback.
+        /// Managed server-side so it can be updated without an app release.
+        /// </summary>
+        public string? RatingUrl { get; set; }
+
+        /// <summary>
+        /// Android Play Store URL used by the in-app rating prompt deep-link fallback.
+        /// Managed server-side so it can be updated without an app release.
+        /// </summary>
+        public string? RatingUrlAndroid { get; set; }
     }
 }
