@@ -58,7 +58,7 @@ export const SELECTORS = {
   typingIndicator: '[data-testid="typing-indicator"]',
   
   // Landing page
-  uncleHeader: '[data-testid="uncle-header"]',
+  centerCircle: '[data-testid="center-circle"]',
   
   // Fallbacks for when data-testid is not available
   fallback: {

@@ -4,8 +4,8 @@ export class ChatPage {
   constructor(private page: Page) {}
 
   async navigateToChat() {
-    // Click on the uncle header to navigate to chat
-    await this.page.click('[data-testid="uncle-header"]');
+    // Click on the center circle to navigate to chat
+    await this.page.click('[data-testid="center-circle"]');
     
     // Wait for chat input to be visible
     await expect(this.page.locator('[data-testid="chat-input"]')).toBeVisible({ timeout: 10000 });

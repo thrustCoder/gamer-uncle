@@ -8,7 +8,7 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
     
     // Basic functionality check - ensure we can navigate to chat
-    await page.click('[data-testid="uncle-header"]');
+    await page.click('[data-testid="center-circle"]');
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible();
   });
 });

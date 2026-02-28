@@ -83,9 +83,9 @@ export class NavigationHelper {
         await this.page.waitForTimeout(TIMEOUTS.NAVIGATION);
         
         // Verify we're back on landing page
-        const uncleHeader = this.page.locator(SELECTORS.uncleHeader).first();
-        await uncleHeader.waitFor({ state: 'visible', timeout: TIMEOUTS.PAGE_LOAD });
-        await expect(uncleHeader).toBeVisible();
+        const centerCircle = this.page.locator(SELECTORS.centerCircle).first();
+        await centerCircle.waitFor({ state: 'visible', timeout: TIMEOUTS.PAGE_LOAD });
+        await expect(centerCircle).toBeVisible();
         
         console.log('✅ Successfully navigated back to landing');
         return;
@@ -132,7 +132,7 @@ export class NavigationHelper {
       },
       { 
         name: 'Chat', 
-        button: '[data-testid="uncle-header"]', 
+        button: '[data-testid="center-circle"]', 
         verification: '[data-testid="chat-input"]' 
       }
     ];
@@ -176,8 +176,8 @@ export class NavigationHelper {
    */
   async isOnLandingPage(): Promise<boolean> {
     try {
-      const uncleHeader = this.page.locator(SELECTORS.uncleHeader).first();
-      await expect(uncleHeader).toBeVisible({ timeout: 3000 });
+      const centerCircle = this.page.locator(SELECTORS.centerCircle).first();
+      await expect(centerCircle).toBeVisible({ timeout: 3000 });
       return true;
     } catch {
       return false;

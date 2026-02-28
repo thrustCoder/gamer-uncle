@@ -99,7 +99,7 @@ test.describe('Score Tracker Screen', () => {
     await page.waitForTimeout(TIMEOUTS.NAVIGATION);
     
     // Should be back on landing page
-    const landingIndicator = page.locator('[data-testid="center-circle"], [data-testid="uncle-header"]');
+    const landingIndicator = page.locator('[data-testid="center-circle"]');
     await expect(landingIndicator.first()).toBeVisible({ timeout: TIMEOUTS.PAGE_LOAD });
   });
 });

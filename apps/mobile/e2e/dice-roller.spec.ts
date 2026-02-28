@@ -114,6 +114,6 @@ test.describe('Dice Roller Screen', () => {
     await page.locator('[data-testid="back-button"]').click();
     
     // Verify we're back on the landing page
-    await expect(page.locator('[data-testid="uncle-header"]')).toBeVisible();
+    await expect(page.locator('[data-testid="center-circle"]')).toBeVisible();
   });
 });

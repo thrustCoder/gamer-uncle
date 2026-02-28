@@ -172,6 +172,6 @@ test.describe('Game Setup Screen', () => {
     await page.locator('[data-testid="back-button"]').click();
     
     // Should be back on landing page
-    await expect(page.locator('[data-testid="uncle-header"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="center-circle"]')).toBeVisible({ timeout: 5000 });
   });
 });

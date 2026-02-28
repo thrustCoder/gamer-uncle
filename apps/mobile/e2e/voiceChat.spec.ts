@@ -12,6 +12,9 @@ test.describe('Voice Chat Functionality', () => {
     
     await page.goto('/');
     
+    // Navigate to chat screen first (landing page shows circular layout)
+    await page.click('[data-testid="center-circle"]');
+    
     // Wait for app to be ready before testing voice features
     await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 10000 });
   });
@@ -108,6 +111,9 @@ test.describe('Voice Chat Integration @integration', () => {
   test.beforeEach(async ({ page }) => {
     test.setTimeout(30000); // 30 second timeout for voice integration tests
     await page.goto('/');
+    
+    // Navigate to chat screen first (landing page shows circular layout)
+    await page.click('[data-testid="center-circle"]');
     await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 10000 });
   });
 

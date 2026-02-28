@@ -51,8 +51,8 @@ export class AppInitialization {
   private async waitForMainAppContainer(): Promise<void> {
     // Wait for the main app container to be present and visible
     try {
-      // First try to find the uncle header (main landing element)
-      await this.page.waitForSelector('[data-testid="uncle-header"]', { 
+      // First try to find the center circle (main landing element)
+      await this.page.waitForSelector('[data-testid="center-circle"]', { 
         state: 'attached', 
         timeout: 15000 
       });
@@ -72,13 +72,13 @@ export class AppInitialization {
 
     while (Date.now() - startTime < maxWaitTime) {
       try {
-        // Try to locate the uncle header element
-        const uncleHeader = this.page.locator('[data-testid="uncle-header"]');
-        await uncleHeader.waitFor({ state: 'visible', timeout: 3000 });
+        // Try to locate the center circle element
+        const centerCircle = this.page.locator('[data-testid="center-circle"]');
+        await centerCircle.waitFor({ state: 'visible', timeout: 3000 });
         
         // Verify it's actually clickable
-        await expect(uncleHeader).toBeVisible();
-        await expect(uncleHeader).toBeEnabled();
+        await expect(centerCircle).toBeVisible();
+        await expect(centerCircle).toBeEnabled();
         return; // Success!
       } catch {
         console.log('⏳ Retrying element accessibility check...');
