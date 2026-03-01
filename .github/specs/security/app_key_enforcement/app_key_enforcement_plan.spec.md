@@ -21,7 +21,7 @@
 |---|---|---|---|
 | **1. Client Sends App Key** | Mobile app starts sending `X-GamerUncle-AppKey` on Recommendations & Voice requests. No server changes. | 1–2 weeks (app review) | Complete |
 | **2. Soft Enforcement** | Server validates App Key but allows requests without it (logs warning). Reject invalid keys. | Deploy after Phase 1 is live | Complete |
-| **3. Force Upgrade** | Build `/api/AppConfig` endpoint + client-side version check with blocking upgrade modal. Observation window to monitor adoption. | 2–3 weeks build + 4–6 weeks observation | Complete |
+| **3. Force Upgrade** | Build `/api/AppConfig` endpoint + client-side version check with upgrade prompt. Currently in **nudge mode** (`ForceUpgrade: false` — dismissible banner). Can escalate to blocking modal via config. | 2–3 weeks build + 4–6 weeks observation | Complete (nudge mode) |
 | **4. Hard Enforcement** | Swap graceful filter for strict `[RequireAppKey]`. All unauthenticated requests rejected. | Single deploy | Not Started |
 
 ---
@@ -34,19 +34,21 @@ Require `X-GamerUncle-AppKey` authentication on the Recommendations (chat) and V
 
 | Controller | Route | App Key Required | Rate Limited |
 |---|---|---|---|
-| `GamesController` | `api/Games/*` | **Yes** | `GameSearch` |
-| `TelemetryController` | `api/Telemetry/*` | **Yes** | — |
-| `RecommendationsController` | `api/Recommendations` | **No** | `GameRecommendations` |
-| `VoiceController` | `api/Voice/*` | **No** | `GameRecommendations` |
-| `DiagnosticsController` | `api/Diagnostics/*` | **No** | — |
+| `GamesController` | `api/Games/*` | **Yes** (`[RequireAppKey]`) | `GameSearch` |
+| `TelemetryController` | `api/Telemetry/*` | **Yes** (`[RequireAppKey]`) | — |
+| `RecommendationsController` | `api/Recommendations` | **Soft** (`[RequireAppKeyGraceful]`) | `GameRecommendations` |
+| `VoiceController` | `api/Voice/*` | **Soft** (`[RequireAppKeyGraceful]`) | `GameRecommendations` |
+| `AppConfigController` | `api/AppConfig` | No (public) | — |
+| `DiagnosticsController` | `api/Diagnostics/*` | No | — |
 
 ### Key Facts
 
 - Only client is the **Expo mobile app** (iOS / Android, distributed via App Store / Play Store).
 - App store review cycle is **~1 week**; user adoption is gradual after that.
 - The existing `[RequireAppKey]` attribute (`AppKeyAuthorizationFilter`) validates the `X-GamerUncle-AppKey` header against `ApiAuthentication:AppKey` config. It already has a graceful fallback: if the server-side key is not configured, validation is skipped with a warning log.
-- There is **no force-upgrade mechanism** in the app today — one must be built.
-- The same Key Vault secret (`GameSearchAppKey`) already used by Game Search / Telemetry will be reused.
+- A **nudge-upgrade mechanism** is deployed (`/api/AppConfig` with `ForceUpgrade: false`). Users below `MinVersion` see a dismissible banner; this can be escalated to a blocking modal by setting `ForceUpgrade: true` in config.
+- The same Key Vault secret (`GameSearchAppKey`) already used by Game Search / Telemetry is reused.
+- Current app version: **3.4.1**; `MinVersion`: **3.3.4**.
 
 ---
 
@@ -102,8 +104,15 @@ Create a new `[RequireAppKeyGraceful]` attribute (separate from the existing har
 
 #### Monitoring
 
-- Log every request missing the key at `Warning` level with client IP and User-Agent.
-- Dashboard / alert on % of unauthenticated traffic over time.
+- All three outcomes (Valid, Missing, Invalid) are logged via `ILogger` with stable `EventId` constants:
+  - **7001** — `AppKeyGraceMode.Valid` (Information level)
+  - **7002** — `AppKeyGraceMode.Missing` (Warning level)
+  - **7003** — `AppKeyGraceMode.Invalid` (Warning level)
+- Each log entry includes structured properties: `AppKeyOutcome`, `AppKeyPath`, `ClientIp`, `UserAgent`.
+- `TelemetryClient.TrackEvent("AppKey.GraceModeRequest")` is also emitted (belt-and-suspenders for `customEvents` table) but the `traces` table via `ILogger` is the **primary** telemetry path.
+- Run `scripts/check-appkey-adoption.ps1` to query adoption metrics from the `traces` table.
+
+> **Lesson learned**: The original implementation logged the valid-key path at `Debug` level (filtered out in prod where min level = `Information`) and relied solely on `TelemetryClient.TrackEvent()` which was not ingesting to the `customEvents` table. This was fixed by promoting valid-key logging to `Information` and adding structured `ILogger` properties queryable via KQL on the `traces` table.
 
 #### Deployment
 
@@ -166,9 +175,10 @@ GET /api/AppConfig
 
 #### Exit Criteria
 
-- Force upgrade mechanism deployed to prod.
-- `minVersion` set to the Phase 1 app version (the one that sends App Key).
-- Monitoring confirms negligible traffic from sub-`minVersion` clients.
+- Force upgrade mechanism deployed to prod. ✅
+- `minVersion` set to `3.3.4` (the version that sends App Key). ✅
+- `ForceUpgrade` is currently `false` (nudge / dismissible banner). Escalate to `true` only if needed before Phase 4.
+- Monitoring confirms negligible traffic from sub-`minVersion` clients. ⏳ (requires telemetry fix to be deployed — see Phase 2 Monitoring note).
 
 ---
 
@@ -179,8 +189,16 @@ GET /api/AppConfig
 #### Prerequisites
 
 Either:
-- Monitoring shows unauthenticated traffic is negligible (< 1%), **or**
-- Force upgrade (Phase 3) has been active long enough that remaining old clients are a rounding error.
+- Monitoring shows unauthenticated traffic is negligible (< 1%) — run `scripts/check-appkey-adoption.ps1` or query the `traces` table:
+  ```kql
+  traces
+  | where timestamp > ago(30d)
+  | where customDimensions has 'AppKeyOutcome'
+  | extend Outcome = tostring(customDimensions['AppKeyOutcome'])
+  | summarize Total=count(), Missing=countif(Outcome == 'Missing') by bin(timestamp, 1d)
+  | extend MissingPct = round(todouble(Missing) / todouble(Total) * 100, 1)
+  ```
+- **OR** Force upgrade (Phase 3) has been escalated to blocking mode (`ForceUpgrade: true`) and active long enough that remaining old clients are a rounding error.
 
 #### Changes
 

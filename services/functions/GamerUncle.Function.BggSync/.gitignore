@@ -15,6 +15,9 @@ obj/
 # ASP.NET secrets
 secrets.json
 
+# Azure Functions local settings (contains secrets)
+local.settings.json
+
 # Logs
 *.log
 

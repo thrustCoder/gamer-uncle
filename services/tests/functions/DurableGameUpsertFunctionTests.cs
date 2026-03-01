@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -707,6 +708,129 @@ namespace GamerUncle.Functions.Tests
         public void IsHighSignal_WithNullGame_ReturnsFalse()
         {
             Assert.False(HighSignalFilter.IsHighSignal(null!, 5.0, 5.0, 50));
+        }
+    }
+
+    public class BggApiClientBearerTokenTests
+    {
+        [Fact]
+        public void Constructor_WithBearerToken_SetsAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+            var token = "test-token-uuid";
+
+            // Act
+            var client = new BggApiClient(httpClient, token);
+
+            // Assert
+            Assert.NotNull(httpClient.DefaultRequestHeaders.Authorization);
+            Assert.Equal("Bearer", httpClient.DefaultRequestHeaders.Authorization.Scheme);
+            Assert.Equal(token, httpClient.DefaultRequestHeaders.Authorization.Parameter);
+        }
+
+        [Fact]
+        public void Constructor_WithNullToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act
+            var client = new BggApiClient(httpClient, null);
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+
+        [Fact]
+        public void Constructor_WithEmptyToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act
+            var client = new BggApiClient(httpClient, "");
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+
+        [Fact]
+        public void Constructor_WithoutToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act — uses default parameter
+            var client = new BggApiClient(httpClient);
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+    }
+
+    public class BggRankedListClientBearerTokenTests
+    {
+        [Fact]
+        public void Constructor_WithBearerToken_SetsAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+            var token = "test-token-uuid";
+
+            // Act
+            var client = new BggRankedListClient(httpClient, token);
+
+            // Assert
+            Assert.NotNull(httpClient.DefaultRequestHeaders.Authorization);
+            Assert.Equal("Bearer", httpClient.DefaultRequestHeaders.Authorization.Scheme);
+            Assert.Equal(token, httpClient.DefaultRequestHeaders.Authorization.Parameter);
+        }
+
+        [Fact]
+        public void Constructor_WithNullToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act
+            var client = new BggRankedListClient(httpClient, null);
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+
+        [Fact]
+        public void Constructor_WithEmptyToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act
+            var client = new BggRankedListClient(httpClient, "");
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+
+        [Fact]
+        public void Constructor_WithoutToken_DoesNotSetAuthorizationHeader()
+        {
+            // Arrange
+            var httpClient = new HttpClient();
+
+            // Act — uses default parameter
+            var client = new BggRankedListClient(httpClient);
+
+            // Assert
+            Assert.Null(httpClient.DefaultRequestHeaders.Authorization);
+        }
+
+        [Fact]
+        public void Constructor_WithNullHttpClient_ThrowsRegardlessOfToken()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new BggRankedListClient(null!, "some-token"));
         }
     }
 }
