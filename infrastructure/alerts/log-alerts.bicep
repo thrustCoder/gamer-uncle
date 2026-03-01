@@ -1,6 +1,7 @@
 // ============================================================================
 // Log-Search (KQL) Alert Rules
-// Alerts: #2, #3, #4, #5, #6, #7, #8, #11, #12, #15, #16, #21, #22, #23, #24
+// Alerts: #2, #3, #4, #5, #6, #7, #8, #11, #12, #14, #15, #16, #21, #22, #23, #24
+// Alert #14 moved here from metric-alerts (FunctionExecutionUnits is MB-ms, not duration)
 // Alert #17 is deferred to Phase 3 (needs session baseline data)
 // ============================================================================
 
@@ -111,6 +112,7 @@ resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
             customMetrics
             | where name == "AgentRequest.Duration"
             | summarize p95 = percentile(value, 95)
+            | where isnotempty(p95)
           '''
           timeAggregation: 'Maximum'
           operator: 'GreaterThan'
@@ -297,6 +299,7 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
             customMetrics
             | where name == "voice.audio_failures_total"
             | summarize total = sum(value)
+            | where total > 0
           '''
           timeAggregation: 'Total'
           operator: 'GreaterThan'
@@ -335,6 +338,7 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
             customMetrics
             | where name == "voice.total_duration_ms"
             | summarize p95 = percentile(value, 95)
+            | where isnotempty(p95)
           '''
           timeAggregation: 'Maximum'
           operator: 'GreaterThan'
@@ -587,6 +591,47 @@ resource toolFeatureErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
           timeAggregation: 'Count'
           operator: 'GreaterThan'
           threshold: isProd ? 3 : 5
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: [actionGroupId]
+    }
+  }
+}
+
+// ============================================================================
+// Alert #14 — Function Execution Duration (Sev3)
+// Moved from metric-alerts: FunctionExecutionUnits is MB-ms (not duration).
+// Log-search against App Insights requests gives actual duration in ms.
+// ============================================================================
+resource functionDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'gamer-uncle-${environment}-function-duration'
+  location: resourceGroup().location
+  properties: {
+    description: 'Alert #14: Function execution duration P95 is abnormally high. BGG API or Cosmos upsert may be slow.'
+    severity: 3
+    enabled: true
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT1H'
+    scopes: [appInsightsId]
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            requests
+            | where cloud_RoleName has "function" or sdkVersion has "azurefunctions"
+            | summarize p95 = percentile(duration, 95)
+            | where isnotempty(p95)
+          '''
+          timeAggregation: 'Maximum'
+          operator: 'GreaterThan'
+          threshold: isProd ? 30000 : 60000
+          metricMeasureColumn: 'p95'
           failingPeriods: {
             numberOfEvaluationPeriods: 1
             minFailingPeriodsToAlert: 1

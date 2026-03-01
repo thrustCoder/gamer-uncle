@@ -1,6 +1,7 @@
 // ============================================================================
 // Platform Metric Alert Rules
-// Alerts: #1, #9, #10, #13, #14, #18, #19, #20, #25
+// Alerts: #1, #9, #10, #13, #18, #19, #20, #25
+// Note: Alert #14 moved to log-alerts.bicep (FunctionExecutionUnits is MB-ms, not duration)
 // ============================================================================
 
 @description('Environment name (dev or prod)')
@@ -36,9 +37,6 @@ var cosmosRuPctThreshold = isProd ? 70 : 85
 
 // Alert #13 — Function Execution Failures
 var functionFailureThreshold = isProd ? 0 : 2
-
-// Alert #14 — Function Execution Duration (ms)
-var functionDurationThreshold = isProd ? 30000 : 60000
 
 // Alert #18 — App Service CPU %
 var cpuThreshold = isProd ? 80 : 90
@@ -184,41 +182,6 @@ resource functionFailureAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
           operator: 'GreaterThan'
           threshold: functionFailureThreshold
           timeAggregation: 'Total'
-          criterionType: 'StaticThresholdCriterion'
-        }
-      ]
-    }
-    actions: [
-      {
-        actionGroupId: actionGroupId
-      }
-    ]
-  }
-}
-
-// ============================================================================
-// Alert #14 — Function Execution Duration (Sev3)
-// ============================================================================
-resource functionDurationAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
-  name: 'gamer-uncle-${environment}-function-duration'
-  location: 'Global'
-  properties: {
-    description: 'Alert #14: Function execution duration is abnormally high. BGG API or Cosmos upsert may be slow.'
-    severity: 3
-    enabled: true
-    evaluationFrequency: 'PT15M'
-    windowSize: 'PT1H'
-    scopes: [functionAppId]
-    criteria: {
-      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
-      allOf: [
-        {
-          name: 'FunctionDuration'
-          metricName: 'FunctionExecutionUnits'
-          metricNamespace: 'Microsoft.Web/sites'
-          operator: 'GreaterThan'
-          threshold: functionDurationThreshold
-          timeAggregation: 'Average'
           criterionType: 'StaticThresholdCriterion'
         }
       ]
