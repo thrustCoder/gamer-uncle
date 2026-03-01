@@ -68,6 +68,29 @@ dotnet user-secrets remove "KeyName" --project services/api/GamerUncle.Api.cspro
 - **Configuration File**: Update `appsettings.Development.json` with actual API key (not placeholder)
 - **Root Cause of 401 Errors**: Missing or incorrectly configured Azure OpenAI API key for WebSocket authentication
 
+### Backend API Backward Compatibility (CRITICAL)
+Real users may be running older versions of the mobile app at any time. A backend API change that breaks an older client is **catastrophic**. All backend API changes MUST be backward compatible with every client version **at or above** the `MinVersion` defined in `AppVersionPolicy` (see `appsettings.json` → `AppVersionPolicy:MinVersion`). Clients below `MinVersion` are force-upgraded, so breaking them is acceptable.
+
+**Rules:**
+- **NEVER remove or rename** an existing API endpoint, route, query parameter, or request/response JSON property that clients ≥ `MinVersion` rely on
+- **NEVER change the type** of an existing JSON property (e.g., string → array, int → string)
+- **NEVER change the semantic meaning** of an existing field or status code
+- **New fields are safe to add** — older clients will simply ignore them
+- **New optional query/body parameters are safe** — they must have sensible defaults so older clients that don't send them still work
+- **New endpoints are safe** — they don't affect existing clients
+- **Breaking changes targeting versions below `MinVersion` are allowed** — but first bump `MinVersion` and deploy the config change so those old clients are forced to upgrade before they hit the breaking endpoint
+
+**If a breaking change is truly unavoidable:**
+1. **Version the API** (e.g., `/v2/recommendations`) rather than modifying the existing endpoint
+2. Keep the old endpoint working for at least **two release cycles** of the mobile app
+3. Add a deprecation log warning on the old endpoint so usage can be tracked
+4. Coordinate frontend and backend changes — update the mobile app to use the new endpoint, then retire the old one only after confirming no traffic remains
+
+**Before merging any backend API change, verify:**
+- Existing functional tests still pass without modification (they represent the old contract)
+- The request/response JSON schema is a **superset** of the previous schema (additions only)
+- Default values are provided for any new required server-side fields
+
 ## Essential Commands
 
 ### Development Workflow

@@ -55,6 +55,23 @@ jest.mock('../services/ApiClient', () => ({
   getRecommendations: (...args: any[]) => mockGetRecommendations(...args),
 }));
 
+// Mock appCache
+jest.mock('../services/storage/appCache', () => ({
+  appCache: {
+    getGameSetupGameName: jest.fn((): Promise<string> => Promise.resolve('')),
+    setGameSetupGameName: jest.fn((): Promise<void> => Promise.resolve()),
+    getGameSetupPlayerCount: jest.fn((): Promise<number> => Promise.resolve(4)),
+    setGameSetupPlayerCount: jest.fn((): Promise<void> => Promise.resolve()),
+    getGameSetupResponse: jest.fn((): Promise<string | null> => Promise.resolve(null)),
+    setGameSetupResponse: jest.fn((): Promise<void> => Promise.resolve()),
+    clearGameSetup: jest.fn((): Promise<void> => Promise.resolve()),
+  },
+}));
+
+// Get reference to mocked appCache for assertions
+import { appCache } from '../services/storage/appCache';
+const mockAppCache = appCache as jest.Mocked<typeof appCache>;
+
 // Spy on Alert
 jest.spyOn(Alert, 'alert');
 
@@ -296,20 +313,21 @@ describe('GameSetupScreen', () => {
   });
 
   it('handles singular player count correctly', async () => {
-    mockGetRecommendations.mockResolvedValueOnce({
-      responseText: 'Single player setup...',
-    });
-
     const { getByTestId, getByText } = render(<GameSetupScreen />);
+
+    // Wait for hydration to complete
+    await waitFor(() => {
+      expect(getByText('4 Players')).toBeTruthy();
+    });
     
     // Manually set player count to 1 through Alert mock
-    // Since Alert.alert is async/callback based, we need to trigger the callback
     const pickerButton = getByTestId('player-count-picker');
     fireEvent.press(pickerButton);
     
     // Get the Alert.alert call and invoke the first option (1 player)
-    const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-    const buttons = alertCall[2];
+    const alertCalls = (Alert.alert as jest.Mock).mock.calls;
+    const pickerCall = alertCalls.find((c: any[]) => c[0] === 'Select Number of Players');
+    const buttons = pickerCall![2];
     const onePlayerButton = buttons.find((b: any) => b.text === '1');
     
     // Wrap the state update in act()
@@ -320,6 +338,88 @@ describe('GameSetupScreen', () => {
     });
     
     // Verify the picker shows "1 Player" (singular)
-    expect(getByText('1 Player')).toBeTruthy();
+    await waitFor(() => {
+      expect(getByText('1 Player')).toBeTruthy();
+    });
+  });
+
+  describe('persistence', () => {
+    it('restores persisted game name, player count, and response on mount', async () => {
+      mockAppCache.getGameSetupGameName.mockResolvedValueOnce('Catan');
+      mockAppCache.getGameSetupPlayerCount.mockResolvedValueOnce(3);
+      mockAppCache.getGameSetupResponse.mockResolvedValueOnce('Saved setup instructions...');
+
+      const { getByTestId, getByText } = render(<GameSetupScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('game-name-input').props.value).toBe('Catan');
+        expect(getByText('3 Players')).toBeTruthy();
+        expect(getByText('Saved setup instructions...')).toBeTruthy();
+      });
+    });
+
+    it('persists response after successful API call', async () => {
+      const mockResponse = 'Setup instructions for Catan...';
+      mockGetRecommendations.mockResolvedValueOnce({ responseText: mockResponse });
+
+      const { getByTestId } = render(<GameSetupScreen />);
+
+      // Wait for hydration
+      await waitFor(() => {
+        expect(mockAppCache.getGameSetupGameName).toHaveBeenCalled();
+      });
+
+      fireEvent.changeText(getByTestId('game-name-input'), 'Catan');
+      fireEvent.press(getByTestId('get-setup-button'));
+
+      await waitFor(() => {
+        expect(mockAppCache.setGameSetupResponse).toHaveBeenCalledWith(mockResponse);
+      });
+    });
+
+    it('clears persisted state when reset is pressed', async () => {
+      mockGetRecommendations.mockResolvedValueOnce({ responseText: 'Setup...' });
+
+      const { getByTestId } = render(<GameSetupScreen />);
+
+      // Wait for hydration
+      await waitFor(() => {
+        expect(mockAppCache.getGameSetupGameName).toHaveBeenCalled();
+      });
+
+      fireEvent.changeText(getByTestId('game-name-input'), 'Catan');
+      fireEvent.press(getByTestId('get-setup-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('reset-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('reset-button'));
+
+      await waitFor(() => {
+        expect(mockAppCache.clearGameSetup).toHaveBeenCalled();
+      });
+    });
+
+    it('does not persist state before hydration completes', async () => {
+      // Make hydration slow
+      let resolveHydration: (value: string) => void;
+      mockAppCache.getGameSetupGameName.mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+          resolveHydration = resolve;
+        })
+      );
+
+      render(<GameSetupScreen />);
+
+      // Before hydration, setters should not have been called
+      expect(mockAppCache.setGameSetupGameName).not.toHaveBeenCalled();
+      expect(mockAppCache.setGameSetupPlayerCount).not.toHaveBeenCalled();
+
+      // Complete hydration
+      await act(async () => {
+        resolveHydration!('');
+      });
+    });
   });
 });
