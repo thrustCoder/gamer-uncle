@@ -18,6 +18,22 @@ namespace GamerUncle.Api.Services.Authentication
     {
         private const string AppKeyHeaderName = "X-GamerUncle-AppKey";
         private const string DeprecatedResponseHeader = "X-AppKey-Deprecated";
+
+        /// <summary>
+        /// Stable event IDs used by <see cref="ILogger"/> so that KQL queries on the
+        /// <c>traces</c> table can filter by <c>customDimensions.EventId</c> instead of
+        /// fragile string matching.  These are also emitted as structured properties
+        /// (<c>AppKeyOutcome</c>, <c>AppKeyPath</c>) so the <c>traces</c> table is
+        /// queryable even when <c>customEvents</c> from <see cref="TelemetryClient"/>
+        /// is not ingested (e.g. classic SDK channel misconfiguration).
+        /// </summary>
+        internal static class EventIds
+        {
+            internal static readonly EventId GraceModeValid   = new(7001, "AppKeyGraceMode.Valid");
+            internal static readonly EventId GraceModeMissing = new(7002, "AppKeyGraceMode.Missing");
+            internal static readonly EventId GraceModeInvalid = new(7003, "AppKeyGraceMode.Invalid");
+        }
+
         private readonly string? _configuredAppKey;
         private readonly ILogger<AppKeyGracefulAuthorizationFilter> _logger;
         private readonly TelemetryClient? _telemetryClient;
@@ -62,10 +78,11 @@ namespace GamerUncle.Api.Services.Authentication
             if (!context.HttpContext.Request.Headers.TryGetValue(AppKeyHeaderName, out var providedAppKey))
             {
                 // Grace mode: allow the request but log a warning and add deprecation header
-                _logger.LogWarning(
-                    "AppKey graceful - request without App Key header. IP: {ClientIp}, UserAgent: {UserAgent}, Path: {Path}. " +
+                _logger.LogWarning(EventIds.GraceModeMissing,
+                    "AppKey graceful - request without App Key header. " +
+                    "AppKeyOutcome={AppKeyOutcome}, AppKeyPath={AppKeyPath}, ClientIp={ClientIp}, UserAgent={UserAgent}. " +
                     "Unauthenticated access to this endpoint will be removed in a future release.",
-                    clientIp, userAgent, path);
+                    "Missing", path, clientIp, userAgent);
 
                 TrackAuthEvent("AppKey.GraceModeRequest", "Missing", clientIp, userAgent, path);
 
@@ -77,9 +94,10 @@ namespace GamerUncle.Api.Services.Authentication
             // If a key is provided but invalid, reject immediately (wrong key = unauthorized)
             if (!string.Equals(providedAppKey, _configuredAppKey, StringComparison.Ordinal))
             {
-                _logger.LogWarning(
-                    "AppKey graceful validation failed - invalid key. IP: {ClientIp}, UserAgent: {UserAgent}, Path: {Path}",
-                    clientIp, userAgent, path);
+                _logger.LogWarning(EventIds.GraceModeInvalid,
+                    "AppKey graceful validation failed - invalid key. " +
+                    "AppKeyOutcome={AppKeyOutcome}, AppKeyPath={AppKeyPath}, ClientIp={ClientIp}, UserAgent={UserAgent}",
+                    "Invalid", path, clientIp, userAgent);
 
                 TrackAuthEvent("AppKey.GraceModeRequest", "Invalid", clientIp, userAgent, path);
 
@@ -87,7 +105,13 @@ namespace GamerUncle.Api.Services.Authentication
                 return;
             }
 
-            _logger.LogDebug("AppKey graceful validation successful for request from IP: {ClientIp}", clientIp);
+            // Logged at Information (not Debug) so it appears in the traces table in prod.
+            // This is critical for measuring the Valid / Missing ratio via KQL.
+            _logger.LogInformation(EventIds.GraceModeValid,
+                "AppKey graceful validation successful. " +
+                "AppKeyOutcome={AppKeyOutcome}, AppKeyPath={AppKeyPath}, ClientIp={ClientIp}",
+                "Valid", path, clientIp);
+
             TrackAuthEvent("AppKey.GraceModeRequest", "Valid", clientIp, userAgent, path);
             await next();
         }
@@ -95,6 +119,9 @@ namespace GamerUncle.Api.Services.Authentication
         /// <summary>
         /// Track a structured custom event in Application Insights for auth filter outcomes.
         /// Enables dashboards and KQL queries on structured dimensions rather than string log parsing.
+        /// This is a belt-and-suspenders companion to the ILogger calls above; in some environments
+        /// the classic SDK TelemetryClient may not be wired (customEvents table empty). The ILogger
+        /// path writes to the traces table which is always ingested.
         /// </summary>
         private void TrackAuthEvent(string eventName, string outcome, string clientIp, string userAgent, string path)
         {

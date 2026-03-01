@@ -23,6 +23,7 @@ namespace GamerUncle.Api.Tests.Authentication
         private const string DeprecatedResponseHeader = "X-AppKey-Deprecated";
 
         private readonly MockTelemetryChannel _channel = new();
+        private readonly Mock<ILogger<AppKeyGracefulAuthorizationFilter>> _loggerMock = new();
 
         private AppKeyGracefulAuthorizationFilter CreateFilter(
             string? configuredAppKey = ValidAppKey,
@@ -32,8 +33,6 @@ namespace GamerUncle.Api.Tests.Authentication
             configurationMock.Setup(c => c["ApiAuthentication:AppKey"]).Returns(configuredAppKey);
             configurationMock.Setup(c => c.GetSection("Testing:DisableRateLimit").Value)
                 .Returns(isTestEnvironment ? "true" : "false");
-
-            var loggerMock = new Mock<ILogger<AppKeyGracefulAuthorizationFilter>>();
 
             var environmentMock = new Mock<IWebHostEnvironment>();
             environmentMock.Setup(e => e.EnvironmentName)
@@ -48,7 +47,7 @@ namespace GamerUncle.Api.Tests.Authentication
 
             return new AppKeyGracefulAuthorizationFilter(
                 configurationMock.Object,
-                loggerMock.Object,
+                _loggerMock.Object,
                 environmentMock.Object,
                 telemetryClient);
         }
@@ -426,6 +425,101 @@ namespace GamerUncle.Api.Tests.Authentication
             // Assert — no events in test env
             var eventItems = _channel.SentItems.OfType<Microsoft.ApplicationInsights.DataContracts.EventTelemetry>().ToList();
             Assert.Empty(eventItems);
+        }
+
+        // ── ILogger structured EventId tests (traces table telemetry) ────────
+
+        [Fact]
+        public async Task OnActionExecutionAsync_ValidKey_LogsInformationWithEventId7001()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext(ValidAppKey);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert — structured log at Information level with EventId 7001
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Information,
+                    It.Is<EventId>(e => e.Id == 7001),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("AppKeyOutcome=Valid")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_MissingKey_LogsWarningWithEventId7002()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext(appKeyHeader: null);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert — structured log at Warning level with EventId 7002
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(e => e.Id == 7002),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("AppKeyOutcome=Missing")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_InvalidKey_LogsWarningWithEventId7003()
+        {
+            // Arrange
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext("wrong-key");
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert — structured log at Warning level with EventId 7003
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(e => e.Id == 7003),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("AppKeyOutcome=Invalid")),
+                    null,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task OnActionExecutionAsync_ValidKey_LogsAtInformationLevel()
+        {
+            // Arrange — verifies that valid-key logging was promoted from Debug to Information
+            // so it appears in the traces table in prod (where min level = Information)
+            var filter = CreateFilter(ValidAppKey);
+            var context = CreateActionContext(ValidAppKey);
+            Task<ActionExecutedContext> Next() => Task.FromResult(
+                new ActionExecutedContext(context, new List<IFilterMetadata>(), new Mock<Controller>().Object));
+
+            // Act
+            await filter.OnActionExecutionAsync(context, Next);
+
+            // Assert — must NOT log at Debug (would be filtered out in prod)
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Debug,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Never);
         }
     }
 }
