@@ -551,7 +551,7 @@ namespace GamerUncle.Functions.Tests
         {
             var client = new BggRankedListClient(new HttpClient());
 
-            Assert.Equal(4100, client.IdsPerPage);
+            Assert.Equal(1000, client.IdsPerPage);
             Assert.Equal(50, client.MinVotes);
             Assert.Equal(5.0, client.MinAverage);
         }

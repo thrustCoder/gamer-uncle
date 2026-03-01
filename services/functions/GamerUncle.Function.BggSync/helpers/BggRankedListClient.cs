@@ -24,8 +24,8 @@ namespace GamerUncle.Functions.Helpers
         /// <summary>How many BGG IDs to request per XML API call. BGG supports up to ~20.</summary>
         internal const int BatchSize = 20;
 
-        /// <summary>Number of sequential BGG IDs to scan per page. Default 4100 → 70 pages covers ~287k IDs.</summary>
-        public int IdsPerPage { get; set; } = 4100;
+        /// <summary>Number of sequential BGG IDs to scan per page. Default 1000 → ~50 batches per page, well within the 5-min activity timeout.</summary>
+        public int IdsPerPage { get; set; } = 1000;
 
         /// <summary>Minimum number of user votes for a game to qualify.</summary>
         public int MinVotes { get; set; } = 50;
