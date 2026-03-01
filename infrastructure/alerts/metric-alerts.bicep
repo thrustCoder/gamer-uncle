@@ -28,9 +28,6 @@ param aiServicesAccountId string
 
 var isProd = environment == 'prod'
 
-// Alert #1 — Health Endpoint Down
-var healthFailureThreshold = isProd ? 3 : 5
-
 // Alert #9 — Cosmos DB 429s
 var cosmos429Threshold = isProd ? 0 : 5
 
@@ -51,10 +48,6 @@ var memoryThreshold = isProd ? 85 : 90
 
 // Alert #20 — App Service Response Time P95 (ms)
 var responseTimeThreshold = isProd ? 5000 : 8000
-
-// Alert #25 — AI Foundry TPM Quota Saturation — percentage threshold
-// We alert at 80% of provisioned TPM quota for both environments
-var tpmQuotaPctThreshold = 80
 
 // ============================================================================
 // Alert #1 — Health Endpoint Down (Sev1)
@@ -186,19 +179,12 @@ resource functionFailureAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
       allOf: [
         {
           name: 'FunctionFailures'
-          metricName: 'FunctionExecutionCount'
+          metricName: 'Http5xx'
           metricNamespace: 'Microsoft.Web/sites'
           operator: 'GreaterThan'
           threshold: functionFailureThreshold
-          timeAggregation: 'Count'
+          timeAggregation: 'Total'
           criterionType: 'StaticThresholdCriterion'
-          dimensions: [
-            {
-              name: 'Status'
-              operator: 'Include'
-              values: ['Failed']
-            }
-          ]
         }
       ]
     }

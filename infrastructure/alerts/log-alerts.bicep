@@ -112,7 +112,7 @@ resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
             | where name == "AgentRequest.Duration"
             | summarize p95 = percentile(value, 95)
           '''
-          timeAggregation: 'Count'
+          timeAggregation: 'Maximum'
           operator: 'GreaterThan'
           threshold: isProd ? 12000 : 20000
           metricMeasureColumn: 'p95'
@@ -298,7 +298,7 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
             | where name == "voice.audio_failures_total"
             | summarize total = sum(value)
           '''
-          timeAggregation: 'Count'
+          timeAggregation: 'Total'
           operator: 'GreaterThan'
           threshold: isProd ? 3 : 5
           metricMeasureColumn: 'total'
@@ -336,7 +336,7 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
             | where name == "voice.total_duration_ms"
             | summarize p95 = percentile(value, 95)
           '''
-          timeAggregation: 'Count'
+          timeAggregation: 'Maximum'
           operator: 'GreaterThan'
           threshold: isProd ? 15000 : 25000
           metricMeasureColumn: 'p95'
@@ -506,6 +506,26 @@ resource gameSetupErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
 // Alert #23 — Feature Screen Navigation Failure (Sev2)
 // KQL join: Feature.Tapped vs Screen.Viewed ratio per target screen
 // ============================================================================
+var navRatioThreshold = isProd ? '0.7' : '0.5'
+var navFailureQueryTemplate = '''
+customEvents
+| where name == "Client.Feature.Tapped"
+| extend target = tostring(customDimensions.target)
+| summarize tapCount = count() by target
+| join kind=leftouter (
+    customEvents
+    | where name == "Client.Screen.Viewed"
+    | extend screenName = tostring(customDimensions.screenName)
+    | summarize viewCount = count() by screenName
+) on $left.target == $right.screenName
+| extend viewCount = coalesce(viewCount, 0)
+| where tapCount >= 3
+| extend ratio = todouble(viewCount) / todouble(tapCount)
+| where ratio < __THRESHOLD__
+| project target, tapCount, viewCount, ratio
+'''
+var navFailureQuery = replace(navFailureQueryTemplate, '__THRESHOLD__', navRatioThreshold)
+
 resource navigationFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'gamer-uncle-${environment}-feature-nav-failure'
   location: resourceGroup().location
@@ -519,23 +539,7 @@ resource navigationFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-
     criteria: {
       allOf: [
         {
-          query: '''
-            let taps = customEvents
-            | where name == "Client.Feature.Tapped"
-            | extend target = tostring(customDimensions.target)
-            | summarize tapCount = count() by target;
-            let views = customEvents
-            | where name == "Client.Screen.Viewed"
-            | extend screenName = tostring(customDimensions.screenName)
-            | summarize viewCount = count() by screenName;
-            taps
-            | join kind=leftouter (views) on $left.target == $right.screenName
-            | extend viewCount = coalesce(viewCount, 0)
-            | where tapCount >= 3
-            | extend ratio = todouble(viewCount) / todouble(tapCount)
-            | where ratio < ${isProd ? '0.7' : '0.5'}
-            | project target, tapCount, viewCount, ratio
-          '''
+          query: navFailureQuery
           timeAggregation: 'Count'
           operator: 'GreaterThan'
           threshold: 0

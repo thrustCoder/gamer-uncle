@@ -29,10 +29,10 @@
 
 | # | Task | Status | Notes | Date |
 |---|---|---|---|---|
-| 1 | Add alert deployment step to `azure-pipelines.yml` | ⬜ Not started | New pipeline stage after DevDeploy | — |
-| 2 | Deploy alerts #1–#21, #23, #25 to dev | ⬜ Not started | Can deploy now via `az deployment group create` — these use existing telemetry | — |
-| 3 | Deploy alerts #22, #24 to dev | 🔶 Blocked | Requires Phase 0.6 (mobile deploy + event validation) | — |
-| 4 | Deploy all alerts to prod | ⬜ Not started | After dev validation | — |
+| 1 | Add alert deployment step to `azure-pipelines.yml` | ✅ Done | `DevDeployAlerts` + `ProdDeployAlerts` stages added after functional tests | 2026-02-28 |
+| 2 | Deploy all 24 alerts to dev | ✅ Done | 9 metric + 15 log alerts + 1 suppression rule + 1 action group | 2026-02-28 |
+| 3 | Deploy all 24 alerts to prod | ✅ Done | 9 metric + 15 log alerts + 1 action group (no suppression in prod) | 2026-02-28 |
+| 4 | Alerts #22, #24 active | ✅ Done | Deployed but will only fire once mobile app with new telemetry code reaches users | 2026-02-28 |
 
 ### Phase 3: Validation & Tuning
 
@@ -49,7 +49,7 @@
 |---|---|---|
 | **Phase 0** — Client Telemetry | ✅ Complete | 6/6 tasks done |
 | **Phase 1** — Bicep Infrastructure | ✅ Complete | 5/5 tasks done |
-| **Phase 2** — Deployment | ⬜ Not started | 0/4 tasks done |
+| **Phase 2** — Deployment | ✅ Complete | 4/4 tasks done |
 | **Phase 3** — Validation & Tuning | ⬜ Not started | 0/4 tasks done |
 
 ---

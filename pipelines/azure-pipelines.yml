@@ -938,6 +938,61 @@ stages:
 # E2E Tests removed due to reliability issues - mobile app loading problems
 
 # Production Deployment Stages - Gated by successful Dev tests
+
+- stage: DevDeployAlerts
+  displayName: 'Dev Deploy Alerts'
+  dependsOn:
+    - DevBuild
+    - DevTest
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+    )
+  jobs:
+  - deployment: DeployDevAlerts
+    displayName: 'Deploy Alert Rules to Dev'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: 'Deploy Alert Bicep to Dev'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Deploying alert rules to dev..."
+                az deployment group create \
+                  --resource-group gamer-uncle-dev-rg \
+                  --template-file infrastructure/alerts/main.bicep \
+                  --parameters \
+                    environment=dev \
+                    appServiceId=$(az webapp show --name gamer-uncle-dev-app-svc --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                    appServicePlanId=$(az appservice plan show --name gamer-uncle-dev-app-plan --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                    cosmosDbAccountId=$(az cosmosdb show --name gamer-uncle-dev-cosmos --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                    functionAppId=$(az functionapp show --name gamer-uncle-dev-function --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                    appInsightsId=$(az monitor app-insights component show --app gamer-uncle-dev-app-insights --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                    aiServicesAccountId=$(az cognitiveservices account show --name gamer-uncle-dev-foundry --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+                  --name "alerts-deploy-dev-$(Build.BuildId)"
+                echo "Dev alert deployment complete."
+          - task: AzureCLI@2
+            displayName: 'Verify Dev Alerts'
+            inputs:
+              azureSubscription: 'gamer-uncle-dev-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                METRIC_COUNT=$(az monitor metrics alert list --resource-group gamer-uncle-dev-rg --query "length([])" -o tsv)
+                LOG_COUNT=$(az monitor scheduled-query list --resource-group gamer-uncle-dev-rg --query "length([])" -o tsv)
+                echo "Dev alerts: $METRIC_COUNT metric + $LOG_COUNT log = $((METRIC_COUNT + LOG_COUNT)) total"
+                if [ "$((METRIC_COUNT + LOG_COUNT))" -lt 20 ]; then
+                  echo "WARNING: Expected 24+ alerts, found $((METRIC_COUNT + LOG_COUNT))"
+                fi
+
 - stage: ProdDeployApi
   displayName: 'Prod Deploy Api'
   dependsOn: 
@@ -1353,3 +1408,57 @@ stages:
       displayName: 'Publish Prod Functional Test Results'
 
 # E2E Tests removed due to reliability issues - mobile app loading problems
+
+- stage: ProdDeployAlerts
+  displayName: 'Prod Deploy Alerts'
+  dependsOn:
+    - DevBuild
+    - DevTest
+  condition: |
+    and(
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+    )
+  jobs:
+  - deployment: DeployProdAlerts
+    displayName: 'Deploy Alert Rules to Prod'
+    environment: 'Prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: 'Deploy Alert Bicep to Prod'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Deploying alert rules to prod..."
+                az deployment group create \
+                  --resource-group gamer-uncle-prod-rg \
+                  --template-file infrastructure/alerts/main.bicep \
+                  --parameters \
+                    environment=prod \
+                    appServiceId=$(az webapp show --name gamer-uncle-prod-app-svc --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                    appServicePlanId=$(az appservice plan show --name gamer-uncle-prod-app-plan --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                    cosmosDbAccountId=$(az cosmosdb show --name gamer-uncle-prod-cosmos --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                    functionAppId=$(az functionapp show --name gamer-uncle-prod-function --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                    appInsightsId=$(az monitor app-insights component show --app gamer-uncle-prod-app-insights --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                    aiServicesAccountId=$(az cognitiveservices account show --name gamer-uncle-prod-foundry-resourc --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+                  --name "alerts-deploy-prod-$(Build.BuildId)"
+                echo "Prod alert deployment complete."
+          - task: AzureCLI@2
+            displayName: 'Verify Prod Alerts'
+            inputs:
+              azureSubscription: 'gamer-uncle-prod-sc'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                METRIC_COUNT=$(az monitor metrics alert list --resource-group gamer-uncle-prod-rg --query "length([])" -o tsv)
+                LOG_COUNT=$(az monitor scheduled-query list --resource-group gamer-uncle-prod-rg --query "length([])" -o tsv)
+                echo "Prod alerts: $METRIC_COUNT metric + $LOG_COUNT log = $((METRIC_COUNT + LOG_COUNT)) total"
+                if [ "$((METRIC_COUNT + LOG_COUNT))" -lt 20 ]; then
+                  echo "WARNING: Expected 24+ alerts, found $((METRIC_COUNT + LOG_COUNT))"
+                fi

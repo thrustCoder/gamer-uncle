@@ -46,12 +46,14 @@ resource scaledownSuppression 'Microsoft.AlertsManagement/actionRules@2021-08-08
       }
     ]
     schedule: {
-      effectiveFrom: '2025-01-01T06:45:00Z'
-      recurrence: {
-        recurrenceType: 'Daily'
-        startTime: '06:45:00'
-        endTime: '09:00:00'
-      }
+      effectiveFrom: '2025-01-01T06:45:00'
+      recurrences: [
+        {
+          recurrenceType: 'Daily'
+          startTime: '06:45:00'
+          endTime: '09:00:00'
+        }
+      ]
       timeZone: 'UTC'
     }
   }
