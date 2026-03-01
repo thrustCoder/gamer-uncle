@@ -100,7 +100,8 @@ namespace GamerUncle.Functions
             }
 
             var httpClient = new HttpClient();
-            var client = new BggApiClient(httpClient);
+            var bearerToken = Environment.GetEnvironmentVariable("BggApiBearerToken");
+            var client = new BggApiClient(httpClient, bearerToken);
             var gameDocument = await client.FetchGameDataAsync(gameId);
 
             if (gameDocument == null)
@@ -225,11 +226,6 @@ namespace GamerUncle.Functions
         {
             var log = context.GetLogger("GameSyncTimerTriggerDev");
 
-            // DISABLED: BGG XML API now requires Bearer token authentication.
-            // Re-enable once BggApiBearerToken is configured. See docs/bgg/sync/api_access.md
-            log.LogWarning("Dev ranked sync trigger fired but is DISABLED — BGG API requires authentication. Skipping.");
-            return;
-
             var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
             
             // Only run in development environments
@@ -272,11 +268,6 @@ namespace GamerUncle.Functions
             FunctionContext context)
         {
             var log = context.GetLogger("GameSyncTimerTriggerProd");
-
-            // DISABLED: BGG XML API now requires Bearer token authentication.
-            // Re-enable once BggApiBearerToken is configured. See docs/bgg/sync/api_access.md
-            log.LogWarning("Prod ranked sync trigger fired but is DISABLED — BGG API requires authentication. Skipping.");
-            return;
 
             var environment = Environment.GetEnvironmentVariable("AZURE_FUNCTIONS_ENVIRONMENT") ?? "Development";
             
@@ -459,10 +450,11 @@ namespace GamerUncle.Functions
         {
             // Longer timeout — each page makes many batch XML API calls (~200 per page)
             var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            var bearerToken = Environment.GetEnvironmentVariable("BggApiBearerToken");
             var idsPerPageStr = Environment.GetEnvironmentVariable("IdsPerPage");
             int idsPerPage = int.TryParse(idsPerPageStr, out var ipp) && ipp > 0 ? ipp : 4100;
 
-            var client = new BggRankedListClient(httpClient) { IdsPerPage = idsPerPage };
+            var client = new BggRankedListClient(httpClient, bearerToken) { IdsPerPage = idsPerPage };
             var gameIds = await client.FetchRankedGameIdsAsync(pageNumber);
 
             _logger.LogInformation(

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -32,9 +33,14 @@ namespace GamerUncle.Functions.Helpers
         /// <summary>Minimum average rating for a game to qualify.</summary>
         public double MinAverage { get; set; } = 5.0;
 
-        public BggRankedListClient(HttpClient httpClient)
+        public BggRankedListClient(HttpClient httpClient, string? bearerToken = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            if (!string.IsNullOrEmpty(bearerToken))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", bearerToken);
+            }
         }
 
         /// <summary>
@@ -80,7 +86,7 @@ namespace GamerUncle.Functions.Helpers
         /// </summary>
         internal async Task<List<string>> FetchBatchWithRetryAsync(string idList, int batchStart)
         {
-            var url = $"https://www.boardgamegeek.com/xmlapi2/thing?id={idList}&stats=1";
+            var url = $"https://boardgamegeek.com/xmlapi2/thing?id={idList}&stats=1";
             Exception? lastException = null;
 
             for (int attempt = 0; attempt <= MaxRetries; attempt++)

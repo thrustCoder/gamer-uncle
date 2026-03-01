@@ -1,8 +1,9 @@
 # BGG XML API Access — Findings & Next Steps
 
-## Status: BLOCKED — API Now Requires Authentication
+## Status: READY — Token Configured, Code Updated
 
 **Date Discovered:** 2026-02-17  
+**Date Resolved:** 2026-03-01  
 **Affected Components:** `BggRankedListClient.cs`, `BggApiClient.cs` (all BGG XML API calls)
 
 ---
@@ -101,44 +102,36 @@ Source: https://boardgamegeek.com/wiki/page/XML_API_Terms_of_Use
 - Games synced from BGG IDs 1–500 (sequential scan, `SyncGameCount=500`)
 - Quality-filtered games only (min votes, min rating thresholds)
 - Missing high-ID games like Skyjo (204,135) and Plunder: A Pirate's Life (281,094)
-- **Timer triggers DISABLED** in `DurableGameUpsertFunction.cs` — both dev and prod ranked sync triggers return early with a warning log to prevent 401 errors
+- **Timer triggers RE-ENABLED** in `DurableGameUpsertFunction.cs` — Bearer token auth configured via Key Vault
+- **Bearer token stored** in both `gamer-uncle-dev-vault` and `gamer-uncle-prod-vault` as `BggApiBearerToken`
+- **Function app settings** configured with Key Vault references for both dev and prod
 
 ---
 
-## Next Steps
+## Completed Steps
 
-### Immediate (No Code Changes)
-1. **Register app on BGG**: Go to https://boardgamegeek.com/applications → Create Application
-   - **App name**: "Gamer Uncle"
-   - **Type**: Non-commercial
-   - **Suggested description**:
-     > AI-powered board game recommendation assistant. Server-side only — Azure Functions periodically fetch game metadata from the XML API to populate a database used for offline recommendations. No client-side BGG requests. No monetization, ads, or payments.
-   - Wait for approval (up to 1+ weeks)
+### Infrastructure (2026-03-01)
+1. **Registered app on BGG**: Approved as non-commercial
+2. **Generated Bearer token**: Stored in Azure Key Vault (dev + prod)
+3. **Configured function app settings**: Key Vault references added to both dev and prod function apps
 
-2. **Generate Bearer token** after approval:
-   - Go to https://boardgamegeek.com/applications → Tokens → Create Token
-   - Store token securely (Azure Key Vault: `BggApiBearerToken`)
-   - Token format is a UUID, e.g., `e3f8c3ff-9926-4efc-863c-3b92acda4d32`
+### Code Changes (2026-03-01)
+4. **Added Bearer token to both API clients**: `BggApiClient.cs` and `BggRankedListClient.cs` read token from `BggApiBearerToken` env var
+5. **Fixed API domain**: Changed `www.boardgamegeek.com` → `boardgamegeek.com` per BGG requirements
+6. **Re-enabled timer triggers**: Removed early-return guards in `DurableGameUpsertFunction.cs`
+7. **Added "Powered by BGG" attribution**: Logo + link in mobile app
 
-### Code Changes (After Token Obtained)
-3. **Add Bearer token to both API clients**:
-   - `BggApiClient.cs`: Add `Authorization: Bearer <token>` header
-   - `BggRankedListClient.cs`: Add `Authorization: Bearer <token>` header
-   - Read token from environment variable `BggApiBearerToken`
-   - Store in Key Vault for both dev and prod function apps
+---
 
-4. **Fix API domain**: Change `www.boardgamegeek.com` → `boardgamegeek.com` in both clients
+## Remaining Steps
 
-5. **Add "Powered by BGG" attribution**: Required for public-facing apps
-   - Add logo + link to BGG in mobile app (e.g., settings screen or recommendation card footer)
-   - Logo must be sized so text remains easily legible
-   - Logo files: https://drive.google.com/drive/folders/1k3VgEIpNEY59iTVnpTibt31JcO0rEaSw
+### Deploy & Verify
+1. **Deploy updated function app code** to dev and prod (pipeline or manual)
+2. **Trigger a test sync** via HTTP to verify Bearer token works end-to-end
+3. **Monitor App Insights** to confirm 200 responses from BGG XML API (previously 401)
 
-6. **Re-enable timer triggers** in `DurableGameUpsertFunction.cs` (remove early-return guards)
-
-7. **Re-trigger ranked sync** after code deployed with valid token
-
-8. **(Optional) Evaluate CSV dump**: After approval, check if the BGG CSV dump of all games could reduce our XML API call volume for initial seeding
+### Optional Enhancements
+4. **(Optional) Evaluate CSV dump**: After approval, check if the BGG CSV dump of all games could reduce XML API call volume for initial seeding
 
 ### Configuration (Azure)
 ```powershell
