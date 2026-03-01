@@ -40,6 +40,15 @@ jest.mock('../components/MarkdownText', () => {
   };
 });
 
+// Mock Telemetry
+const mockTrackEvent = jest.fn();
+jest.mock('../services/Telemetry', () => ({
+  trackEvent: (...args: any[]) => mockTrackEvent(...args),
+  AnalyticsEvents: {
+    ERROR_GAME_SETUP: 'Error.GameSetup',
+  },
+}));
+
 // Mock API client
 const mockGetRecommendations = jest.fn();
 jest.mock('../services/ApiClient', () => ({
@@ -201,6 +210,39 @@ describe('GameSetupScreen', () => {
     
     await waitFor(() => {
       expect(getByText(/Network error/)).toBeTruthy();
+    });
+  });
+
+  it('tracks telemetry on API failure', async () => {
+    mockGetRecommendations.mockRejectedValueOnce(new Error('Network error'));
+
+    const { getByTestId } = render(<GameSetupScreen />);
+    
+    fireEvent.changeText(getByTestId('game-name-input'), 'Catan');
+    fireEvent.press(getByTestId('get-setup-button'));
+    
+    await waitFor(() => {
+      expect(mockTrackEvent).toHaveBeenCalledWith('Error.GameSetup', expect.objectContaining({
+        error: 'Network error',
+        gameName: 'Catan',
+        playerCount: '4',
+      }));
+    });
+  });
+
+  it('tracks telemetry when response is empty', async () => {
+    mockGetRecommendations.mockResolvedValueOnce({ responseText: null });
+
+    const { getByTestId } = render(<GameSetupScreen />);
+    
+    fireEvent.changeText(getByTestId('game-name-input'), 'Catan');
+    fireEvent.press(getByTestId('get-setup-button'));
+    
+    await waitFor(() => {
+      expect(mockTrackEvent).toHaveBeenCalledWith('Error.GameSetup', expect.objectContaining({
+        error: 'empty_response',
+        gameName: 'Catan',
+      }));
     });
   });
 

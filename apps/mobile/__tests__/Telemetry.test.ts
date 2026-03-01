@@ -292,5 +292,14 @@ describe('Telemetry Service', () => {
       expect(AnalyticsEvents.UPGRADE_ACCEPTED).toBe('Upgrade.Accepted');
       expect(AnalyticsEvents.UPGRADE_DISMISSED).toBe('Upgrade.Dismissed');
     });
+
+    it('should include feature-specific error events', () => {
+      expect(AnalyticsEvents.ERROR_GAME_SETUP).toBe('Error.GameSetup');
+      expect(AnalyticsEvents.ERROR_TIMER).toBe('Error.Timer');
+      expect(AnalyticsEvents.ERROR_TEAM_RANDOMIZER).toBe('Error.TeamRandomizer');
+      expect(AnalyticsEvents.ERROR_TURN_SELECTOR).toBe('Error.TurnSelector');
+      expect(AnalyticsEvents.ERROR_DICE_ROLLER).toBe('Error.DiceRoller');
+      expect(AnalyticsEvents.ERROR_SCORE_TRACKER).toBe('Error.ScoreTracker');
+    });
   });
 });

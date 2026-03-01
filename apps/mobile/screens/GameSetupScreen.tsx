@@ -18,6 +18,7 @@ import BackButton from '../components/BackButton';
 import MarkdownText from '../components/MarkdownText';
 import RatingModal from '../components/RatingModal';
 import { getRecommendations } from '../services/ApiClient';
+import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
 
 const MAX_PLAYERS = 20;
@@ -87,10 +88,19 @@ Please provide step-by-step setup instructions including:
         // Track engagement for rating prompt
         await trackEngagement();
       } else {
+        trackEvent(AnalyticsEvents.ERROR_GAME_SETUP, {
+          error: 'empty_response',
+          gameName: gameName.trim(),
+          playerCount: String(playerCount),
+        });
         setError('No setup instructions received. Please try again.');
       }
     } catch (err: any) {
-      console.error('Error fetching game setup:', err);
+      trackEvent(AnalyticsEvents.ERROR_GAME_SETUP, {
+        error: err.message || 'Unknown',
+        gameName: gameName.trim(),
+        playerCount: String(playerCount),
+      });
       setError(err.message || 'Failed to get game setup. Please try again.');
     } finally {
       setIsLoading(false);

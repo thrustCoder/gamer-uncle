@@ -74,6 +74,14 @@ export const AnalyticsEvents = {
   ERROR_VOICE: 'Error.Voice',
   ERROR_SEARCH: 'Error.Search',
 
+  // ── Feature-specific Errors ─────────────────────────────────
+  ERROR_GAME_SETUP: 'Error.GameSetup',
+  ERROR_TIMER: 'Error.Timer',
+  ERROR_TEAM_RANDOMIZER: 'Error.TeamRandomizer',
+  ERROR_TURN_SELECTOR: 'Error.TurnSelector',
+  ERROR_DICE_ROLLER: 'Error.DiceRoller',
+  ERROR_SCORE_TRACKER: 'Error.ScoreTracker',
+
   // ── Upgrade Funnel ────────────────────────────────────────────
   UPGRADE_PROMPTED: 'Upgrade.Prompted',
   UPGRADE_ACCEPTED: 'Upgrade.Accepted',
