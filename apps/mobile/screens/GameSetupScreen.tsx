@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import RatingModal from '../components/RatingModal';
 import { getRecommendations } from '../services/ApiClient';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
+import { appCache } from '../services/storage/appCache';
 
 const MAX_PLAYERS = 20;
 
@@ -40,10 +41,40 @@ export default function GameSetupScreen() {
   const [setupResponse, setSetupResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userId] = useState(generateUserId());
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Rating prompt
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
     useRatingPrompt('gameSetup');
+
+  // Restore persisted game setup state on mount
+  useEffect(() => {
+    (async () => {
+      const [savedName, savedCount, savedResponse] = await Promise.all([
+        appCache.getGameSetupGameName(),
+        appCache.getGameSetupPlayerCount(),
+        appCache.getGameSetupResponse(),
+      ]);
+      if (savedName) setGameName(savedName);
+      if (savedCount) setPlayerCount(savedCount);
+      if (savedResponse) setSetupResponse(savedResponse);
+      setIsHydrated(true);
+    })();
+  }, []);
+
+  // Persist game name when it changes (after hydration)
+  useEffect(() => {
+    if (isHydrated) {
+      appCache.setGameSetupGameName(gameName);
+    }
+  }, [gameName, isHydrated]);
+
+  // Persist player count when it changes (after hydration)
+  useEffect(() => {
+    if (isHydrated) {
+      appCache.setGameSetupPlayerCount(playerCount);
+    }
+  }, [playerCount, isHydrated]);
 
   const showPlayerCountPicker = () => {
     Alert.alert(
@@ -85,6 +116,8 @@ Please provide step-by-step setup instructions including:
 
       if (response && response.responseText) {
         setSetupResponse(response.responseText);
+        // Persist the response for future visits
+        await appCache.setGameSetupResponse(response.responseText);
         // Track engagement for rating prompt
         await trackEngagement();
       } else {
@@ -117,11 +150,12 @@ Please provide step-by-step setup instructions including:
     });
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setSetupResponse(null);
     setError(null);
     setGameName('');
     setPlayerCount(4);
+    await appCache.clearGameSetup();
   };
 
   return (
