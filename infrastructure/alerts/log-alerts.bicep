@@ -18,6 +18,12 @@ param appInsightsId string
 
 var isProd = environment == 'prod'
 
+// Threshold-embedded KQL queries (count-based approach to avoid no-data phantom alerts)
+var agentDurationQuery = 'customMetrics | where name == "AgentRequest.Duration" | summarize p95 = percentile(value, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '12000' : '20000'}'
+var voiceFailureQuery = 'customMetrics | where name == "voice.audio_failures_total" | summarize total = sum(value), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
+var voiceDurationQuery = 'customMetrics | where name == "voice.total_duration_ms" | summarize p95 = percentile(value, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '25000'}'
+var funcDurationQuery = 'requests | where cloud_RoleName has "function" or sdkVersion has "azurefunctions" | summarize p95 = percentile(duration, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '30000' : '60000'}'
+
 // ============================================================================
 // Alert #2 — HTTP 5xx Spike (Sev2)
 // ============================================================================
@@ -108,16 +114,10 @@ resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
     criteria: {
       allOf: [
         {
-          query: '''
-            customMetrics
-            | where name == "AgentRequest.Duration"
-            | summarize p95 = percentile(value, 95)
-            | where isnotempty(p95)
-          '''
-          timeAggregation: 'Maximum'
+          query: agentDurationQuery
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
-          threshold: isProd ? 12000 : 20000
-          metricMeasureColumn: 'p95'
+          threshold: 0
           failingPeriods: {
             numberOfEvaluationPeriods: 1
             minFailingPeriodsToAlert: 1
@@ -295,16 +295,10 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
     criteria: {
       allOf: [
         {
-          query: '''
-            customMetrics
-            | where name == "voice.audio_failures_total"
-            | summarize total = sum(value)
-            | where total > 0
-          '''
-          timeAggregation: 'Total'
+          query: voiceFailureQuery
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
-          threshold: isProd ? 3 : 5
-          metricMeasureColumn: 'total'
+          threshold: 0
           failingPeriods: {
             numberOfEvaluationPeriods: 1
             minFailingPeriodsToAlert: 1
@@ -334,16 +328,10 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
     criteria: {
       allOf: [
         {
-          query: '''
-            customMetrics
-            | where name == "voice.total_duration_ms"
-            | summarize p95 = percentile(value, 95)
-            | where isnotempty(p95)
-          '''
-          timeAggregation: 'Maximum'
+          query: voiceDurationQuery
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
-          threshold: isProd ? 15000 : 25000
-          metricMeasureColumn: 'p95'
+          threshold: 0
           failingPeriods: {
             numberOfEvaluationPeriods: 1
             minFailingPeriodsToAlert: 1
@@ -622,16 +610,10 @@ resource functionDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
     criteria: {
       allOf: [
         {
-          query: '''
-            requests
-            | where cloud_RoleName has "function" or sdkVersion has "azurefunctions"
-            | summarize p95 = percentile(duration, 95)
-            | where isnotempty(p95)
-          '''
-          timeAggregation: 'Maximum'
+          query: funcDurationQuery
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
-          threshold: isProd ? 30000 : 60000
-          metricMeasureColumn: 'p95'
+          threshold: 0
           failingPeriods: {
             numberOfEvaluationPeriods: 1
             minFailingPeriodsToAlert: 1
