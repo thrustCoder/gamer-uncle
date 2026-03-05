@@ -60,7 +60,7 @@ const COOLDOWN_DAYS = 7;
 
 // Hardcoded store URLs kept ONLY as compile-time fallbacks.
 // At runtime, URLs are fetched from the backend via fetchRatingUrls().
-const FALLBACK_IOS_APP_STORE_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
+const FALLBACK_IOS_APP_STORE_URL = 'https://apps.apple.com/app/id6747456645';
 const FALLBACK_ANDROID_PLAY_STORE_URL = 'market://details?id=com.thrustCoder.gamerUncle';
 
 // ── Helpers ────────────────────────────────────────────────────

@@ -188,7 +188,7 @@ describe('fetchRatingUrls', () => {
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
     const urls = await fetchRatingUrls();
-    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.ios).toBe('https://apps.apple.com/app/id6747456645');
     expect(urls.android).toBe('market://details?id=com.thrustCoder.gamerUncle');
   });
 
@@ -196,7 +196,7 @@ describe('fetchRatingUrls', () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
 
     const urls = await fetchRatingUrls();
-    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.ios).toBe('https://apps.apple.com/app/id6747456645');
     expect(urls.android).toBe('market://details?id=com.thrustCoder.gamerUncle');
   });
 
@@ -211,7 +211,7 @@ describe('fetchRatingUrls', () => {
     });
 
     const urls = await fetchRatingUrls();
-    expect(urls.ios).toBe('https://apps.apple.com/us/app/gamer-uncle/id6747456645');
+    expect(urls.ios).toBe('https://apps.apple.com/app/id6747456645');
     expect(urls.android).toBe('market://details?id=com.custom.app');
   });
 
