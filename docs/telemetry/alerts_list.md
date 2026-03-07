@@ -95,7 +95,7 @@
 | 1 | Health Endpoint Down | HealthCheckStatus < 100 (avg) | Same |
 | 2 | HTTP 5xx Spike | > 5 in 5m | > 10 in 5m |
 | 3 | HTTP 429 Rejections | > 20 in 15m | > 50 in 15m |
-| 4 | Agent Duration P95 | P95 > 12,000 ms | P95 > 20,000 ms |
+| 4 | Agent Duration P95 | P95 > 15,000 ms | P95 > 20,000 ms |
 | 5 | Agent Fallback Rate | > 3 in 30m | > 5 in 30m |
 | 6 | Agent Transient Retries | > 10 in 15m | > 15 in 15m |
 | 7 | Low-Quality Retries | > 5 in 30m | > 10 in 30m |
