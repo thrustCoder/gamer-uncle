@@ -26,11 +26,11 @@ namespace GamerUncle.Api.Tests
         private static AppVersionPolicy CreateDefaultPolicy() => new()
         {
             MinVersion = "3.2.0",
-            UpgradeUrl = "https://apps.apple.com/app/gamer-uncle/id6740043763",
+            UpgradeUrl = "https://apps.apple.com/app/id6747456645",
             UpgradeUrlAndroid = "https://play.google.com/store/apps/details?id=com.gameruncle",
             Message = "Please update to continue.",
             ForceUpgrade = false,
-            RatingUrl = "https://apps.apple.com/us/app/gamer-uncle/id6747456645",
+            RatingUrl = "https://apps.apple.com/app/id6747456645",
             RatingUrlAndroid = "market://details?id=com.thrustCoder.gamerUncle"
         };
 
@@ -81,7 +81,7 @@ namespace GamerUncle.Api.Tests
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedPolicy = Assert.IsType<AppVersionPolicy>(okResult.Value);
-            Assert.Equal("https://apps.apple.com/app/gamer-uncle/id6740043763", returnedPolicy.UpgradeUrl);
+            Assert.Equal("https://apps.apple.com/app/id6747456645", returnedPolicy.UpgradeUrl);
             Assert.Equal("https://play.google.com/store/apps/details?id=com.gameruncle", returnedPolicy.UpgradeUrlAndroid);
         }
 
@@ -98,7 +98,7 @@ namespace GamerUncle.Api.Tests
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var returnedPolicy = Assert.IsType<AppVersionPolicy>(okResult.Value);
-            Assert.Equal("https://apps.apple.com/us/app/gamer-uncle/id6747456645", returnedPolicy.RatingUrl);
+            Assert.Equal("https://apps.apple.com/app/id6747456645", returnedPolicy.RatingUrl);
             Assert.Equal("market://details?id=com.thrustCoder.gamerUncle", returnedPolicy.RatingUrlAndroid);
         }
 

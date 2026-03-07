@@ -111,7 +111,7 @@ export interface RatingUrls {
 }
 
 // Hardcoded fallbacks — used when the backend is unreachable.
-const FALLBACK_IOS_RATING_URL = 'https://apps.apple.com/us/app/gamer-uncle/id6747456645';
+const FALLBACK_IOS_RATING_URL = 'https://apps.apple.com/app/id6747456645';
 const FALLBACK_ANDROID_RATING_URL = 'market://details?id=com.thrustCoder.gamerUncle';
 
 /** In-memory cache so we fetch at most once per app session. */

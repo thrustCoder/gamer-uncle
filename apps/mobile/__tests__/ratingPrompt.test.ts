@@ -421,7 +421,7 @@ describe('ratingPrompt', () => {
       await requestStoreReview();
 
       expect(mockLinking.openURL).toHaveBeenCalledWith(
-        'https://apps.apple.com/us/app/gamer-uncle/id6747456645'
+        'https://apps.apple.com/app/id6747456645'
       );
     });
 
