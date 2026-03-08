@@ -14,6 +14,7 @@ namespace GamerUncle.Api.Tests
 {
     public class RateLimitingIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     {
+        private const string TestAppKey = "test-rate-limit-app-key";
         private readonly WebApplicationFactory<Program> _factory;
         private readonly Mock<IAgentServiceClient> _mockAgentService;
 
@@ -34,7 +35,8 @@ namespace GamerUncle.Api.Tests
                         ["Testing:DisableRateLimit"] = "false",
                         ["RateLimiting:PermitLimit"] = "2",       // Allow 2 requests for more predictable testing
                         ["RateLimiting:WindowSeconds"] = "60",    // Long window to avoid boundary-crossing flakiness
-                        ["RateLimiting:QueueLimit"] = "0"         // No queue for simpler testing
+                        ["RateLimiting:QueueLimit"] = "0",        // No queue for simpler testing
+                        ["ApiAuthentication:AppKey"] = TestAppKey  // Required by [RequireAppKey] on controllers
                     });
                 });
 
@@ -55,6 +57,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange
             var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-GamerUncle-AppKey", TestAppKey);
             var query = new UserQuery
             {
                 Query = "I want a strategy game",
@@ -81,6 +84,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange
             var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-GamerUncle-AppKey", TestAppKey);
             var query = new UserQuery
             {
                 Query = "I want a strategy game",
@@ -132,6 +136,7 @@ namespace GamerUncle.Api.Tests
         {
             // Arrange
             var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Add("X-GamerUncle-AppKey", TestAppKey);
             var query = new UserQuery
             {
                 Query = "I want a strategy game",

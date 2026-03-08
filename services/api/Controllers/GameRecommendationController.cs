@@ -9,7 +9,7 @@ namespace GamerUncle.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("GameRecommendations")]
-    [RequireAppKeyGraceful]
+    [RequireAppKey]
     public class RecommendationsController : ControllerBase
     {
         private readonly IAgentServiceClient _agentService;
