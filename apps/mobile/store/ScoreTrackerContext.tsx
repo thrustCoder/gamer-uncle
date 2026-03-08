@@ -19,15 +19,15 @@ interface ScoreTrackerContextType {
   isLoading: boolean;
 
   // Game Score actions
-  startGameScore: (game: GameInfo) => void;
+  startGameScore: (game: GameInfo, lowestScoreWins?: boolean) => void;
   addRound: (scores: Record<string, number>) => void;
   updateRound: (roundNumber: number, scores: Record<string, number>) => void;
   deleteRound: (roundNumber: number) => void;
   clearGameScore: () => void;
 
   // Leaderboard actions
-  addLeaderboardEntry: (game: GameInfo, scores: Record<string, number>) => void;
-  updateLeaderboardEntry: (index: number, game: GameInfo, scores: Record<string, number>) => void;
+  addLeaderboardEntry: (game: GameInfo, scores: Record<string, number>, lowestScoreWins?: boolean) => void;
+  updateLeaderboardEntry: (index: number, game: GameInfo, scores: Record<string, number>, lowestScoreWins?: boolean) => void;
   deleteLeaderboardEntry: (index: number) => void;
   clearLeaderboard: () => void;
 
@@ -80,11 +80,12 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // === Game Score Actions ===
 
-  const startGameScore = useCallback((game: GameInfo) => {
+  const startGameScore = useCallback((game: GameInfo, lowestScoreWins?: boolean) => {
     const newSession: GameScoreSession = {
       game,
       rounds: [],
       createdAt: Date.now(),
+      lowestScoreWins: lowestScoreWins ?? false,
     };
     setGameScore(newSession);
   }, []);
@@ -135,29 +136,50 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // === Leaderboard Actions ===
 
-  const addLeaderboardEntry = useCallback((game: GameInfo, scores: Record<string, number>) => {
-    const newEntry: LeaderboardEntry = {
-      game,
-      scores,
-      timestamp: Date.now(),
-    };
-    setLeaderboard((prev) => [...prev, newEntry]);
+  /**
+   * Inverts scores using the formula: invertedScore = max + min - score.
+   * This makes the lowest original score become the highest, and vice-versa.
+   * The function is its own inverse: applying it twice returns the original scores.
+   */
+  const invertScores = useCallback((scores: Record<string, number>): Record<string, number> => {
+    const values = Object.values(scores);
+    if (values.length === 0) return scores;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const inverted: Record<string, number> = {};
+    Object.entries(scores).forEach(([player, score]) => {
+      inverted[player] = max + min - score;
+    });
+    return inverted;
   }, []);
 
+  const addLeaderboardEntry = useCallback((game: GameInfo, scores: Record<string, number>, lowestScoreWins?: boolean) => {
+    const finalScores = lowestScoreWins ? invertScores(scores) : scores;
+    const newEntry: LeaderboardEntry = {
+      game,
+      scores: finalScores,
+      timestamp: Date.now(),
+      lowestScoreWins: lowestScoreWins ?? false,
+    };
+    setLeaderboard((prev) => [...prev, newEntry]);
+  }, [invertScores]);
+
   const updateLeaderboardEntry = useCallback(
-    (index: number, game: GameInfo, scores: Record<string, number>) => {
+    (index: number, game: GameInfo, scores: Record<string, number>, lowestScoreWins?: boolean) => {
       setLeaderboard((prev) => {
         if (index < 0 || index >= prev.length) return prev;
+        const finalScores = lowestScoreWins ? invertScores(scores) : scores;
         const updated = [...prev];
         updated[index] = {
           game,
-          scores,
+          scores: finalScores,
           timestamp: Date.now(),
+          lowestScoreWins: lowestScoreWins ?? false,
         };
         return updated;
       });
     },
-    []
+    [invertScores]
   );
 
   const deleteLeaderboardEntry = useCallback((index: number) => {
@@ -223,10 +245,11 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
     });
 
-    // Convert to array and sort descending
+    // Convert to array and sort based on lowestScoreWins flag
+    const ascending = gameScore.lowestScoreWins === true;
     return Object.entries(totals)
       .map(([player, total]) => ({ player, total }))
-      .sort((a, b) => b.total - a.total);
+      .sort((a, b) => ascending ? a.total - b.total : b.total - a.total);
   }, [gameScore]);
 
   const getLeaderboardRanking = useCallback((): PlayerRanking[] => {

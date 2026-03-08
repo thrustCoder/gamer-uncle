@@ -384,6 +384,23 @@ export const scoreTrackerStyles = StyleSheet.create({
     backgroundColor: Colors.grayDisabled,
   },
 
+  // === Lowest Score Wins Toggle ===
+  lowestScoreToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  lowestScoreToggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textDark,
+  },
+
   // === Game Search Modal ===
   modalOverlay: {
     flex: 1,

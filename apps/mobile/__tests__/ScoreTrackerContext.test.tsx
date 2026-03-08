@@ -445,4 +445,143 @@ describe('ScoreTrackerContext', () => {
       expect(ranking[0].total).toBe(30);
     });
   });
+
+  describe('Lowest Score Wins', () => {
+    it('should store lowestScoreWins flag when starting game score', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame, true);
+      });
+      
+      expect(result.current.gameScore?.lowestScoreWins).toBe(true);
+    });
+
+    it('should default lowestScoreWins to false when not specified', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame);
+      });
+      
+      expect(result.current.gameScore?.lowestScoreWins).toBe(false);
+    });
+
+    it('should sort game score ranking ascending when lowestScoreWins is true', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame, true);
+        result.current.addRound({ Alice: 10, Bob: 25, Charlie: 40 });
+      });
+      
+      const ranking = result.current.getGameScoreRanking();
+      // Ascending: Alice (10), Bob (25), Charlie (40)
+      expect(ranking[0].player).toBe('Alice');
+      expect(ranking[0].total).toBe(10);
+      expect(ranking[2].player).toBe('Charlie');
+      expect(ranking[2].total).toBe(40);
+    });
+
+    it('should sort game score ranking descending when lowestScoreWins is false', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.startGameScore(mockGame, false);
+        result.current.addRound({ Alice: 10, Bob: 25, Charlie: 40 });
+      });
+      
+      const ranking = result.current.getGameScoreRanking();
+      // Descending: Charlie (40), Bob (25), Alice (10)
+      expect(ranking[0].player).toBe('Charlie');
+      expect(ranking[0].total).toBe(40);
+      expect(ranking[2].player).toBe('Alice');
+      expect(ranking[2].total).toBe(10);
+    });
+
+    it('should invert leaderboard scores when lowestScoreWins is true', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        // Original scores: Alice=10, Bob=25, Charlie=40
+        // Formula: max + min - score = 40 + 10 - score
+        // Inverted: Alice=40, Bob=25, Charlie=10
+        result.current.addLeaderboardEntry(mockGame, { Alice: 10, Bob: 25, Charlie: 40 }, true);
+      });
+      
+      expect(result.current.leaderboard[0].scores).toEqual({ Alice: 40, Bob: 25, Charlie: 10 });
+      expect(result.current.leaderboard[0].lowestScoreWins).toBe(true);
+    });
+
+    it('should not invert leaderboard scores when lowestScoreWins is false', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.addLeaderboardEntry(mockGame, { Alice: 10, Bob: 25, Charlie: 40 }, false);
+      });
+      
+      expect(result.current.leaderboard[0].scores).toEqual({ Alice: 10, Bob: 25, Charlie: 40 });
+      expect(result.current.leaderboard[0].lowestScoreWins).toBe(false);
+    });
+
+    it('should invert leaderboard scores on update when lowestScoreWins is true', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        result.current.addLeaderboardEntry(mockGame, { Alice: 100, Bob: 80 });
+      });
+      
+      act(() => {
+        // Update with lowestScoreWins
+        // Original: Alice=5, Bob=20 -> max+min-score = 20+5-score -> Alice=20, Bob=5
+        result.current.updateLeaderboardEntry(0, mockGame, { Alice: 5, Bob: 20 }, true);
+      });
+      
+      expect(result.current.leaderboard[0].scores).toEqual({ Alice: 20, Bob: 5 });
+      expect(result.current.leaderboard[0].lowestScoreWins).toBe(true);
+    });
+
+    it('should handle all equal scores in inversion (no change)', async () => {
+      const { result } = renderHook(() => useScoreTracker(), { wrapper });
+      
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      
+      act(() => {
+        // All scores equal: max + min - score = 50 + 50 - 50 = 50
+        result.current.addLeaderboardEntry(mockGame, { Alice: 50, Bob: 50 }, true);
+      });
+      
+      expect(result.current.leaderboard[0].scores).toEqual({ Alice: 50, Bob: 50 });
+    });
+  });
 });

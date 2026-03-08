@@ -21,6 +21,8 @@ interface ScoreTableRowProps {
   scores: Record<string, number>;
   playerNames: string[];
   game?: GameInfo;
+  /** When true, shows a swap icon indicating scores were inverted */
+  lowestScoreWins?: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -30,6 +32,7 @@ export default function ScoreTableRow({
   scores,
   playerNames,
   game,
+  lowestScoreWins,
   onEdit,
   onDelete,
 }: ScoreTableRowProps) {
@@ -159,6 +162,14 @@ export default function ScoreTableRow({
             <Text style={styles.gameCellName} numberOfLines={1}>
               {label}
             </Text>
+            {lowestScoreWins && (
+              <MaterialCommunityIcons
+                name="swap-vertical"
+                size={14}
+                color={Colors.grayLight}
+                style={{ marginLeft: 2 }}
+              />
+            )}
           </View>
         ) : (
           <Text style={[styles.tableCell, styles.tableCellFirst]}>{label}</Text>

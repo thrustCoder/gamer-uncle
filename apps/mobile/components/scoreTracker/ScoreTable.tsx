@@ -14,6 +14,7 @@ interface TableDataItem {
   roundNumber?: number;
   entryIndex?: number;
   game?: GameInfo;
+  lowestScoreWins?: boolean;
 }
 
 interface ScoreTableProps {
@@ -79,6 +80,7 @@ export default function ScoreTable({
             scores={item.scores}
             playerNames={playerNames}
             game={showGameThumbnails ? item.game : undefined}
+            lowestScoreWins={item.lowestScoreWins}
             onEdit={() => onEdit(item.roundNumber, item.entryIndex)}
             onDelete={() => onDelete(item.roundNumber, item.entryIndex)}
           />
