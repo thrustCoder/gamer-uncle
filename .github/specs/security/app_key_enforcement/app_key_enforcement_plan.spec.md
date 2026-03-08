@@ -22,7 +22,7 @@
 | **1. Client Sends App Key** | Mobile app starts sending `X-GamerUncle-AppKey` on Recommendations & Voice requests. No server changes. | 1–2 weeks (app review) | Complete |
 | **2. Soft Enforcement** | Server validates App Key but allows requests without it (logs warning). Reject invalid keys. | Deploy after Phase 1 is live | Complete |
 | **3. Force Upgrade** | Build `/api/AppConfig` endpoint + client-side version check with upgrade prompt. Currently in **nudge mode** (`ForceUpgrade: false` — dismissible banner). Can escalate to blocking modal via config. | 2–3 weeks build + 4–6 weeks observation | Complete (nudge mode) |
-| **4. Hard Enforcement** | Swap graceful filter for strict `[RequireAppKey]`. All unauthenticated requests rejected. | Single deploy | Not Started |
+| **4. Hard Enforcement** | Swap graceful filter for strict `[RequireAppKey]`. All unauthenticated requests rejected. | Single deploy | Complete |
 
 ---
 
@@ -36,8 +36,8 @@ Require `X-GamerUncle-AppKey` authentication on the Recommendations (chat) and V
 |---|---|---|---|
 | `GamesController` | `api/Games/*` | **Yes** (`[RequireAppKey]`) | `GameSearch` |
 | `TelemetryController` | `api/Telemetry/*` | **Yes** (`[RequireAppKey]`) | — |
-| `RecommendationsController` | `api/Recommendations` | **Soft** (`[RequireAppKeyGraceful]`) | `GameRecommendations` |
-| `VoiceController` | `api/Voice/*` | **Soft** (`[RequireAppKeyGraceful]`) | `GameRecommendations` |
+| `RecommendationsController` | `api/Recommendations` | **Yes** (`[RequireAppKey]`) | `GameRecommendations` |
+| `VoiceController` | `api/Voice/*` | **Yes** (`[RequireAppKey]`) | `GameRecommendations` |
 | `AppConfigController` | `api/AppConfig` | No (public) | — |
 | `DiagnosticsController` | `api/Diagnostics/*` | No | — |
 

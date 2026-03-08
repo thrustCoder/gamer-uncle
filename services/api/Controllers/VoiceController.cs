@@ -13,7 +13,7 @@ namespace GamerUncle.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("GameRecommendations")] // Use same rate limiting policy as recommendations
-    [RequireAppKeyGraceful]
+    [RequireAppKey]
     public class VoiceController : ControllerBase
     {
         private readonly IAudioProcessingService _audioProcessingService;
