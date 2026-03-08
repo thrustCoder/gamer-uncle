@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Hosting;
 using GamerUncle.Api.FunctionalTests.Configuration;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
@@ -76,8 +77,13 @@ namespace GamerUncle.Api.FunctionalTests.Infrastructure
                 }
             }
 
-            // Default: spin up in-process server
-            factory = new WebApplicationFactory<Program>();
+            // Default: spin up in-process server with Testing environment
+            // Testing environment disables rate limiting and app key enforcement,
+            // matching the pipeline's standalone API (ASPNETCORE_ENVIRONMENT=Testing).
+            // AGENT_USE_FAKE=true avoids Cosmos DB / Azure AI DI failures in test.
+            Environment.SetEnvironmentVariable("AGENT_USE_FAKE", "true");
+            factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder => builder.UseEnvironment("Testing"));
             var inProcClient = factory.CreateClient();
             Configuration.BaseUrl = inProcClient.BaseAddress?.ToString()?.TrimEnd('/') ?? Configuration.BaseUrl;
             inProcClient.Timeout = TimeSpan.FromSeconds(Configuration.TimeoutSeconds);
