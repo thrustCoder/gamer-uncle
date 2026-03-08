@@ -10,6 +10,7 @@ import {
   Platform,
   Keyboard,
   Image,
+  Switch,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -40,6 +41,7 @@ type RouteParams = {
   game?: GameInfo;
   existingScores?: Record<string, number>;
   isNewGame?: boolean;
+  lowestScoreWins?: boolean;
 };
 
 export default function ScoreInputScreen() {
@@ -53,6 +55,7 @@ export default function ScoreInputScreen() {
     game: existingGame,
     existingScores,
     isNewGame,
+    lowestScoreWins: paramLowestScoreWins,
   } = route.params || { mode: 'addRound' };
 
   const {
@@ -72,11 +75,33 @@ export default function ScoreInputScreen() {
   const [showGameSearch, setShowGameSearch] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [lowestScoreWins, setLowestScoreWins] = useState(false);
 
   // Determine if we need game selection (for leaderboard or new game score)
   const needsGameSelection = mode === 'addLeaderboard' || mode === 'editLeaderboard' || isNewGame;
   const isLeaderboardMode = mode === 'addLeaderboard' || mode === 'editLeaderboard';
   const isEditMode = mode === 'editRound' || mode === 'editLeaderboard';
+
+  // Determine if lowestScoreWins toggle should be locked (disabled)
+  // For game rounds: locked after the first round (value comes from session)
+  // For leaderboard: always editable
+  const isToggleLocked = !isLeaderboardMode && !isNewGame;
+
+  /**
+   * Inverts scores using the formula: invertedScore = max + min - score.
+   * This function is its own inverse.
+   */
+  const invertScores = (inputScores: Record<string, number>): Record<string, number> => {
+    const values = Object.values(inputScores);
+    if (values.length === 0) return inputScores;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const inverted: Record<string, number> = {};
+    Object.entries(inputScores).forEach(([player, score]) => {
+      inverted[player] = max + min - score;
+    });
+    return inverted;
+  };
 
   // Get title based on mode
   const getTitle = () => {
@@ -107,12 +132,30 @@ export default function ScoreInputScreen() {
       
       setPlayerNames(playerList);
 
+      // For leaderboard edit with lowestScoreWins, un-invert the stored scores
+      const scoresToUse = (mode === 'editLeaderboard' && paramLowestScoreWins && existingScores)
+        ? invertScores(existingScores)
+        : existingScores;
+
       // Initialize scores
       const initialScores: Record<string, number> = {};
       playerList.forEach((name) => {
-        initialScores[name] = existingScores?.[name] ?? 0;
+        initialScores[name] = scoresToUse?.[name] ?? 0;
       });
       setScores(initialScores);
+
+      // Initialize lowestScoreWins toggle
+      if (isNewGame || mode === 'addLeaderboard') {
+        // New entry - default to OFF
+        setLowestScoreWins(false);
+      } else if (mode === 'editLeaderboard') {
+        // Editing leaderboard entry - use the stored flag
+        setLowestScoreWins(paramLowestScoreWins ?? false);
+      } else {
+        // addRound or editRound - use session flag (locked)
+        setLowestScoreWins(gameScore?.lowestScoreWins ?? false);
+      }
+
       setIsInitialized(true);
     })();
   }, [existingScores]);
@@ -201,15 +244,15 @@ export default function ScoreInputScreen() {
     if (isLeaderboardMode) {
       // Leaderboard modes
       if (mode === 'addLeaderboard') {
-        addLeaderboardEntry(selectedGame!, scores);
+        addLeaderboardEntry(selectedGame!, scores, lowestScoreWins);
       } else if (mode === 'editLeaderboard' && entryIndex !== undefined) {
-        updateLeaderboardEntry(entryIndex, selectedGame!, scores);
+        updateLeaderboardEntry(entryIndex, selectedGame!, scores, lowestScoreWins);
       }
     } else {
       // Game score modes
       if (isNewGame && selectedGame) {
         // Start new game and add first round
-        startGameScore(selectedGame);
+        startGameScore(selectedGame, lowestScoreWins);
         // Need to add round after starting - use setTimeout to ensure state updates
         setTimeout(() => {
           addRound(scores);
@@ -366,6 +409,19 @@ export default function ScoreInputScreen() {
             </View>
           </View>
         ))}
+
+        {/* Lowest Score Wins Toggle */}
+        <View style={styles.lowestScoreToggleRow}>
+          <Text style={styles.lowestScoreToggleLabel}>Lowest score wins</Text>
+          <Switch
+            value={lowestScoreWins}
+            onValueChange={setLowestScoreWins}
+            disabled={isToggleLocked}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={lowestScoreWins ? '#2196F3' : '#f4f3f4'}
+            testID="lowest-score-wins-toggle"
+          />
+        </View>
 
         {/* Save Button */}
         <TouchableOpacity

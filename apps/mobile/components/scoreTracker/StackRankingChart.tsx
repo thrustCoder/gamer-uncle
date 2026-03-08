@@ -8,17 +8,20 @@ interface StackRankingChartProps {
   data: PlayerRanking[];
   maxValue?: number;
   animate?: boolean;
+  /** When true, sort ascending (lowest score at top) for lowest-score-wins games */
+  sortAscending?: boolean;
 }
 
 export default function StackRankingChart({
   data,
   maxValue: providedMaxValue,
   animate = true,
+  sortAscending = false,
 }: StackRankingChartProps) {
-  // Sort data descending by total
+  // Sort data based on sortAscending flag
   const sortedData = useMemo(
-    () => [...data].sort((a, b) => b.total - a.total),
-    [data]
+    () => [...data].sort((a, b) => sortAscending ? a.total - b.total : b.total - a.total),
+    [data, sortAscending]
   );
 
   // Calculate max value for bar scaling

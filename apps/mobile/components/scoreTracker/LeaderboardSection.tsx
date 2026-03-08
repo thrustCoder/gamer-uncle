@@ -55,6 +55,7 @@ export default function LeaderboardSection({ playerNames }: LeaderboardSectionPr
         entryIndex: index,
         game: entry.game,
         existingScores: entry.scores,
+        lowestScoreWins: entry.lowestScoreWins,
       });
     }
   };
@@ -82,6 +83,7 @@ export default function LeaderboardSection({ playerNames }: LeaderboardSectionPr
     scores: entry.scores,
     entryIndex: index,
     game: entry.game,
+    lowestScoreWins: entry.lowestScoreWins,
   }));
 
   return (

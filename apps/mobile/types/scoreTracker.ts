@@ -41,6 +41,8 @@ export interface GameScoreSession {
   rounds: RoundScore[];
   /** Unix timestamp when session was created */
   createdAt: number;
+  /** When true, lowest scorer is considered the winner */
+  lowestScoreWins?: boolean;
 }
 
 /**
@@ -53,6 +55,8 @@ export interface LeaderboardEntry {
   scores: Record<string, number>;
   /** Unix timestamp when this entry was added */
   timestamp: number;
+  /** When true, scores were inverted so lowest original score maps to highest stored score */
+  lowestScoreWins?: boolean;
 }
 
 /**
@@ -97,4 +101,6 @@ export interface ScoreInputParams {
   game?: GameInfo;
   /** Pre-filled scores (for edit modes) */
   existingScores?: Record<string, number>;
+  /** Whether this entry uses lowest-score-wins scoring */
+  lowestScoreWins?: boolean;
 }

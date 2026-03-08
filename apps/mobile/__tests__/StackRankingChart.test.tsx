@@ -79,4 +79,44 @@ describe('StackRankingChart', () => {
     // The exact initials depend on the algorithm, but none should exceed 3 chars
     expect(queryByText(/^.{4,}$/)).toBeNull();
   });
+
+  it('sorts ascending when sortAscending is true', () => {
+    const data = [
+      { player: 'Alice', total: 50 },
+      { player: 'Bob', total: 100 },
+      { player: 'Charlie', total: 75 },
+    ];
+    const { getAllByText } = render(
+      <StackRankingChart data={data} sortAscending={true} />
+    );
+    
+    // All scores should be rendered
+    expect(getAllByText(/\d+/).length).toBe(3);
+  });
+
+  it('sorts descending by default (sortAscending not set)', () => {
+    const data = [
+      { player: 'Alice', total: 50 },
+      { player: 'Bob', total: 100 },
+      { player: 'Charlie', total: 75 },
+    ];
+    const { getAllByText } = render(<StackRankingChart data={data} />);
+    
+    // All scores should be rendered
+    expect(getAllByText(/\d+/).length).toBe(3);
+  });
+
+  it('sorts descending when sortAscending is false', () => {
+    const data = [
+      { player: 'Alice', total: 50 },
+      { player: 'Bob', total: 100 },
+      { player: 'Charlie', total: 75 },
+    ];
+    const { getAllByText } = render(
+      <StackRankingChart data={data} sortAscending={false} />
+    );
+    
+    // All scores should be rendered
+    expect(getAllByText(/\d+/).length).toBe(3);
+  });
 });

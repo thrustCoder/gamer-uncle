@@ -109,7 +109,12 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
       </View>
 
       {/* Stack Ranking Chart */}
-      {ranking.length > 0 && <StackRankingChart data={ranking} />}
+      {ranking.length > 0 && (
+        <StackRankingChart
+          data={ranking}
+          sortAscending={gameScore.lowestScoreWins === true}
+        />
+      )}
 
       {/* Score Table */}
       <ScoreTable
