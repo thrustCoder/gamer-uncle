@@ -48,7 +48,6 @@ Require `X-GamerUncle-AppKey` authentication on the Recommendations (chat) and V
 - The existing `[RequireAppKey]` attribute (`AppKeyAuthorizationFilter`) validates the `X-GamerUncle-AppKey` header against `ApiAuthentication:AppKey` config. It already has a graceful fallback: if the server-side key is not configured, validation is skipped with a warning log.
 - A **nudge-upgrade mechanism** is deployed (`/api/AppConfig` with `ForceUpgrade: false`). Users below `MinVersion` see a dismissible banner; this can be escalated to a blocking modal by setting `ForceUpgrade: true` in config.
 - The same Key Vault secret (`GameSearchAppKey`) already used by Game Search / Telemetry is reused.
-- Current app version: **3.4.1**; `MinVersion`: **3.3.4**.
 
 ---
 

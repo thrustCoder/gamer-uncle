@@ -183,6 +183,34 @@ $env:E2E_BASE_URL="https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net"
 - **API publishing**: Self-contained deployment packages
 - **Environment promotion**: Dev → Prod with manual approval gates
 
+### Azure DevOps CLI Access (CRITICAL)
+- **Do NOT use the Azure DevOps MCP tools** — they trigger an interactive browser login to the Microsoft tenant which will fail for personal accounts. Use the `az devops` / `az pipelines` CLI commands instead.
+- **PAT Authentication**: The Azure DevOps PAT is stored in PowerShell SecretStore. Load it before any `az devops` CLI calls:
+  ```powershell
+  $pat = Get-Secret -Name "AzureDevOpsPAT" -AsPlainText
+  $env:AZURE_DEVOPS_EXT_PAT = $pat
+  ```
+- **Defaults are pre-configured**: `az devops configure --list` shows org=`https://dev.azure.com/rpsingh129`, project=`Gamer Uncle`
+- **Repo name**: `Gamer Uncle` (with space, not `gamer-uncle`)
+- **Common commands**:
+  ```powershell
+  # List recent pipeline runs
+  az pipelines runs list --top 5 --query "[].{id:id, buildNumber:buildNumber, result:result, reason:reason}" -o json
+
+  # Find a specific build by number
+  az pipelines runs list --query "[?buildNumber=='20260308.9']" -o json
+
+  # Get failed tasks in a build
+  az devops invoke --area build --resource timeline --route-parameters buildId=<ID> project="Gamer Uncle" --query "records[?result=='failed'].{name:name, type:type, logId:log.id}" -o json
+
+  # Read build logs (use REST API for log content since az devops returns raw text)
+  $headers = @{Authorization = "Basic $([Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$pat")))"}
+  $response = Invoke-RestMethod -Uri "https://dev.azure.com/rpsingh129/Gamer%20Uncle/_apis/build/builds/<ID>/logs/<logId>?api-version=7.1" -Headers $headers
+  $lines = $response -split "`n"
+  $lines | Select-Object -Last 50  # or pipe to Select-String for filtering
+  ```
+- **PAT scope note**: The current PAT may not have Git read scope (PR API may return 401). Use `az pipelines` commands for build data instead.
+
 ## Data Flow Architecture
 
 1. **Mobile App** → HTTP POST → **API Controller**
