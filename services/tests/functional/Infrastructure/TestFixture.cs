@@ -72,6 +72,19 @@ namespace GamerUncle.Api.FunctionalTests.Infrastructure
                         Timeout = TimeSpan.FromSeconds(Configuration.TimeoutSeconds)
                     };
                     client.DefaultRequestHeaders.Add("User-Agent", "GamerUncle-FunctionalTests/1.0");
+
+                    // Add App Key header for authenticated endpoints (Phase 4: hard enforcement)
+                    var appKey = Environment.GetEnvironmentVariable("FUNCTIONAL_TEST_APP_KEY");
+                    if (!string.IsNullOrEmpty(appKey))
+                    {
+                        client.DefaultRequestHeaders.Add("X-GamerUncle-AppKey", appKey);
+                        Console.WriteLine("[TestFixture] App Key header added to external HttpClient");
+                    }
+                    else
+                    {
+                        Console.WriteLine("[TestFixture] WARNING: FUNCTIONAL_TEST_APP_KEY not set — requests to authenticated endpoints will fail");
+                    }
+
             Console.WriteLine($"[TestFixture] Using external API at {externalUri}");
                     return client;
                 }

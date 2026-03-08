@@ -891,10 +891,22 @@ stages:
     - script: dotnet restore services/tests/functional/GamerUncle.Api.FunctionalTests.csproj
       displayName: 'Restore Functional Test Dependencies'
 
+    - task: AzureCLI@2
+      displayName: 'Fetch Dev App Key from Key Vault'
+      inputs:
+        azureSubscription: 'gamer-uncle-dev-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          APP_KEY=$(az keyvault secret show --vault-name "gamer-uncle-dev-vault" --name "GameSearchAppKey" --query "value" -o tsv)
+          echo "##vso[task.setvariable variable=FUNCTIONAL_TEST_APP_KEY;issecret=true]$APP_KEY"
+          echo "✅ Dev App Key fetched from Key Vault"
+
     - script: |
         export TEST_ENVIRONMENT=Dev
         export API_BASE_URL=https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net
         export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
+        export FUNCTIONAL_TEST_APP_KEY=$(FUNCTIONAL_TEST_APP_KEY)
         echo "Running functional tests against Dev environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)
@@ -1359,10 +1371,22 @@ stages:
     - script: dotnet restore services/tests/functional/GamerUncle.Api.FunctionalTests.csproj
       displayName: 'Restore Functional Test Dependencies'
 
+    - task: AzureCLI@2
+      displayName: 'Fetch Prod App Key from Key Vault'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          APP_KEY=$(az keyvault secret show --vault-name "gamer-uncle-prod-vault" --name "GameSearchAppKey" --query "value" -o tsv)
+          echo "##vso[task.setvariable variable=FUNCTIONAL_TEST_APP_KEY;issecret=true]$APP_KEY"
+          echo "✅ Prod App Key fetched from Key Vault"
+
     - script: |
         export TEST_ENVIRONMENT=Prod
         export API_BASE_URL=https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net
         export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
+        export FUNCTIONAL_TEST_APP_KEY=$(FUNCTIONAL_TEST_APP_KEY)
         echo "Running functional tests against Prod environment with enhanced retry logic for Azure AI content filtering..."
         
         # Run functional tests with retry logic (1 retry)
