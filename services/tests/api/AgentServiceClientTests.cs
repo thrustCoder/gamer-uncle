@@ -486,5 +486,97 @@ namespace GamerUncle.Api.Tests
             // Assert
             Assert.Equal(expectedResult, result);
         }
+
+        // ── ContainsContextualReference tests ──────────────────────────────────
+
+        /// <summary>
+        /// Pronoun "it" in various positions should be detected as contextual.
+        /// This prevents voice-transcribed "it" from being treated as a game name.
+        /// </summary>
+        [Theory]
+        [InlineData("How many players does it support?", true)]
+        [InlineData("Does it have expansions?", true)]
+        [InlineData("Tell me more about it.", true)]
+        [InlineData("What is it about?", true)]
+        [InlineData("Is it good for beginners?", true)]
+        [InlineData("Can it be played solo?", true)]
+        [InlineData("I like it!", true)]
+        [InlineData("How long does it take?", true)]
+        public void ContainsContextualReference_PronounIt_ShouldDetect(string input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input));
+        }
+
+        /// <summary>
+        /// Demonstrative phrases like "this game", "that game" should be detected.
+        /// </summary>
+        [Theory]
+        [InlineData("Tell me about this game", true)]
+        [InlineData("How do you win that game?", true)]
+        [InlineData("Is this one good?", true)]
+        [InlineData("I prefer that one", true)]
+        [InlineData("What are the rules of the game?", true)]
+        [InlineData("Is this board game complex?", true)]
+        [InlineData("How does the same game compare?", true)]
+        public void ContainsContextualReference_Demonstratives_ShouldDetect(string input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input));
+        }
+
+        /// <summary>
+        /// Standalone game queries with no pronouns should NOT be flagged.
+        /// These queries work independently and can safely use the cache.
+        /// </summary>
+        [Theory]
+        [InlineData("Tell me about Catan", false)]
+        [InlineData("How many players can play Ticket to Ride?", false)]
+        [InlineData("Suggest games for 4 players", false)]
+        [InlineData("What are good strategy games?", false)]
+        [InlineData("Games for beginners", false)]
+        [InlineData("Worker placement games under 60 minutes", false)]
+        [InlineData("What is Gloomhaven?", false)]
+        [InlineData("Best 2 player board games", false)]
+        public void ContainsContextualReference_StandaloneQueries_ShouldNotDetect(string input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input));
+        }
+
+        /// <summary>
+        /// Game names containing "it" as a substring (e.g., "Azul", "Ticket to Ride",
+        /// "Spirit Island") should NOT be false positives.
+        /// </summary>
+        [Theory]
+        [InlineData("Tell me about Spirit Island", false)]
+        [InlineData("How do you play Ticket to Ride?", false)]
+        [InlineData("Is Azul a good game?", false)]
+        [InlineData("Recommend games like Everdell", false)]
+        [InlineData("Pandemic Legacy review", false)]
+        public void ContainsContextualReference_GameNamesWithItSubstring_ShouldNotFalsePositive(string input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input));
+        }
+
+        /// <summary>
+        /// Possessive "its" should be detected as contextual.
+        /// </summary>
+        [Theory]
+        [InlineData("What are its mechanics?", true)]
+        [InlineData("Tell me about its expansions.", true)]
+        public void ContainsContextualReference_PossessiveIts_ShouldDetect(string input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input));
+        }
+
+        /// <summary>
+        /// Empty, null, and whitespace inputs should not crash and should return false.
+        /// </summary>
+        [Theory]
+        [InlineData("", false)]
+        [InlineData("   ", false)]
+        [InlineData(null, false)]
+        public void ContainsContextualReference_EmptyOrNull_ShouldReturnFalse(string? input, bool expected)
+        {
+            Assert.Equal(expected, AgentServiceClient.ContainsContextualReference(input!));
+        }
     }
 }

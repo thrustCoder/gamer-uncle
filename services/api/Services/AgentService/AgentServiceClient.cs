@@ -285,8 +285,25 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
         /// </summary>
         private async Task<(GameQueryCriteria criteria, string? threadId)> ExtractGameCriteriaViaAgent(string userInput, string? sessionId)
         {
+            // Detect if the query contains contextual references (pronouns, etc.) that
+            // require conversation history to resolve. Such queries must bypass the cache
+            // and always go through the AI agent when a conversation is active.
+            bool isContextDependent = !string.IsNullOrEmpty(sessionId) && ContainsContextualReference(userInput);
+
+            if (isContextDependent)
+            {
+                _logger.LogInformation("Skipping criteria cache — context-dependent follow-up detected. Query: {Query}, SessionId: {SessionId}",
+                    userInput, sessionId);
+                _telemetryClient?.TrackEvent("CriteriaExtraction.CacheSkipped.ContextDependent", new Dictionary<string, string>
+                {
+                    ["UserInput"] = userInput.Substring(0, Math.Min(userInput.Length, 100)),
+                    ["SessionId"] = sessionId ?? string.Empty
+                });
+            }
+
             // A1 Optimization: Check cache first to skip AI call for repeat queries
-            if (_criteriaCache != null)
+            // Skip cache for context-dependent follow-up queries (pronouns like "it", "this game")
+            if (_criteriaCache != null && !isContextDependent)
             {
                 var cachedJson = await _criteriaCache.GetAsync(userInput);
                 if (!string.IsNullOrEmpty(cachedJson))
@@ -322,12 +339,22 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
 
                                 CRITICAL: Your response must be ONLY valid JSON with no additional text, explanations, or formatting.
 
+                                PRONOUN & CONTEXT RESOLUTION (VERY IMPORTANT):
+                                When the user uses pronouns or contextual references such as 'it', 'this game',
+                                'that game', 'that one', 'the game', 'this one', or similar — you MUST resolve
+                                them by looking at the CONVERSATION HISTORY in this thread. Identify which game
+                                was most recently discussed and use that game's name in the extracted criteria.
+                                For example, if the previous messages discussed 'Catan' and the user now asks
+                                'How many players does it support?', extract {""name"": ""Catan""}.
+                                NEVER treat common English pronouns like 'it' as a game name.
+
                                 Extract criteria from ALL types of board game questions, including:
                                 - Game recommendations (""suggest games for 4 players"")
                                 - Specific game questions (""tell me about Catan"" → name: ""Catan"")
                                 - Mechanic/category questions (""what are worker placement games?"" → Mechanics: [""Worker Placement""])
                                 - Strategy questions (""how to win at Ticket to Ride?"" → name: ""Ticket to Ride"")
                                 - General questions mentioning game attributes (""games for beginners"" → MaxWeight: 2.5)
+                                - Follow-up questions using pronouns (""how long does it take?"" → resolve 'it' from conversation history)
 
                                 Rules:
                                 1. If a field is not mentioned or implied, it should be null or omitted.
@@ -341,7 +368,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                                 9. If a field is mentioned with a weight (e.g., 'lightweight', 'complex'), set MaxWeight to a reasonable value on a scale of 1 to 5.
                                 10. If the user asks about a specific game by name, ALWAYS set name to that value in title case.
                                 11. If the user asks for games with specific mechanics or categories, set Mechanics and Categories arrays accordingly.
-                                12. For beginner/family games, consider MaxWeight: 2.5. For complex/heavy games, consider weight ranges accordingly."
+                                12. For beginner/family games, consider MaxWeight: 2.5. For complex/heavy games, consider weight ranges accordingly.
+                                13. NEVER treat pronouns ('it', 'this', 'that', 'the game') as game names. Always resolve them from conversation context."
                 },
                 new { role = "user", content = userInput }
             };
@@ -1053,6 +1081,43 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                     }
                 }
             };
+        }
+
+        /// <summary>
+        /// Detects if the user's query contains contextual references (pronouns, demonstratives)
+        /// that require conversation history to resolve. Used to bypass criteria cache for
+        /// follow-up questions like "How many players does it support?" where "it" refers
+        /// to a game mentioned earlier in the conversation.
+        /// </summary>
+        internal static bool ContainsContextualReference(string userInput)
+        {
+            if (string.IsNullOrWhiteSpace(userInput))
+                return false;
+
+            // Normalized for case-insensitive matching
+            var normalized = $" {userInput.Trim()} ";
+
+            // Word-boundary patterns for pronouns and contextual references.
+            // We pad with spaces and check " word " to approximate word boundaries,
+            // plus handle punctuation neighbors (e.g., "it?" or "it.").
+            var contextualPatterns = new[]
+            {
+                // Pronouns that refer to a previously mentioned game
+                " it ", " it?", " it.", " it,", " it!", " it\'",
+                // Demonstratives
+                " this game", " that game", " the game",
+                " this one", " that one",
+                " this board game", " that board game",
+                // Possessive references
+                " its ", " its?", " its.",
+                // Other follow-up indicators
+                " the same game", " same game",
+                " about it", " for it", " does it", " is it", " can it",
+                " of it", " with it", " in it"
+            };
+
+            return contextualPatterns.Any(pattern =>
+                normalized.Contains(pattern, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
