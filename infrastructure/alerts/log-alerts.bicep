@@ -288,7 +288,7 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
   properties: {
     description: 'Alert #11: Voice processing (STT, Agent, or TTS) failed. Users on voice screen get no response.'
     severity: 2
-    enabled: true
+    enabled: false // Disabled: no voice.audio_failures_total metrics exist yet. Re-enable when voice traffic is active.
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     scopes: [appInsightsId]
@@ -321,7 +321,7 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
   properties: {
     description: 'Alert #12: Voice round-trip (STT → Agent → TTS) P95 latency is high. >15s feels broken.'
     severity: 3
-    enabled: true
+    enabled: false // Disabled: no voice.total_duration_ms metrics exist yet. Re-enable when voice traffic is active.
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
     scopes: [appInsightsId]
