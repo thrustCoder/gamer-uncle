@@ -1009,13 +1009,13 @@ stages:
 - stage: ProdDeployApi
   displayName: 'Prod Deploy Api'
   dependsOn: 
-    - DevBuild
-    - DevTest
-  # Only deploy to prod on main branch after successful dev testing
+    - FunctionalTestsDev
+  # Only deploy to prod after successful dev functional tests
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
@@ -1138,13 +1138,13 @@ stages:
 - stage: ProdDeployFunctions
   displayName: 'Prod Deploy Functions'
   dependsOn: 
-    - DevBuild
-    - DevTest
-  # Only deploy to prod on main branch after successful dev testing
+    - FunctionalTestsDev
+  # Only deploy to prod after successful dev functional tests
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
@@ -1281,13 +1281,13 @@ stages:
 - stage: ProdDeployMobile
   displayName: 'Prod Deploy Mobile'
   dependsOn:
-    - DevBuild
-    - DevTest
-  # Only deploy to prod on main branch after successful dev testing
+    - FunctionalTestsDev
+  # Only deploy to prod after successful dev functional tests
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
 
   jobs:
@@ -1442,12 +1442,12 @@ stages:
 - stage: ProdDeployAlerts
   displayName: 'Prod Deploy Alerts'
   dependsOn:
-    - DevBuild
-    - DevTest
+    - FunctionalTestsDev
   condition: |
     and(
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
   jobs:
   - job: DeployProdAlerts
