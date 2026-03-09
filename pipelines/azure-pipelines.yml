@@ -753,47 +753,16 @@ stages:
       displayName: 'Build Functional Tests'
 
     - script: |
-        echo "Starting API in background with Testing environment..."
-        ASPNETCORE_ENVIRONMENT=Testing AGENT_USE_FAKE=true dotnet run --project $(apiProject) --configuration $(buildConfiguration) --no-build --no-launch-profile --urls "http://localhost:5000" &
-        API_PID=$!
-        echo "API PID: $API_PID"
+        echo "🧪 Running functional tests with in-process server (WebApplicationFactory)..."
+        echo "Environment: Testing (auth disabled, rate limiting disabled)"
         
-        echo "Waiting for API to start..."
-        sleep 15
+        export ASPNETCORE_ENVIRONMENT=Testing
+        export AGENT_USE_FAKE=true
+        export SKIP_VOICE_TESTS=true
         
-        # Test if API is responding
-        API_READY=false
-        for i in {1..24}; do
-          echo "Testing API connectivity... attempt $i/24"
-          if curl -f http://localhost:5000/ 2>/dev/null; then
-            echo "✅ API is responding on root endpoint"
-            API_READY=true
-            break
-          elif curl -f http://localhost:5000/api/recommendations -X POST -H "Content-Type: application/json" -d '{"query":"test"}' 2>/dev/null; then
-            echo "✅ API is responding on recommendations endpoint"
-            API_READY=true
-            break
-          elif curl -s http://localhost:5000/ 2>/dev/null; then
-            echo "✅ API is responding (got some response)"
-            API_READY=true
-            break
-          fi
-          echo "⏳ Waiting for API... attempt $i/24"
-          sleep 5
-        done
-        
-        if [ "$API_READY" = false ]; then
-          echo "❌ API failed to start or is not responding after 2 minutes"
-          ps aux | grep dotnet || true
-          netstat -tlnp | grep 5000 || true
-          kill $API_PID 2>/dev/null || true
-          exit 1
-        fi
-        
-        echo "🧪 Running functional tests with retry logic..."
-        export TEST_ENVIRONMENT=Local
-        export API_BASE_URL=http://localhost:5000
-        export SKIP_VOICE_TESTS=true  # Skip voice tests in CI/CD (no Azure Speech credentials)
+        # Unset API_BASE_URL to ensure WebApplicationFactory in-process path is used
+        unset API_BASE_URL
+        unset TEST_ENVIRONMENT
         
         # Run the tests with retry logic (1 retry)
         TEST_RESULT=0
@@ -804,7 +773,7 @@ stages:
           RETRY_COUNT=$((RETRY_COUNT + 1))
           echo "🧪 Functional test attempt $RETRY_COUNT of $MAX_RETRIES..."
           
-          if dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --logger trx --results-directory $(Agent.TempDirectory); then
+          if dotnet test services/tests/functional/GamerUncle.Api.FunctionalTests.csproj --configuration $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory); then
             echo "✅ Functional tests passed on attempt $RETRY_COUNT"
             TEST_RESULT=0
             break
@@ -815,19 +784,16 @@ stages:
             if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
               echo "🧹 Cleaning failed test results before retry..."
               rm -f $(Agent.TempDirectory)/*.trx 2>/dev/null || true
-              echo "⏳ Waiting 30 seconds before retry..."
-              sleep 30
+              echo "⏳ Waiting 10 seconds before retry..."
+              sleep 10
             else
               echo "❌ All functional test attempts failed after $MAX_RETRIES tries"
             fi
           fi
         done
         
-        echo "🧹 Stopping API service..."
-        kill $API_PID 2>/dev/null || true
-        
         exit $TEST_RESULT
-      displayName: 'Start API and Run Functional Tests'
+      displayName: 'Run Functional Tests (In-Process)'
 
     - task: PublishTestResults@2
       inputs:
