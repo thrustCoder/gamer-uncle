@@ -62,7 +62,9 @@ namespace GamerUncle.Api.FunctionalTests.Infrastructure
             }
 
             // Use external client only for clearly external hosts (azurewebsites.net) or when explicitly requested
-        if (IsExternalHost(Configuration.BaseUrl) && !IsLocalHost(Configuration.BaseUrl))
+            // Also use external client when API_BASE_URL is explicitly set (e.g., CI pipeline with standalone API on localhost)
+        if ((IsExternalHost(Configuration.BaseUrl) && !IsLocalHost(Configuration.BaseUrl))
+            || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("API_BASE_URL")))
             {
                 if (Uri.TryCreate(Configuration.BaseUrl, UriKind.Absolute, out var externalUri))
                 {
