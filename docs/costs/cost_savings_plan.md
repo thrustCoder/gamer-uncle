@@ -88,8 +88,8 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gamer-uncle-dev-speech | Speech Services | **F0** (Free) | $0 |
 | gamer-uncle-dev-cosmos | Cosmos DB | **Free Tier** enabled | $0 |
 | gamer-uncle-dev-vault | Key Vault | Standard | ~$0 |
-| gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention | ~$0.14 |
-| gamer-uncle-dev-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
+| gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0.14 |
+| gamer-uncle-dev-app-insights | Application Insights | (no sampling), **linked to dev workspace** | Included in Log Analytics |
 | gameruncledevstorage | Storage Account | Standard_LRS | ~$0.06 |
 | gameruncledevfuncstorage | Storage Account | Standard_LRS | ~$0.06 |
 | gamer-uncle-dev-function | Function App | Y1 (Consumption) | ~$0 |
@@ -111,7 +111,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD (rate limits: dev 60/min, prod 100/min) |
 | gamer-uncle-prod-foundry-resourc | AI Services | S0 | Pay-per-use |
 | gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
-| gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–4000 RU/s, **no free tier** | ~$72 |
+| gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–1000 RU/s, **no free tier** | ~$18 |
 | gamer-uncle-prod-vault | Key Vault | Standard | ~$0 |
 | gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention | ~$0 |
 | gamer-uncle-prod-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
@@ -136,16 +136,16 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 
 | # | Recommendation | Env | Cost Contributor (1-10) | Risk if Changed (1-10) | Est. Monthly Savings | Scale Impact | Implemented? |
 |---|----------------|:---:|:-----------------------:|:----------------------:|:--------------------:|:------------:|:------------:|
-| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | 🟠 |
+| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | ✅ (partial — autoscale min→1, Mar 2026) |
 | 2 | [Consolidate dev AFD onto prod profile](#2-consolidate-dev-afd-onto-prod-profile) | Dev | **9** | **2** | $35/mo | Safe at scale | ✅ |
-| 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | 🟠 |
+| 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | ✅ (Mar 2026) |
 | 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $25–31/mo | Safe at scale | ✅ |
 | 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | 🟠 |
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | ✅ |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
 | 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
-| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | 🟠 |
+| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | ✅ (Mar 2026) |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
 
 ### How to read this table
@@ -293,11 +293,13 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Cost Contributor** | 2/10 |
 | **Risk** | 1/10 |
 | **Savings** | $1–2/mo |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ (Mar 2026) |
 
-**Current state**: Both dev and prod Log Analytics workspaces have `dailyQuotaGb: -1` (unlimited). Dev is currently low cost ($0.14/mo) but this will grow as you add more logging at scale.
+**What was done**: Set 0.5 GB/day daily cap on both the dev workspace (`gamer-uncle-dev-log-analytics-ws`) and the default workspace (`defaultworkspace-*-wus`). This prevents the cost spikes seen in the Feb–Mar billing period ($3.56 dev + $17.15 default = $20.71 combined).
 
-**Recommendation**: Set a daily cap of 0.5 GB/day on dev to prevent surprise cost spikes. First 5 GB/mo is free with Log Analytics.
+Additionally, dev App Insights was relinked from the default workspace to `gamer-uncle-dev-log-analytics-ws` (it was misconfigured, sending 5.6 GB/mo to the wrong workspace), and `StorageWrite` diagnostic logging was disabled on `gameruncledevfuncstorage` (was generating 1.1 GB/mo of `StorageBlobLogs`).
+
+First 5 GB/mo is free with Log Analytics. With the daily cap at 0.5 GB, maximum billable ingestion is ~15 GB/mo per workspace, capping worst-case cost at ~$28/workspace/mo.
 
 ---
 
@@ -311,7 +313,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Risk** | 4/10 |
 | **Savings** | $45/mo (temporary — ~2-3 months) |
 | **Scale Impact** | **Temporary savings** — upgrade back to S2/P1v3 at 500+ users |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ partial (Mar 2026) — autoscale min→1; full S1 downgrade deferred |
 
 **Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
 
@@ -343,7 +345,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | **Risk** | 5/10 |
 | **Savings** | $54/mo (temporary — ~2-3 months) |
 | **Scale Impact** | **Temporary savings** — raise autoscale max back to 4000 RU/s at 500+ users |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ (Mar 2026) — lowered autoscale max from 4000→1000 RU/s |
 
 **Current state**: Prod Cosmos DB uses **autoscale at container level** with max 4,000 RU/s. The current throughput shows 100 RU/s (autoscale scales down to 10% of max). However, the **minimum billing** for autoscale is 10% of max = 400 RU/s. At ~$0.008/RU/hr, that's **~$72/mo** just for provisioned throughput.
 
