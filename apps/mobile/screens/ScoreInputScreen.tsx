@@ -71,6 +71,7 @@ export default function ScoreInputScreen() {
   // State
   const [playerNames, setPlayerNames] = useState<string[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [rawInputs, setRawInputs] = useState<Record<string, string>>({});
   const [selectedGame, setSelectedGame] = useState<GameInfo | null>(existingGame || null);
   const [showGameSearch, setShowGameSearch] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -205,14 +206,26 @@ export default function ScoreInputScreen() {
   }, [isLeaderboardMode, navigation]);
 
   const handleScoreChange = (playerName: string, value: string) => {
-    const numValue = value === '' || value === '-' ? 0 : parseInt(value, 10);
-    setScores((prev) => ({
-      ...prev,
-      [playerName]: isNaN(numValue) ? 0 : numValue,
-    }));
+    // Allow empty, minus sign, or valid integer (including negative)
+    if (value === '' || value === '-' || /^-?\d+$/.test(value)) {
+      setRawInputs((prev) => ({ ...prev, [playerName]: value }));
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        setScores((prev) => ({ ...prev, [playerName]: numValue }));
+      }
+    }
+  };
+
+  const handleInputBlur = (playerName: string) => {
+    setRawInputs((prev) => {
+      const next = { ...prev };
+      delete next[playerName];
+      return next;
+    });
   };
 
   const handleIncrement = (playerName: string) => {
+    setRawInputs((prev) => { const next = { ...prev }; delete next[playerName]; return next; });
     setScores((prev) => ({
       ...prev,
       [playerName]: (prev[playerName] || 0) + 1,
@@ -220,6 +233,7 @@ export default function ScoreInputScreen() {
   };
 
   const handleDecrement = (playerName: string) => {
+    setRawInputs((prev) => { const next = { ...prev }; delete next[playerName]; return next; });
     setScores((prev) => ({
       ...prev,
       [playerName]: (prev[playerName] || 0) - 1,
@@ -392,9 +406,10 @@ export default function ScoreInputScreen() {
               </TouchableOpacity>
               <TextInput
                 style={styles.scoreInput}
-                value={String(scores[playerName] ?? 0)}
+                value={rawInputs[playerName] !== undefined ? rawInputs[playerName] : String(scores[playerName] ?? 0)}
                 onChangeText={(text) => handleScoreChange(playerName, text)}
-                keyboardType="numeric"
+                onBlur={() => handleInputBlur(playerName)}
+                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
                 selectTextOnFocus
                 testID={`score-input-${index}`}
                 {...(Platform.OS === 'web' && { 'data-testid': `score-input-${index}` })}

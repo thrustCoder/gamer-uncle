@@ -119,4 +119,56 @@ describe('StackRankingChart', () => {
     // All scores should be rendered
     expect(getAllByText(/\d+/).length).toBe(3);
   });
+
+  it('renders negative scores correctly', () => {
+    const data = [
+      { player: 'Alice', total: -5 },
+      { player: 'Bob', total: 10 },
+    ];
+    const { getByText } = render(<StackRankingChart data={data} />);
+    expect(getByText('-5')).toBeTruthy();
+    expect(getByText('10')).toBeTruthy();
+  });
+
+  it('gives different bar widths for negative and zero scores', () => {
+    const data = [
+      { player: 'Alice', total: -10 },
+      { player: 'Bob', total: 0 },
+      { player: 'Charlie', total: 10 },
+    ];
+    const { toJSON } = render(<StackRankingChart data={data} />);
+    const tree = JSON.stringify(toJSON());
+
+    // All three scores should be displayed
+    expect(tree).toContain('-10');
+    expect(tree).toContain('"0"'); // Exact match for 0 score text node
+    expect(tree).toContain('"10"');
+
+    // Bars should have different widths:
+    // Charlie (10): (10 - (-10)) / (10 - (-10)) * 100 = 100%
+    // Bob (0):      (0 - (-10)) / (10 - (-10)) * 100 = 50%
+    // Alice (-10):  (-10 - (-10)) / (10 - (-10)) * 100 = 0% → clamped to 15%
+    expect(tree).toContain('100%');
+    expect(tree).toContain('50%');
+    expect(tree).toContain('15%');
+  });
+
+  it('scales negative-only scores linearly', () => {
+    const data = [
+      { player: 'Alice', total: -20 },
+      { player: 'Bob', total: -10 },
+      { player: 'Charlie', total: -5 },
+    ];
+    const { toJSON } = render(<StackRankingChart data={data} />);
+    const tree = JSON.stringify(toJSON());
+
+    // min = -20, max = 1 (default), range = 21
+    // Charlie (-5): (-5 - (-20)) / 21 * 100 ≈ 71.4%
+    // Bob (-10): (-10 - (-20)) / 21 * 100 ≈ 47.6%
+    // Alice (-20): (-20 - (-20)) / 21 * 100 = 0% → clamped to 15%
+    // All scores should be rendered
+    expect(tree).toContain('-20');
+    expect(tree).toContain('-10');
+    expect(tree).toContain('-5');
+  });
 });

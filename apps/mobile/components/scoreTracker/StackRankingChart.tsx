@@ -24,12 +24,22 @@ export default function StackRankingChart({
     [data, sortAscending]
   );
 
-  // Calculate max value for bar scaling
+  // Calculate min/max values for bar scaling (supports negative scores)
+  const minValue = useMemo(
+    () => Math.min(...sortedData.map((d) => d.total), 0),
+    [sortedData]
+  );
+
   const maxValue = useMemo(() => {
     if (providedMaxValue !== undefined) return providedMaxValue;
     const max = Math.max(...sortedData.map((d) => d.total), 1);
     return max;
   }, [sortedData, providedMaxValue]);
+
+  const valueRange = useMemo(
+    () => maxValue - minValue,
+    [maxValue, minValue]
+  );
 
   // Generate unique initials for all players
   const initials = useMemo(
@@ -44,7 +54,7 @@ export default function StackRankingChart({
   return (
     <View style={styles.rankingContainer}>
       {sortedData.map((item, index) => {
-        const barWidth = maxValue > 0 ? (item.total / maxValue) * 100 : 0;
+        const barWidth = valueRange > 0 ? ((item.total - minValue) / valueRange) * 100 : 0;
 
         return (
           <View key={item.player} style={styles.rankingRow}>
