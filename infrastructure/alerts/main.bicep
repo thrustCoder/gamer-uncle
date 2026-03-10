@@ -44,6 +44,9 @@ param functionAppId string
 @description('Resource ID of the Application Insights instance')
 param appInsightsId string
 
+@description('Resource ID of the Log Analytics workspace backing App Insights')
+param logAnalyticsWorkspaceId string
+
 @description('Resource ID of the AI Services / Cognitive Services account')
 param aiServicesAccountId string
 
@@ -82,7 +85,7 @@ module logAlerts 'log-alerts.bicep' = {
   params: {
     environment: environment
     actionGroupId: actionGroup.outputs.actionGroupId
-    appInsightsId: appInsightsId
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
