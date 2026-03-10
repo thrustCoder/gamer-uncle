@@ -45,8 +45,8 @@
 
 | # | Alert Name | Type | Sev | Dev | Prod | Eval / Window | Description |
 |---|---|---|---|---|---|---|---|
-| 11 | `voice-failures` | Log | 2 | ❌ | ❌ | 5m / 15m | Voice processing (STT/Agent/TTS) failed — **disabled** (no voice metrics exist yet) |
-| 12 | `voice-duration-p95` | Log | 3 | ❌ | ❌ | 5m / 15m | Voice round-trip P95 latency high — **disabled** (no voice metrics exist yet) |
+| 11 | `voice-failures` | Log | 2 | ✅ | ✅ | 5m / 15m | Voice processing (STT/Agent/TTS) failed — users get no response |
+| 12 | `voice-duration-p95` | Log | 3 | ✅ | ✅ | 5m / 15m | Voice round-trip P95 latency high — >15s feels broken |
 
 ### Category 5: Azure Functions (BGG Sync)
 

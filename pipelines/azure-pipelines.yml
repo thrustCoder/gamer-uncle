@@ -956,6 +956,7 @@ stages:
               functionAppId=$(az functionapp show --name gamer-uncle-dev-function --resource-group gamer-uncle-dev-rg --query id -o tsv) \
               appInsightsId=$(az monitor app-insights component show --app gamer-uncle-dev-app-insights --resource-group gamer-uncle-dev-rg --query id -o tsv) \
               aiServicesAccountId=$(az cognitiveservices account show --name gamer-uncle-dev-foundry --resource-group gamer-uncle-dev-rg --query id -o tsv) \
+              logAnalyticsWorkspaceId=$(az monitor log-analytics workspace show --workspace-name gamer-uncle-dev-log-analytics-ws --resource-group gamer-uncle-dev-rg --query id -o tsv) \
             --name "alerts-deploy-dev-$(Build.BuildId)"
           echo "Dev alert deployment complete."
     - task: AzureCLI@2
@@ -1439,6 +1440,7 @@ stages:
               functionAppId=$(az functionapp show --name gamer-uncle-prod-function --resource-group gamer-uncle-prod-rg --query id -o tsv) \
               appInsightsId=$(az monitor app-insights component show --app gamer-uncle-prod-app-insights --resource-group gamer-uncle-prod-rg --query id -o tsv) \
               aiServicesAccountId=$(az cognitiveservices account show --name gamer-uncle-prod-foundry-resourc --resource-group gamer-uncle-prod-rg --query id -o tsv) \
+              logAnalyticsWorkspaceId=$(az monitor log-analytics workspace show --workspace-name gamer-uncle-prod-log-analytics-ws --resource-group gamer-uncle-prod-rg --query id -o tsv) \
             --name "alerts-deploy-prod-$(Build.BuildId)"
           echo "Prod alert deployment complete."
     - task: AzureCLI@2

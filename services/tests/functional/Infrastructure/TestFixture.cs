@@ -115,6 +115,7 @@ namespace GamerUncle.Api.FunctionalTests.Infrastructure
 
         private static bool IsExternalHost(string url) =>
             url.Contains("azurewebsites.net", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("azurefd.net", StringComparison.OrdinalIgnoreCase) ||
             url.Contains("gamer-uncle-dev", StringComparison.OrdinalIgnoreCase) ||
             Environment.GetEnvironmentVariable("USE_EXTERNAL_API") == "true";
     }

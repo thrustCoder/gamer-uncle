@@ -11,18 +11,18 @@ param environment string
 @description('Action Group resource ID')
 param actionGroupId string
 
-@description('Resource ID of the Application Insights instance')
-param appInsightsId string
+@description('Resource ID of the Log Analytics workspace backing App Insights')
+param logAnalyticsWorkspaceId string
 
 // ── Environment-specific thresholds ──────────────────────────────────────────
 
 var isProd = environment == 'prod'
 
 // Threshold-embedded KQL queries (count-based approach to avoid no-data phantom alerts)
-var agentDurationQuery = 'customMetrics | where name == "AgentRequest.Duration" | summarize p95 = percentile(value, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '20000'}'
-var voiceFailureQuery = 'customMetrics | where name == "voice.audio_failures_total" | summarize total = sum(value), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
-var voiceDurationQuery = 'customMetrics | where name == "voice.total_duration_ms" | summarize p95 = percentile(value, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '25000'}'
-var funcDurationQuery = 'requests | where cloud_RoleName has "function" or sdkVersion has "azurefunctions" | summarize p95 = percentile(duration, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '30000' : '60000'}'
+var agentDurationQuery = 'AppMetrics | where Name == "AgentRequest.Duration" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '20000'}'
+var voiceFailureQuery = 'AppMetrics | where Name == "voice.audio_failures_total" | summarize total = sum(Sum), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
+var voiceDurationQuery = 'AppMetrics | where Name == "voice.total_duration_ms" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '25000'}'
+var funcDurationQuery = 'AppRequests | where AppRoleName has "function" or SDKVersion has "azurefunctions" | summarize p95 = percentile(DurationMs, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '30000' : '60000'}'
 
 // ============================================================================
 // Alert #2 — HTTP 5xx Spike (Sev2)
@@ -36,13 +36,13 @@ resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT5M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            requests
-            | where resultCode startswith "5"
+            AppRequests
+            | where ResultCode startswith "5"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -73,13 +73,13 @@ resource http429Alert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            requests
-            | where resultCode == "429"
+            AppRequests
+            | where ResultCode == "429"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -110,7 +110,7 @@ resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
@@ -143,13 +143,13 @@ resource agentFallbackAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "AgentResponse.FallbackUsed"
+            AppEvents
+            | where Name == "AgentResponse.FallbackUsed"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -180,13 +180,13 @@ resource agentRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-prev
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "AgentRequest.TransientRetry"
+            AppEvents
+            | where Name == "AgentRequest.TransientRetry"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -217,13 +217,13 @@ resource lowQualityRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "AgentResponse.LowQualityRetry"
+            AppEvents
+            | where Name == "AgentResponse.LowQualityRetry"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -254,13 +254,13 @@ resource redisFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            exceptions
-            | where customDimensions.Operation startswith "CriteriaCache.L2"
+            AppExceptions
+            | where Properties.Operation startswith "CriteriaCache.L2"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -288,10 +288,10 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
   properties: {
     description: 'Alert #11: Voice processing (STT, Agent, or TTS) failed. Users on voice screen get no response.'
     severity: 2
-    enabled: false // Disabled: no voice.audio_failures_total metrics exist yet. Re-enable when voice traffic is active.
+    enabled: true // Re-enabled: voice metrics exist in LA workspace (AppMetrics table)
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
@@ -321,10 +321,10 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
   properties: {
     description: 'Alert #12: Voice round-trip (STT → Agent → TTS) P95 latency is high. >15s feels broken.'
     severity: 3
-    enabled: false // Disabled: no voice.total_duration_ms metrics exist yet. Re-enable when voice traffic is active.
+    enabled: true // Re-enabled: voice metrics exist in LA workspace (AppMetrics table)
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
@@ -357,13 +357,13 @@ resource clientApiErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "Client.Error.Api"
+            AppEvents
+            | where Name == "Client.Error.Api"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -394,13 +394,13 @@ resource clientVoiceErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "Client.Error.Voice"
+            AppEvents
+            | where Name == "Client.Error.Voice"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -431,13 +431,13 @@ resource gameSearchErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "Client.Error.Search"
+            AppEvents
+            | where Name == "Client.Error.Search"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -469,13 +469,13 @@ resource gameSetupErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT30M'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name == "Client.Error.GameSetup"
+            AppEvents
+            | where Name == "Client.Error.GameSetup"
             | summarize count()
           '''
           timeAggregation: 'Count'
@@ -500,14 +500,14 @@ resource gameSetupErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
 // ============================================================================
 var navRatioThreshold = isProd ? '0.7' : '0.5'
 var navFailureQueryTemplate = '''
-customEvents
-| where name == "Client.Feature.Tapped"
-| extend target = tostring(customDimensions.target)
+AppEvents
+| where Name == "Client.Feature.Tapped"
+| extend target = tostring(Properties.target)
 | summarize tapCount = count() by target
 | join kind=leftouter (
-    customEvents
-    | where name == "Client.Screen.Viewed"
-    | extend screenName = tostring(customDimensions.screenName)
+    AppEvents
+    | where Name == "Client.Screen.Viewed"
+    | extend screenName = tostring(Properties.screenName)
     | summarize viewCount = count() by screenName
 ) on $left.target == $right.screenName
 | extend viewCount = coalesce(viewCount, 0)
@@ -527,7 +527,7 @@ resource navigationFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-
     enabled: true
     evaluationFrequency: 'PT30M'
     windowSize: 'PT1H'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
@@ -561,13 +561,13 @@ resource toolFeatureErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
     enabled: true
     evaluationFrequency: 'PT30M'
     windowSize: 'PT1H'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
           query: '''
-            customEvents
-            | where name in (
+            AppEvents
+            | where Name in (
                 "Client.Error.Timer",
                 "Client.Error.TeamRandomizer",
                 "Client.Error.TurnSelector",
@@ -606,7 +606,7 @@ resource functionDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
     enabled: true
     evaluationFrequency: 'PT15M'
     windowSize: 'PT1H'
-    scopes: [appInsightsId]
+    scopes: [logAnalyticsWorkspaceId]
     criteria: {
       allOf: [
         {
