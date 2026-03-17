@@ -1,14 +1,14 @@
 # BGG Game Sync Status
 
-**Total games in Cosmos DB:** 5,286  
-**Last updated:** 2026-03-15
+**Total games in Cosmos DB:** 5,377  
+**Last updated:** 2026-03-16
 
 ## Sync Batches
 
 | Batch | ID Range | Type | Status | Started | Position | Games Added |
 |-------|----------|------|--------|---------|----------|-------------|
 | 1 | 1 – 500 | Sequential | ✅ Complete | Pre-Feb 2026 | 500/500 | ~3,626 |
-| 2 | 200,000 – 300,000 | High-Signal | 🟠 In Progress | 2026-03-01 | ~235,296 | ~1,660 |
+| 2 | 200,000 – 300,000 | High-Signal | 🟠 In Progress | 2026-03-01 | ~237,018 | ~1,751 |
 | 3 | 500 – 100,000 | High-Signal | ⏳ Pending | — | — | — |
 | 4 | 100,000 – 200,000 | High-Signal | ⏳ Pending | — | — | — |
 | 5 | 300,000 – 400,000 | High-Signal | ⏳ Pending | — | — | — |
