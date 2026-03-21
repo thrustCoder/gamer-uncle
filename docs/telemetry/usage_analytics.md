@@ -14,6 +14,7 @@ Each row is a 14-day rolling window snapshot taken on the specified date.
 
 | Snapshot Date | Window | Devices | New Users | Sessions | Events | D1 Return Devices | D7 Return Devices |
 |---|---|---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 13 | 8 | 33 | 1,105 | 5 | 0 |
 | 2026-03-04 | Feb 19 – Mar 4 | 22 | 17 | 85 | 1,634 | 5 | 1 |
 
 **Key metrics:**
@@ -32,65 +33,71 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 19 | 8 | 22 | 9 |
 | 2026-03-04 | Feb 19 – Mar 4 | 73 | 17 | 82 | 17 |
 
 ### Game Setup
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 21 | 7 | 21 | 7 |
 | 2026-03-04 | Feb 19 – Mar 4 | 51 | 15 | 52 | 15 |
 
 ### Game Search
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 18 | 10 | 21 | 10 |
 | 2026-03-04 | Feb 19 – Mar 4 | 51 | 12 | 59 | 12 |
 
 ### Turn Selector
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 18 | 8 | 18 | 8 |
 | 2026-03-04 | Feb 19 – Mar 4 | 40 | 11 | 40 | 11 |
 
 ### Dice Roller
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 11 | 6 | 11 | 6 |
 | 2026-03-04 | Feb 19 – Mar 4 | 34 | 15 | 34 | 15 |
 
 ### Timer
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 7 | 5 | 7 | 5 |
 | 2026-03-04 | Feb 19 – Mar 4 | 34 | 13 | 34 | 13 |
 
 ### Team Randomizer
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 13 | 6 | 13 | 6 |
 | 2026-03-04 | Feb 19 – Mar 4 | 33 | 12 | 33 | 12 |
 
 ### Score Tracker
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 36 | 10 | 100 | 10 |
 | 2026-03-04 | Feb 19 – Mar 4 | 25 | 10 | 40 | 10 |
 
 ---
 
 ## 3. Version Adoption
 
-**Current snapshot (2026-03-04):**
+> **Note**: This table is **replaced** each snapshot (not appended) since version mix changes completely across periods.
+
+**Snapshot: 2026-03-20 (Mar 7 – Mar 20):**
 
 | Version | Sessions | Devices | % of Sessions |
 |---|---|---|---|
-| 3.4.1 | 9 | 6 | 15% |
-| 3.4.0 | 5 | 4 | 8% |
-| 3.3.4 | 16 | 9 | 26% |
-| 3.3.3 | 17 | 7 | 28% |
-| 3.3.1 | 9 | 5 | 15% |
-| 3.3.0 | 1 | 1 | 2% |
-| 3.2.7 | 2 | 1 | 3% |
+| 3.5.5 | 15 | 10 | 50% |
+| 3.4.1 | 13 | 7 | 43% |
+| 3.3.4 | 2 | 1 | 7% |
 
 ---
 
@@ -98,12 +105,14 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Shown | Dismissed | Rated | Conversion |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 14 | 13 | 1 | 7% |
 | 2026-03-04 | Feb 19 – Mar 4 | 16 | 13 | 3 | 19% |
 
 ## 5. Upgrade Prompt
 
 | Snapshot Date | Window | Prompted | Accepted | Dismissed | Conversion |
 |---|---|---|---|---|---|
+| 2026-03-20 | Mar 7 – Mar 20 | 0 | 0 | 0 | — |
 | 2026-03-04 | Feb 19 – Mar 4 | 5 | 2 | 4 | 40% |
 
 ---
