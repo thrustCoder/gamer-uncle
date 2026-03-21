@@ -101,14 +101,44 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 ---
 
-## 4. Rating Prompt
+## 4. Geography
+
+> **Note**: Geo data is derived from IP-based geolocation by Application Insights (`ClientCountryOrRegion`, `ClientStateOrProvince`, `ClientCity` fields). Accuracy may vary for VPN or carrier NAT users. This table is **replaced** each snapshot (not appended).
+
+**Snapshot: 2026-03-20 (Mar 7 – Mar 20) — by country:**
+
+| Country | Devices | Events | % of Events |
+|---|---|---|---|
+| United States | 12 | 751 | 98% |
+| United Kingdom | 1 | 18 | 2% |
+
+**Top US states/cities:**
+
+| State | City | Devices | Events |
+|---|---|---|---|
+| Washington | Mill Creek | 3 | 282 |
+| Washington | Ocean Shores | 1 | 125 |
+| Georgia | Atlanta | 1 | 74 |
+| Ohio | Cleveland | 1 | 63 |
+| Washington | Mountlake Terrace | 1 | 58 |
+| Washington | Bellevue | 1 | 34 |
+| California | East Garrison | 1 | 33 |
+| New York | Levittown | 1 | 29 |
+| Utah | Salt Lake City | 1 | 22 |
+| Washington | Lake Forest Park | 1 | 15 |
+| California | Los Angeles | 1 | 13 |
+| California | Cupertino | 1 | 3 |
+
+---
+
+## 5. Rating Prompt
 
 | Snapshot Date | Window | Shown | Dismissed | Rated | Conversion |
 |---|---|---|---|---|---|
 | 2026-03-20 | Mar 7 – Mar 20 | 14 | 13 | 1 | 7% |
 | 2026-03-04 | Feb 19 – Mar 4 | 16 | 13 | 3 | 19% |
 
-## 5. Upgrade Prompt
+## 6. Upgrade Prompt
 
 | Snapshot Date | Window | Prompted | Accepted | Dismissed | Conversion |
 |---|---|---|---|---|---|
