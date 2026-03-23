@@ -5,6 +5,7 @@ import { GameProvider } from './store/GameContext';
 import { ChatProvider } from './store/ChatContext';
 import { TimerProvider } from './store/TimerContext';
 import { ScoreTrackerProvider } from './store/ScoreTrackerContext';
+import { PlayerGroupsProvider } from './store/PlayerGroupsContext';
 import LandingScreen from './screens/LandingScreen';
 import ChatScreen from './screens/ChatScreen';
 import DiceRollerScreen from './screens/DiceRollerScreen';
@@ -15,6 +16,8 @@ import GameSetupScreen from './screens/GameSetupScreen';
 import GameSearchScreen from './screens/GameSearchScreen';
 import ScoreTrackerScreen from './screens/ScoreTrackerScreen';
 import ScoreInputScreen from './screens/ScoreInputScreen';
+import ManageGroupsScreen from './screens/ManageGroupsScreen';
+import CreateGroupScreen from './screens/CreateGroupScreen';
 import ForceUpgradeModal from './components/ForceUpgradeModal';
 import TelemetryErrorBoundary from './components/TelemetryErrorBoundary';
 import { initTelemetry, AnalyticsEvents } from './services/Telemetry';
@@ -44,6 +47,7 @@ export default function App() {
       <ChatProvider>
         <TimerProvider>
           <ScoreTrackerProvider>
+            <PlayerGroupsProvider>
             <NavigationContainer onStateChange={onNavigationStateChange}>
               <Stack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="Landing" component={LandingScreen} />
@@ -98,8 +102,23 @@ export default function App() {
                     </TelemetryErrorBoundary>
                   )}
                 </Stack.Screen>
+                <Stack.Screen name="ManageGroups">
+                  {() => (
+                    <TelemetryErrorBoundary errorEventName={AnalyticsEvents.ERROR_MANAGE_GROUPS} screenName="Manage Groups">
+                      <ManageGroupsScreen />
+                    </TelemetryErrorBoundary>
+                  )}
+                </Stack.Screen>
+                <Stack.Screen name="CreateGroup">
+                  {() => (
+                    <TelemetryErrorBoundary errorEventName={AnalyticsEvents.ERROR_CREATE_GROUP} screenName="Create Group">
+                      <CreateGroupScreen />
+                    </TelemetryErrorBoundary>
+                  )}
+                </Stack.Screen>
               </Stack.Navigator>
             </NavigationContainer>
+            </PlayerGroupsProvider>
             <ForceUpgradeModal
               visible={showUpgradeModal}
               message={upgradeInfo?.message}

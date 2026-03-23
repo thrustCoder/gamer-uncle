@@ -21,6 +21,9 @@ import { getRecommendations } from '../services/ApiClient';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
 import { appCache } from '../services/storage/appCache';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
@@ -35,6 +38,7 @@ const generateUserId = () => {
 
 export default function GameSetupScreen() {
   const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [gameName, setGameName] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
   const [isLoading, setIsLoading] = useState(false);
@@ -199,19 +203,26 @@ Please provide step-by-step setup instructions including:
             </View>
 
             {/* Player Count Picker */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Number of Players</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={showPlayerCountPicker}
-                testID="player-count-picker"
-                {...(Platform.OS === 'web' && { 'data-testid': 'player-count-picker' })}
-              >
-                <Text style={styles.pickerButtonText}>
-                  {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {groupsState.enabled ? (
+              <View style={styles.inputGroup}>
+                <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+              </View>
+            ) : (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Number of Players</Text>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={showPlayerCountPicker}
+                  testID="player-count-picker"
+                  {...(Platform.OS === 'web' && { 'data-testid': 'player-count-picker' })}
+                >
+                  <Text style={styles.pickerButtonText}>
+                    {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
+                  </Text>
+                </TouchableOpacity>
+                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+              </View>
+            )}
 
             {/* Get Setup Button */}
             <TouchableOpacity

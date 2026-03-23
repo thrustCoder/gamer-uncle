@@ -75,6 +75,26 @@ const mockAppCache = appCache as jest.Mocked<typeof appCache>;
 // Spy on Alert
 jest.spyOn(Alert, 'alert');
 
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
+
 describe('GameSetupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();

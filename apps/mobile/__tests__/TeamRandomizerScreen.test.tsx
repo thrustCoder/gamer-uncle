@@ -3,6 +3,11 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Animated } from 'react-native';
 import TeamRandomizerScreen from '../screens/TeamRandomizerScreen';
 
+// Mock navigation
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+}));
+
 // Override Animated methods that may not be mocked by jest-expo
 const originalAnimatedSequence = Animated.sequence;
 const originalAnimatedParallel = Animated.parallel;
@@ -73,6 +78,26 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
     React.useEffect(callback, deps);
   },
 }));
+
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
 
 // Use fake timers to control setTimeout calls
 jest.useFakeTimers();

@@ -2,6 +2,11 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TurnSelectorScreen from '../screens/TurnSelectorScreen';
 
+// Mock navigation
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+}));
+
 // Mock dependencies
 jest.mock('expo-av', () => ({
   Audio: {
@@ -48,6 +53,26 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
     React.useEffect(callback, deps);
   },
 }));
+
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
 
 describe('TurnSelectorScreen', () => {
   beforeEach(() => {

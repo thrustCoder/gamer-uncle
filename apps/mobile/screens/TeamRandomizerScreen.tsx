@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
+import { useNavigation } from '@react-navigation/native';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -18,10 +19,15 @@ import RatingModal from '../components/RatingModal';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
 export default function TeamRandomizerScreen() {
+  const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [teamCount, setTeamCount] = useState(2);
@@ -197,6 +203,10 @@ export default function TeamRandomizerScreen() {
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
       <View style={styles.container} testID="team-randomizer">
+        {groupsState.enabled ? (
+          <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+        ) : (
+          <>
         <View style={styles.inlineRow}>
           <Text style={styles.title}>Number of players</Text>
           <TouchableOpacity 
@@ -240,6 +250,9 @@ export default function TeamRandomizerScreen() {
               />
             ))}
           </View>
+        )}
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+          </>
         )}
 
         <View style={styles.inlineRow}>

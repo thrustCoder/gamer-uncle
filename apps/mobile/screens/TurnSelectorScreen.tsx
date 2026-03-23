@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Audio } from 'expo-av';
+import { useNavigation } from '@react-navigation/native';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
@@ -19,10 +20,15 @@ import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import RatingModal from '../components/RatingModal';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
 export default function TurnSelectorScreen() {
+  const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [winner, setWinner] = useState<string | null>(null);
@@ -158,6 +164,12 @@ export default function TurnSelectorScreen() {
       <BackButton />
 
       <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
+        {groupsState.enabled ? (
+          <>
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+          </>
+        ) : (
+          <>
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
@@ -239,6 +251,9 @@ export default function TurnSelectorScreen() {
               />
             ))}
           </View>
+        )}
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+          </>
         )}
 
         <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />

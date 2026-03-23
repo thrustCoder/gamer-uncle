@@ -81,6 +81,15 @@ export const AnalyticsEvents = {
   ERROR_TURN_SELECTOR: 'Error.TurnSelector',
   ERROR_DICE_ROLLER: 'Error.DiceRoller',
   ERROR_SCORE_TRACKER: 'Error.ScoreTracker',
+  ERROR_MANAGE_GROUPS: 'Error.ManageGroups',
+  ERROR_CREATE_GROUP: 'Error.CreateGroup',
+
+  // ── Player Groups ─────────────────────────────────────────────
+  PLAYER_GROUPS_ENABLED: 'PlayerGroups.Enabled',
+  PLAYER_GROUPS_DISABLED: 'PlayerGroups.Disabled',
+  PLAYER_GROUP_CREATED: 'PlayerGroups.Created',
+  PLAYER_GROUP_DELETED: 'PlayerGroups.Deleted',
+  PLAYER_GROUP_SWITCHED: 'PlayerGroups.Switched',
 
   // ── Upgrade Funnel ────────────────────────────────────────────
   UPGRADE_PROMPTED: 'Upgrade.Prompted',

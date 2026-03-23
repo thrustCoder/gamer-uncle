@@ -19,12 +19,16 @@ import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import PlayerNamesSection from '../components/scoreTracker/PlayerNamesSection';
 import GameScoreSection from '../components/scoreTracker/GameScoreSection';
 import LeaderboardSection from '../components/scoreTracker/LeaderboardSection';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
   const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard } = useScoreTracker();
+  const { state: groupsState, activeGroup, updateActiveGroupData } = usePlayerGroups();
   
   // Player state - synced with appCache
   const [playerCount, setPlayerCount] = useState(4);
@@ -175,12 +179,19 @@ export default function ScoreTrackerScreen() {
           <Text style={styles.title}>Score Tracker</Text>
 
           {/* Player Names Section */}
-          <PlayerNamesSection
-            playerCount={playerCount}
-            playerNames={playerNames}
-            onPlayerCountPress={showPlayerCountPicker}
-            onNameChange={handleNameChange}
-          />
+          {groupsState.enabled ? (
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+          ) : (
+            <>
+              <PlayerNamesSection
+                playerCount={playerCount}
+                playerNames={playerNames}
+                onPlayerCountPress={showPlayerCountPicker}
+                onNameChange={handleNameChange}
+              />
+              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+            </>
+          )}
 
           {/* Game Score Section */}
           {hasGameScore && (
