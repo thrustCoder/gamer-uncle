@@ -384,6 +384,9 @@ On **Windows**, the local API server is started for local development.
 - **Dev App Service scale-up**: When `API_ENVIRONMENT` is `dev`, the dev App Service may be parked on F1 (free) by the nightly schedule. Step 0.5 wakes it up. When using `dev`, do NOT start a local API server — the mobile app connects to Azure dev via AFD.
 - **Local does NOT need scale-up**: When `API_ENVIRONMENT` is `local`, the mobile app hits `localhost:5001` (local API server), not the dev App Service.
 
+## Pull Request Conventions
+- **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.
+
 ## General Guidelines
 
 Please don't add any summary documents or markdown files unless asked.
