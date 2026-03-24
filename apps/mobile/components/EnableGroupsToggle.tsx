@@ -34,9 +34,10 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20 }: En
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        gap: 12,
         paddingVertical: 4,
-        marginTop: 0,
+        marginTop: -8,
       }}
       testID="enable-groups-toggle"
     >
