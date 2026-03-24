@@ -38,7 +38,8 @@ export const scoreTrackerStyles = StyleSheet.create({
   playerSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
     marginBottom: 15,
   },
   sectionLabel: {

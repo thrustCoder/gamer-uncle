@@ -41,8 +41,11 @@ export default function EnableGroupsToggle({ onEnabled }: EnableGroupsToggleProp
     >
       <Text style={{
         color: Colors.themeYellow,
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 20,
+        fontWeight: 'bold',
+        textShadowColor: Colors.black,
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
       }}>
         Enable Player Groups
       </Text>
