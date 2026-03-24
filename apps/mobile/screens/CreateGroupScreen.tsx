@@ -17,7 +17,7 @@ import { usePlayerGroups } from '../store/PlayerGroupsContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 const MAX_PLAYERS = 20;
-const MAX_NAMED_PLAYERS = 10;
+const MAX_NAMED_PLAYERS = 12;
 
 export default function CreateGroupScreen() {
   const navigation = useNavigation<any>();

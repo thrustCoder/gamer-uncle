@@ -165,8 +165,14 @@ export default function TeamRandomizerScreen() {
     await trackEngagement();
   };
 
-  // hydrate cache on mount
+  // hydrate cache on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      setPlayerCount(activeGroup.playerCount);
+      setTeamCount(activeGroup.teamCount);
+      setPlayerNames(activeGroup.playerNames);
+      return;
+    }
     (async () => {
       const [pc, tc, names] = await Promise.all([
         appCache.getPlayerCount(4),
@@ -184,7 +190,7 @@ export default function TeamRandomizerScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   // persist when core counts change
   useEffect(() => {

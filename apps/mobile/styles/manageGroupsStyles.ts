@@ -95,9 +95,9 @@ export const manageGroupsStyles = StyleSheet.create({
     marginBottom: 30,
   },
   disableButtonText: {
-    color: '#ff6b6b',
-    fontSize: 15,
-    fontWeight: '600',
+    color: Colors.themeBrownDark,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   maxGroupsText: {
     color: Colors.grayDark,

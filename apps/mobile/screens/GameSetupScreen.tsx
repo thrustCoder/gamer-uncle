@@ -51,8 +51,15 @@ export default function GameSetupScreen() {
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
     useRatingPrompt('gameSetup');
 
-  // Restore persisted game setup state on mount
+  // Restore persisted game setup state on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      setPlayerCount(activeGroup.gameSetupPlayerCount || activeGroup.playerCount);
+      if (activeGroup.gameSetupGameName) setGameName(activeGroup.gameSetupGameName);
+      if (activeGroup.gameSetupResponse) setSetupResponse(activeGroup.gameSetupResponse);
+      setIsHydrated(true);
+      return;
+    }
     (async () => {
       const [savedName, savedCount, savedResponse] = await Promise.all([
         appCache.getGameSetupGameName(),
@@ -64,7 +71,7 @@ export default function GameSetupScreen() {
       if (savedResponse) setSetupResponse(savedResponse);
       setIsHydrated(true);
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   // Persist game name when it changes (after hydration)
   useEffect(() => {

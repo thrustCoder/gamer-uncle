@@ -34,17 +34,14 @@ export default function EnableGroupsToggle({ onEnabled }: EnableGroupsToggleProp
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'rgba(139, 69, 19, 0.3)',
-        borderRadius: 10,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        marginTop: 12,
+        paddingVertical: 4,
+        marginTop: 0,
       }}
       testID="enable-groups-toggle"
     >
       <Text style={{
         color: Colors.themeYellow,
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
       }}>
         Enable Player Groups

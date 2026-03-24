@@ -39,8 +39,14 @@ export default function ScoreTrackerScreen() {
   // Track previous names for rename detection
   const prevPlayerNamesRef = useRef<string[]>([]);
 
-  // Hydrate player data from cache on mount
+  // Hydrate player data from cache on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      setPlayerCount(activeGroup.playerCount);
+      setPlayerNames(activeGroup.playerNames);
+      prevPlayerNamesRef.current = activeGroup.playerNames;
+      return;
+    }
     (async () => {
       const [pc, names] = await Promise.all([
         appCache.getPlayerCount(4),
@@ -57,7 +63,7 @@ export default function ScoreTrackerScreen() {
         prevPlayerNamesRef.current = defaultNames;
       }
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   // Persist player count changes
   useEffect(() => {

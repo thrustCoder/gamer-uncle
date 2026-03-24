@@ -45,47 +45,49 @@ export default function GroupPicker({ onManageGroups }: GroupPickerProps) {
 
   return (
     <View style={{
-      backgroundColor: 'rgba(139, 69, 19, 0.3)',
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 12,
+      marginBottom: 15,
     }}>
-      {/* Dropdown trigger */}
+      {/* Dropdown trigger with gear icon */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ color: Colors.themeYellow, fontSize: 14, fontWeight: '600' }}>
+        <Text style={{
+          fontSize: 20,
+          fontWeight: 'bold',
+          color: Colors.themeYellow,
+          textShadowColor: Colors.black,
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: 2,
+        }}>
           Active Group
         </Text>
-        <TouchableOpacity
-          onPress={() => setDropdownVisible(true)}
-          style={{
-            backgroundColor: Colors.themeBrownDark,
-            borderRadius: 8,
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            borderWidth: 1,
-            borderColor: Colors.themeYellow,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
-          testID="group-picker-dropdown"
-        >
-          <Text style={{ color: Colors.themeYellow, fontSize: 14, fontWeight: 'bold', marginRight: 6 }}>
-            {activeGroup?.name ?? 'Select Group'}
-          </Text>
-          <Text style={{ color: Colors.themeYellow, fontSize: 12 }}>▼</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => setDropdownVisible(true)}
+            style={{
+              backgroundColor: Colors.themeBrownDark,
+              borderRadius: 7,
+              paddingHorizontal: 14,
+              paddingVertical: 6,
+              borderWidth: 2,
+              borderColor: Colors.themeYellow,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+            testID="group-picker-dropdown"
+          >
+            <Text style={{ color: Colors.themeYellow, fontSize: 15, fontWeight: 'bold', marginRight: 6 }}>
+              {activeGroup?.name ?? 'Select Group'}
+            </Text>
+            <Text style={{ color: Colors.themeYellow, fontSize: 12 }}>▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onManageGroups}
+            style={{ marginLeft: 10, padding: 4 }}
+            testID="manage-groups-link"
+          >
+            <Text style={{ fontSize: 20 }}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      {/* Manage Groups link */}
-      <TouchableOpacity
-        onPress={onManageGroups}
-        style={{ marginTop: 8, alignSelf: 'flex-end' }}
-        testID="manage-groups-link"
-      >
-        <Text style={{ color: Colors.themeYellow, fontSize: 13, textDecorationLine: 'underline' }}>
-          Manage Groups →
-        </Text>
-      </TouchableOpacity>
 
       {/* Dropdown modal */}
       <Modal

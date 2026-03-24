@@ -28,11 +28,14 @@ export const createGroupStyles = StyleSheet.create({
     textShadowRadius: 4,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: Colors.themeYellow,
     marginBottom: 8,
     marginTop: 16,
+    textShadowColor: Colors.black,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   textInput: {
     backgroundColor: Colors.whiteTransparent,

@@ -8,7 +8,7 @@ export interface PlayerGroup {
   name: string;
   /** Number of players in this group (2–20) */
   playerCount: number;
-  /** Player names. Populated only when playerCount ≤ 10. */
+  /** Player names. Populated only when playerCount ≤ 12. */
   playerNames: string[];
   /** Number of teams (used by TeamRandomizer) */
   teamCount: number;
