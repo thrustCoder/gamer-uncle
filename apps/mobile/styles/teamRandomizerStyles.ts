@@ -17,7 +17,8 @@ export const teamRandomizerStyles = StyleSheet.create({
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
     width: '90%',
     marginTop: 10,
   },

@@ -178,19 +178,17 @@ export default function TurnSelectorScreen() {
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
-          justifyContent: 'space-between', 
+          justifyContent: 'center',
+          gap: 12,
           marginBottom: 20 
         }}>
           <Text style={[styles.label, { 
             fontSize: 25, 
             color: Colors.themeYellow, 
-            flex: 1, 
             fontWeight: 'bold',
             textShadowColor: Colors.black,
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
-            marginRight: 0,
-            marginLeft: 20,
           }]}>Number of players</Text>
 
           <TouchableOpacity 
@@ -257,7 +255,7 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
-            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={25} />
           </>
         )}
 

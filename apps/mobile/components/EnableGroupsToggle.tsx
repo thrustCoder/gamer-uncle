@@ -5,9 +5,10 @@ import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 interface EnableGroupsToggleProps {
   onEnabled: () => void;
+  labelFontSize?: number;
 }
 
-export default function EnableGroupsToggle({ onEnabled }: EnableGroupsToggleProps) {
+export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20 }: EnableGroupsToggleProps) {
   const { enableGroups } = usePlayerGroups();
 
   const handleToggle = () => {
@@ -41,7 +42,7 @@ export default function EnableGroupsToggle({ onEnabled }: EnableGroupsToggleProp
     >
       <Text style={{
         color: Colors.themeYellow,
-        fontSize: 20,
+        fontSize: labelFontSize,
         fontWeight: 'bold',
         textShadowColor: Colors.black,
         textShadowOffset: { width: 1, height: 1 },
