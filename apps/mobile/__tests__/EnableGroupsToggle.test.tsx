@@ -47,7 +47,7 @@ describe('EnableGroupsToggle', () => {
     fireEvent.press(getByTestId('enable-groups-toggle'));
 
     expect(Alert.alert).toHaveBeenCalledWith(
-      'Enable Player Groups',
+      'Create Player Groups',
       expect.any(String),
       expect.any(Array),
     );

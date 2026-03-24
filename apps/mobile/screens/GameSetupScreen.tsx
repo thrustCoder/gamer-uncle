@@ -227,7 +227,7 @@ Please provide step-by-step setup instructions including:
                     {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
                   </Text>
                 </TouchableOpacity>
-                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={10} />
               </View>
             )}
 

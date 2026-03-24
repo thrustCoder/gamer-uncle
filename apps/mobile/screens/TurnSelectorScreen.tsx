@@ -255,11 +255,13 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
-            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={25} />
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={25} marginTop={0} />
           </>
         )}
 
-        <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
+        <View style={{ marginTop: 20 }}>
+          <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
+        </View>
       </View>
       {celebrate && (
         <Animated.View 

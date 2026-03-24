@@ -6,15 +6,18 @@ import { usePlayerGroups } from '../store/PlayerGroupsContext';
 interface EnableGroupsToggleProps {
   onEnabled: () => void;
   labelFontSize?: number;
+  labelColor?: string;
+  useTextShadow?: boolean;
+  marginTop?: number;
 }
 
-export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20 }: EnableGroupsToggleProps) {
+export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labelColor, useTextShadow = true, marginTop = -8 }: EnableGroupsToggleProps) {
   const { enableGroups } = usePlayerGroups();
 
   const handleToggle = () => {
     Alert.alert(
-      'Enable Player Groups',
-      'You are about to enable player groups. This lets you manage different groups of players for different game nights. Your current players and data will be moved into the first group.',
+      'Create Player Groups',
+      'You are about to create player groups. This lets you manage different groups of players for different game nights. Your current players and data will be moved into the first group.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -37,19 +40,21 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20 }: En
         justifyContent: 'center',
         gap: 12,
         paddingVertical: 4,
-        marginTop: -8,
+        marginTop,
       }}
       testID="enable-groups-toggle"
     >
       <Text style={{
-        color: Colors.themeYellow,
+        color: labelColor || Colors.themeYellow,
         fontSize: labelFontSize,
         fontWeight: 'bold',
-        textShadowColor: Colors.black,
-        textShadowOffset: { width: 1, height: 1 },
-        textShadowRadius: 2,
+        ...(useTextShadow ? {
+          textShadowColor: Colors.black,
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: 2,
+        } : {}),
       }}>
-        Enable Player Groups
+        Create player groups
       </Text>
       <Switch
         value={false}

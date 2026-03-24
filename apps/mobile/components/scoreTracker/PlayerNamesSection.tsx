@@ -54,13 +54,6 @@ export default function PlayerNamesSection({
           ))}
         </View>
       )}
-
-      {/* Message for many players */}
-      {playerCount > 6 && (
-        <Text style={[styles.sectionLabel, { fontSize: 14, opacity: 0.7, textAlign: 'center' }]}>
-          {playerCount} players configured
-        </Text>
-      )}
     </View>
   );
 }
