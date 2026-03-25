@@ -60,7 +60,7 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labe
         value={false}
         onValueChange={handleToggle}
         trackColor={{ false: Colors.grayDark, true: Colors.themeGreen }}
-        thumbColor={Colors.white}
+        thumbColor={'#f4e4bc'}
         testID="enable-groups-switch"
       />
     </TouchableOpacity>

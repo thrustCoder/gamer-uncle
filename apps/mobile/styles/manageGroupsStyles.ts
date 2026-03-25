@@ -22,7 +22,7 @@ export const manageGroupsStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.themeYellow,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 28,
     textShadowColor: Colors.black,
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,

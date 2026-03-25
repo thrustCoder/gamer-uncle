@@ -7,9 +7,12 @@ import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 interface GroupPickerProps {
   onManageGroups: () => void;
+  labelFontSize?: number;
+  labelColor?: string;
+  useTextShadow?: boolean;
 }
 
-export default function GroupPicker({ onManageGroups }: GroupPickerProps) {
+export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelColor, useTextShadow = true }: GroupPickerProps) {
   const { state, activeGroup, setActiveGroup } = usePlayerGroups();
   const { gameScore } = useScoreTracker();
   const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -50,16 +53,18 @@ export default function GroupPicker({ onManageGroups }: GroupPickerProps) {
       {/* Dropdown trigger with gear icon */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={{
-          fontSize: 20,
+          fontSize: labelFontSize,
           fontWeight: 'bold',
-          color: Colors.themeYellow,
-          textShadowColor: Colors.black,
-          textShadowOffset: { width: 1, height: 1 },
-          textShadowRadius: 2,
+          color: labelColor || Colors.themeYellow,
+          ...(useTextShadow ? {
+            textShadowColor: Colors.black,
+            textShadowOffset: { width: 1, height: 1 },
+            textShadowRadius: 2,
+          } : {}),
         }}>
           Active Group
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
           <TouchableOpacity
             onPress={() => setDropdownVisible(true)}
             style={{

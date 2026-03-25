@@ -210,7 +210,7 @@ export default function TeamRandomizerScreen() {
       <BackButton />
       <View style={styles.container} testID="team-randomizer">
         {groupsState.enabled ? (
-          <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+          <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={25} labelColor="#f4e4bc" useTextShadow={true} />
         ) : (
           <>
         <View style={styles.inlineRow}>

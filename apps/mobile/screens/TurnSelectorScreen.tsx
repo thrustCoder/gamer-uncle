@@ -232,7 +232,7 @@ export default function TurnSelectorScreen() {
               <TextInput
                 key={i}
                 style={{
-                  backgroundColor: Colors.whiteTransparent,
+                  backgroundColor: '#f4e4bc',
                   borderRadius: 8,
                   paddingHorizontal: 12,
                   paddingVertical: 10,
@@ -259,7 +259,7 @@ export default function TurnSelectorScreen() {
           </>
         )}
 
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 30 }}>
           <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
         </View>
       </View>

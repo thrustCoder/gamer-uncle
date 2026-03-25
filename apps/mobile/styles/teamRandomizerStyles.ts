@@ -27,6 +27,9 @@ export const teamRandomizerStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.teamTitleYellow,
     marginRight: 10,
+    textShadowColor: Colors.black,
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   inlinePicker: {
     width: 50,
