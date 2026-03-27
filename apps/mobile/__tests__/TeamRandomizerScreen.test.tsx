@@ -112,9 +112,33 @@ describe('TeamRandomizerScreen', () => {
     jest.runOnlyPendingTimers();
   });
 
+  it('should show and hide player details when chevron is pressed', async () => {
+    const { getByTestId, queryByDisplayValue } = render(<TeamRandomizerScreen />);
+
+    // Initially collapsed — no inputs visible
+    expect(queryByDisplayValue('P1')).toBeNull();
+
+    // Expand
+    fireEvent.press(getByTestId('expand-player-details'));
+
+    await waitFor(() => {
+      expect(queryByDisplayValue('P1')).toBeTruthy();
+    });
+
+    // Collapse again
+    fireEvent.press(getByTestId('expand-player-details'));
+
+    await waitFor(() => {
+      expect(queryByDisplayValue('P1')).toBeNull();
+    });
+  });
+
   it('should allow clearing player names without auto-populating', async () => {
-    const { getAllByDisplayValue, queryByDisplayValue } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, queryByDisplayValue, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -137,8 +161,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should allow setting custom names after clearing', async () => {
-    const { getAllByDisplayValue, getByDisplayValue } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByDisplayValue, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -159,8 +186,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should display fallback names in teams when inputs are empty', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -183,8 +213,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should maintain custom names in teams when some inputs are custom', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -209,8 +242,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should handle mixed empty and custom names correctly', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load  
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);

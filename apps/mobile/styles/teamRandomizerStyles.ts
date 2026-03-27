@@ -17,10 +17,17 @@ export const teamRandomizerStyles = StyleSheet.create({
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 12,
-    width: '90%',
-    marginTop: 10,
+  },
+  randomizeButton: {
+    backgroundColor: Colors.wheelGreen,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 15,
+    marginTop: 20,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 4,
   },
   title: {
     fontSize: 25,
@@ -53,17 +60,6 @@ export const teamRandomizerStyles = StyleSheet.create({
   },
   nameInputWide: {
     width: 150,
-  },
-  randomizeButton: {
-    backgroundColor: Colors.wheelGreen,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 15,
-    marginTop: 50,
-    marginHorizontal: 20,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    elevation: 4,
   },
   randomizeText: {
     fontSize: 25,
@@ -121,5 +117,38 @@ export const teamRandomizerStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.6,
     shadowRadius: 2,
+  },
+  sectionCard: {
+    backgroundColor: Colors.themeBrownDark,
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    marginTop: 12,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  playerCountRowOuter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playerCountInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  chevronButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  chevronText: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#f4e4bc',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
 });
