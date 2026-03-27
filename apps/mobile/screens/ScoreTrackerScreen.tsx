@@ -186,7 +186,9 @@ export default function ScoreTrackerScreen() {
 
           {/* Player Names Section */}
           {groupsState.enabled ? (
-            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+            <View style={{ marginTop: 12 }}>
+              <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
+            </View>
           ) : (
             <>
               <PlayerNamesSection
@@ -195,7 +197,7 @@ export default function ScoreTrackerScreen() {
                 onPlayerCountPress={showPlayerCountPicker}
                 onNameChange={handleNameChange}
               />
-              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} />
+              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={-14} />
             </>
           )}
 

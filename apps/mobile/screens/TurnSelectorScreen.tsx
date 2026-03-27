@@ -171,7 +171,7 @@ export default function TurnSelectorScreen() {
       <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
         {groupsState.enabled ? (
           <>
-            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
           </>
         ) : (
           <>
@@ -225,7 +225,7 @@ export default function TurnSelectorScreen() {
             flexDirection: 'row',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
-            marginBottom: 20,
+            marginBottom: 10,
             paddingHorizontal: 5,
           }}>
             {Array.from({ length: playerCount }).map((_, i) => (

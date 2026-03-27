@@ -212,7 +212,7 @@ Please provide step-by-step setup instructions including:
             {/* Player Count Picker */}
             {groupsState.enabled ? (
               <View style={styles.inputGroup}>
-                <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} />
+                <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" />
               </View>
             ) : (
               <View style={styles.inputGroup}>
@@ -227,7 +227,7 @@ Please provide step-by-step setup instructions including:
                     {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
                   </Text>
                 </TouchableOpacity>
-                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={10} />
+                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" marginTop={10} />
               </View>
             )}
 

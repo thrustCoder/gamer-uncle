@@ -6,12 +6,14 @@ import { usePlayerGroups } from '../store/PlayerGroupsContext';
 interface EnableGroupsToggleProps {
   onEnabled: () => void;
   labelFontSize?: number;
+  labelFontWeight?: string;
   labelColor?: string;
   useTextShadow?: boolean;
+  textShadowStrong?: boolean;
   marginTop?: number;
 }
 
-export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labelColor, useTextShadow = true, marginTop = -8 }: EnableGroupsToggleProps) {
+export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, marginTop = -8 }: EnableGroupsToggleProps) {
   const { enableGroups } = usePlayerGroups();
 
   const handleToggle = () => {
@@ -47,11 +49,11 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labe
       <Text style={{
         color: labelColor || Colors.themeYellow,
         fontSize: labelFontSize,
-        fontWeight: 'bold',
+        fontWeight: labelFontWeight as any,
         ...(useTextShadow ? {
           textShadowColor: Colors.black,
-          textShadowOffset: { width: 1, height: 1 },
-          textShadowRadius: 2,
+          textShadowOffset: textShadowStrong ? { width: 2, height: 2 } : { width: 1, height: 1 },
+          textShadowRadius: textShadowStrong ? 4 : 2,
         } : {}),
       }}>
         Create player groups

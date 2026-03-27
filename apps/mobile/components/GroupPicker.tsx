@@ -8,11 +8,14 @@ import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 interface GroupPickerProps {
   onManageGroups: () => void;
   labelFontSize?: number;
+  labelFontWeight?: string;
   labelColor?: string;
   useTextShadow?: boolean;
+  textShadowStrong?: boolean;
+  rowJustify?: 'flex-start' | 'center' | 'space-between';
 }
 
-export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelColor, useTextShadow = true }: GroupPickerProps) {
+export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, rowJustify = 'flex-start' }: GroupPickerProps) {
   const { state, activeGroup, setActiveGroup } = usePlayerGroups();
   const { gameScore } = useScoreTracker();
   const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -51,15 +54,15 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelC
       marginBottom: 15,
     }}>
       {/* Dropdown trigger with gear icon */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: rowJustify }}>
         <Text style={{
           fontSize: labelFontSize,
-          fontWeight: 'bold',
+          fontWeight: labelFontWeight as any,
           color: labelColor || Colors.themeYellow,
           ...(useTextShadow ? {
             textShadowColor: Colors.black,
-            textShadowOffset: { width: 1, height: 1 },
-            textShadowRadius: 2,
+            textShadowOffset: textShadowStrong ? { width: 2, height: 2 } : { width: 1, height: 1 },
+            textShadowRadius: textShadowStrong ? 4 : 2,
           } : {}),
         }}>
           Active Group
