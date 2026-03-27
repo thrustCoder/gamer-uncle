@@ -227,7 +227,7 @@ Please provide step-by-step setup instructions including:
                     {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
                   </Text>
                 </TouchableOpacity>
-                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" marginTop={10} />
+                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" marginTop={10} switchScale={0.7} />
               </View>
             )}
 

@@ -11,9 +11,10 @@ interface EnableGroupsToggleProps {
   useTextShadow?: boolean;
   textShadowStrong?: boolean;
   marginTop?: number;
+  switchScale?: number;
 }
 
-export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, marginTop = -8 }: EnableGroupsToggleProps) {
+export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, marginTop = -8, switchScale = 1 }: EnableGroupsToggleProps) {
   const { enableGroups } = usePlayerGroups();
 
   const handleToggle = () => {
@@ -63,6 +64,7 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labe
         onValueChange={handleToggle}
         trackColor={{ false: Colors.grayDark, true: Colors.themeGreen }}
         thumbColor={'#f4e4bc'}
+        style={switchScale !== 1 ? { transform: [{ scale: switchScale }] } : undefined}
         testID="enable-groups-switch"
       />
     </TouchableOpacity>

@@ -129,7 +129,7 @@ export const gameSetupStyles = StyleSheet.create({
     textAlign: 'center',
   },
   responseSection: {
-    marginTop: 8,
+    marginTop: -8,
   },
   responseBubble: {
     backgroundColor: Colors.themeBrownDark,

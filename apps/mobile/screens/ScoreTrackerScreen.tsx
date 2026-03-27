@@ -197,18 +197,22 @@ export default function ScoreTrackerScreen() {
                 onPlayerCountPress={showPlayerCountPicker}
                 onNameChange={handleNameChange}
               />
-              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={-14} />
+              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={-26} switchScale={0.7} />
             </>
           )}
 
           {/* Game Score Section */}
           {hasGameScore && (
-            <GameScoreSection playerNames={playerNames.slice(0, playerCount)} />
+            <View style={{ marginTop: 16 }}>
+              <GameScoreSection playerNames={playerNames.slice(0, playerCount)} />
+            </View>
           )}
 
           {/* Leaderboard Section */}
           {hasLeaderboard && (
-            <LeaderboardSection playerNames={playerNames.slice(0, playerCount)} />
+            <View style={{ marginTop: 16 }}>
+              <LeaderboardSection playerNames={playerNames.slice(0, playerCount)} />
+            </View>
           )}
 
           {/* Empty State - Both buttons when no data */}
