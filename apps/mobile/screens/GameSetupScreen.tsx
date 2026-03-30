@@ -21,7 +21,6 @@ import { getRecommendations } from '../services/ApiClient';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
 import { appCache } from '../services/storage/appCache';
-import EnableGroupsToggle from '../components/EnableGroupsToggle';
 import GroupPicker from '../components/GroupPicker';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
@@ -227,7 +226,6 @@ Please provide step-by-step setup instructions including:
                     {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
                   </Text>
                 </TouchableOpacity>
-                <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" marginTop={10} switchScale={0.7} />
               </View>
             )}
 

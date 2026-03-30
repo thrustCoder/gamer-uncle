@@ -271,7 +271,7 @@ export default function TeamRandomizerScreen() {
                       ))}
                     </View>
                   )}
-                  <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={25} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} marginTop={10} />
+                  <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={17} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} switchScale={0.65} marginTop={10} />
                 </>
               )}
             </View>

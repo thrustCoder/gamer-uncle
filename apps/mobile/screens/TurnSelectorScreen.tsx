@@ -255,7 +255,7 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
-            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={25} marginTop={0} />
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={17} switchScale={0.65} marginTop={-8} />
           </>
         )}
 

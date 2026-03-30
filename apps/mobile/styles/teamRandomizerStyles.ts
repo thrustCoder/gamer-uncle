@@ -141,10 +141,10 @@ export const teamRandomizerStyles = StyleSheet.create({
   },
   chevronButton: {
     paddingHorizontal: 6,
-    paddingVertical: 4,
   },
   chevronText: {
-    fontSize: 26,
+    fontSize: 30,
+    lineHeight: 30,
     fontWeight: 'bold',
     color: '#f4e4bc',
     textShadowColor: '#000',
