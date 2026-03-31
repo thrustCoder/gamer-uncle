@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
   Animated,
+  Keyboard,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
@@ -141,6 +142,7 @@ export default function TeamRandomizerScreen() {
   };
 
   const randomizeTeams = async () => {
+    Keyboard.dismiss();
     // Create array of objects with name and original index
     const playersWithIndex = playerNames.slice(0, playerCount).map((name, index) => ({
       name: name || `P${index + 1}`,

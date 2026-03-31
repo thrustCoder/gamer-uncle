@@ -24,7 +24,7 @@ export const teamRandomizerStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 15,
-    marginTop: 20,
+    marginTop: 32,
     width: '100%',
     alignItems: 'center',
     elevation: 4,
@@ -54,12 +54,12 @@ export const teamRandomizerStyles = StyleSheet.create({
     backgroundColor: Colors.teamTitleYellow,
     padding: 10,
     margin: 5,
-    width: 90,
+    width: '30%',
     borderRadius: 10,
     textAlign: 'center',
   },
   nameInputWide: {
-    width: 150,
+    width: '46%',
   },
   randomizeText: {
     fontSize: 25,

@@ -168,7 +168,7 @@ export default function TurnSelectorScreen() {
     >
       <BackButton />
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, paddingHorizontal: 10, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
         {groupsState.enabled ? (
           <>
             <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
@@ -226,7 +226,7 @@ export default function TurnSelectorScreen() {
             flexWrap: 'wrap',
             justifyContent: 'space-between',
             marginBottom: 10,
-            paddingHorizontal: 5,
+            paddingHorizontal: 0,
           }}>
             {Array.from({ length: playerCount }).map((_, i) => (
               <TextInput
