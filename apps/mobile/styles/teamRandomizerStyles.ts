@@ -141,6 +141,9 @@ export const teamRandomizerStyles = StyleSheet.create({
   },
   chevronButton: {
     paddingHorizontal: 6,
+    height: 30,
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   chevronText: {
     fontSize: 30,

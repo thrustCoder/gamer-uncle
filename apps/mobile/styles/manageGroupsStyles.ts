@@ -37,7 +37,8 @@ export const manageGroupsStyles = StyleSheet.create({
   },
   groupCardActive: {
     borderColor: Colors.themeYellow,
-    backgroundColor: 'rgba(139, 69, 19, 0.7)',
+    borderWidth: 2,
+    backgroundColor: 'rgba(139, 69, 19, 0.85)',
   },
   groupCardRow: {
     flexDirection: 'row',
@@ -56,10 +57,16 @@ export const manageGroupsStyles = StyleSheet.create({
     marginTop: 3,
   },
   activeLabel: {
-    fontSize: 11,
-    color: Colors.themeGreen,
-    fontWeight: '600',
-    marginTop: 2,
+    fontSize: 12,
+    color: Colors.black,
+    fontWeight: 'bold',
+    marginTop: 5,
+    backgroundColor: Colors.themeGreen,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
   },
   iconButton: {
     padding: 8,

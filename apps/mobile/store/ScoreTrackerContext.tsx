@@ -34,6 +34,9 @@ interface ScoreTrackerContextType {
   // Player name sync
   renamePlayer: (oldName: string, newName: string) => void;
 
+  // Group data loading
+  loadGroupData: (gameScore: GameScoreSession | null, leaderboard: LeaderboardEntry[]) => void;
+
   // Computed values
   getGameScoreRanking: () => PlayerRanking[];
   getLeaderboardRanking: () => PlayerRanking[];
@@ -193,6 +196,11 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLeaderboard([]);
   }, []);
 
+  const loadGroupData = useCallback((gs: GameScoreSession | null, lb: LeaderboardEntry[]) => {
+    setGameScore(gs);
+    setLeaderboard(lb);
+  }, []);
+
   // === Player Name Sync ===
 
   /**
@@ -292,6 +300,9 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Player name sync
       renamePlayer,
 
+      // Group data loading
+      loadGroupData,
+
       // Computed
       getGameScoreRanking,
       getLeaderboardRanking,
@@ -310,6 +321,7 @@ export const ScoreTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       deleteLeaderboardEntry,
       clearLeaderboard,
       renamePlayer,
+      loadGroupData,
       getGameScoreRanking,
       getLeaderboardRanking,
     ]

@@ -13,11 +13,12 @@ interface GroupPickerProps {
   useTextShadow?: boolean;
   textShadowStrong?: boolean;
   rowJustify?: 'flex-start' | 'center' | 'space-between';
+  containerMarginBottom?: number;
 }
 
-export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, rowJustify = 'flex-start' }: GroupPickerProps) {
-  const { state, activeGroup, setActiveGroup } = usePlayerGroups();
-  const { gameScore } = useScoreTracker();
+export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, rowJustify = 'flex-start', containerMarginBottom = 15 }: GroupPickerProps) {
+  const { state, activeGroup, setActiveGroup, updateActiveGroupData } = usePlayerGroups();
+  const { gameScore, leaderboard } = useScoreTracker();
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const handleSelectGroup = (groupId: string) => {
@@ -27,6 +28,8 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
     }
 
     const doSwitch = () => {
+      // Save current score state to the outgoing group before switching
+      updateActiveGroupData({ gameScore, leaderboard });
       setActiveGroup(groupId);
       trackEvent(AnalyticsEvents.PLAYER_GROUP_SWITCHED, {
         groupId,
@@ -51,7 +54,7 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
 
   return (
     <View style={{
-      marginBottom: 15,
+      marginBottom: containerMarginBottom,
     }}>
       {/* Dropdown trigger with gear icon */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: rowJustify }}>
@@ -74,7 +77,7 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
               backgroundColor: Colors.themeBrownDark,
               borderRadius: 7,
               paddingHorizontal: 14,
-              paddingVertical: 6,
+              height: 30,
               borderWidth: 2,
               borderColor: Colors.themeYellow,
               flexDirection: 'row',

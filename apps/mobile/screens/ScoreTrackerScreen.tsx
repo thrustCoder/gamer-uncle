@@ -27,7 +27,7 @@ const MAX_PLAYERS = 20;
 
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
-  const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard } = useScoreTracker();
+  const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard, loadGroupData } = useScoreTracker();
   const { state: groupsState, activeGroup, updateActiveGroupData } = usePlayerGroups();
   
   // Player state - synced with appCache
@@ -45,8 +45,15 @@ export default function ScoreTrackerScreen() {
       setPlayerCount(activeGroup.playerCount);
       setPlayerNames(activeGroup.playerNames);
       prevPlayerNamesRef.current = activeGroup.playerNames;
+      // Guard: only call loadGroupData after ScoreTrackerContext finishes its own
+      // cache hydration, otherwise the appCache load will overwrite our null back
+      // to stale data.
+      if (!isLoading) {
+        loadGroupData(activeGroup.gameScore, activeGroup.leaderboard);
+      }
       return;
     }
+    if (isLoading) return;
     (async () => {
       const [pc, names] = await Promise.all([
         appCache.getPlayerCount(4),
@@ -63,7 +70,7 @@ export default function ScoreTrackerScreen() {
         prevPlayerNamesRef.current = defaultNames;
       }
     })();
-  }, [groupsState.enabled, activeGroup?.id]);
+  }, [groupsState.enabled, activeGroup?.id, loadGroupData, isLoading]);
 
   // Persist player count changes
   useEffect(() => {
@@ -74,6 +81,14 @@ export default function ScoreTrackerScreen() {
   useDebouncedEffect(() => {
     appCache.setPlayers(playerNames);
   }, [playerNames], 400);
+
+  // When groups are enabled, sync score tracker state back to the active group
+  // so that navigating away and back doesn't lose changes.
+  useDebouncedEffect(() => {
+    if (groupsState.enabled && activeGroup && !isLoading) {
+      updateActiveGroupData({ gameScore, leaderboard });
+    }
+  }, [gameScore, leaderboard], 400);
 
   const handleNameChange = (index: number, newName: string) => {
     const oldName = prevPlayerNamesRef.current[index];
