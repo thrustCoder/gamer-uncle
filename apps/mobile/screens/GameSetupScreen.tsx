@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
@@ -53,7 +54,9 @@ export default function GameSetupScreen() {
   // Restore persisted game setup state on mount (or from active group when groups enabled)
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
-      setPlayerCount(activeGroup.gameSetupPlayerCount || activeGroup.playerCount);
+      // Always use the group's canonical playerCount — gameSetupPlayerCount may
+      // carry a stale value from a prior ungrouped session baked in at group creation.
+      setPlayerCount(activeGroup.playerCount);
       if (activeGroup.gameSetupGameName) setGameName(activeGroup.gameSetupGameName);
       if (activeGroup.gameSetupResponse) setSetupResponse(activeGroup.gameSetupResponse);
       setIsHydrated(true);
@@ -101,6 +104,7 @@ export default function GameSetupScreen() {
   };
 
   const handleGetSetup = async () => {
+    Keyboard.dismiss();
     if (!gameName.trim()) {
       Alert.alert('Missing Game Name', 'Please enter the name of the game.');
       return;
