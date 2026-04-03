@@ -20,6 +20,8 @@ interface ScoreTableRowProps {
   label: string;
   scores: Record<string, number>;
   playerNames: string[];
+  playerColumnWidth?: number;
+  firstColumnWidth?: number;
   game?: GameInfo;
   /** When true, shows a swap icon indicating scores were inverted */
   lowestScoreWins?: boolean;
@@ -31,6 +33,8 @@ export default function ScoreTableRow({
   label,
   scores,
   playerNames,
+  playerColumnWidth = 48,
+  firstColumnWidth = 80,
   game,
   lowestScoreWins,
   onEdit,
@@ -147,7 +151,7 @@ export default function ScoreTableRow({
       >
         {/* First column - label or game */}
         {game ? (
-          <View style={styles.gameCell}>
+          <View style={[styles.gameCell, { width: firstColumnWidth }]}>
             {game.thumbnailUrl ? (
               <Image
                 source={{ uri: game.thumbnailUrl }}
@@ -172,12 +176,12 @@ export default function ScoreTableRow({
             )}
           </View>
         ) : (
-          <Text style={[styles.tableCell, styles.tableCellFirst]}>{label}</Text>
+          <Text style={[styles.tableCell, styles.tableCellFirst, { width: firstColumnWidth }]}>{label}</Text>
         )}
 
         {/* Score columns */}
         {playerNames.map((playerName, index) => (
-          <Text key={index} style={[styles.tableCell, { flex: 1 }]}>
+          <Text key={index} style={[styles.tableCell, { width: playerColumnWidth, textAlign: 'center' }]}>
             {scores[playerName] ?? 0}
           </Text>
         ))}

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, ScrollView } from 'react-native';
+import { View, Text, Image, ScrollView, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../../styles/scoreTrackerStyles';
 import { Colors } from '../../styles/colors';
@@ -21,15 +21,20 @@ interface ScoreTableProps {
   playerNames: string[];
   data: TableDataItem[];
   firstColumnHeader: string;
+  firstColumnWidth?: number;
   showGameThumbnails?: boolean;
   onEdit: (roundNumber?: number, entryIndex?: number) => void;
   onDelete: (roundNumber?: number, entryIndex?: number) => void;
 }
 
+const PLAYER_COL_WIDTH = 48;
+const DEFAULT_FIRST_COL_WIDTH = 80;
+
 export default function ScoreTable({
   playerNames,
   data,
   firstColumnHeader,
+  firstColumnWidth = DEFAULT_FIRST_COL_WIDTH,
   showGameThumbnails = false,
   onEdit,
   onDelete,
@@ -40,8 +45,15 @@ export default function ScoreTable({
     [playerNames]
   );
 
-  // Calculate column width based on number of players
-  const playerColumnWidth = Math.max(50, (100 - 25) / playerNames.length);
+  const { width: screenWidth } = useWindowDimensions();
+  // Estimate available width inside the table container (screen minus outer padding)
+  const availableWidth = screenWidth - 48; // ~24px padding on each side
+  const fixedTotalWidth = firstColumnWidth + playerNames.length * PLAYER_COL_WIDTH + 16;
+  const needsScroll = fixedTotalWidth > availableWidth;
+  // When content fits, distribute remaining space equally to player columns
+  const playerColWidth = needsScroll
+    ? PLAYER_COL_WIDTH
+    : Math.floor((availableWidth - firstColumnWidth - 16) / playerNames.length);
 
   if (data.length === 0) {
     return (
@@ -53,17 +65,17 @@ export default function ScoreTable({
     );
   }
 
-  return (
-    <View style={styles.tableContainer}>
+  const tableContent = (
+    <View style={needsScroll ? { minWidth: fixedTotalWidth } : undefined}>
       {/* Header Row */}
       <View style={styles.tableHeader}>
-        <Text style={[styles.tableHeaderCell, styles.tableHeaderCellFirst]}>
+        <Text style={[styles.tableHeaderCell, styles.tableHeaderCellFirst, { width: firstColumnWidth }]}>
           {firstColumnHeader}
         </Text>
         {playerNames.map((name, index) => (
           <Text
             key={index}
-            style={[styles.tableHeaderCell, { flex: 1 }]}
+            style={[styles.tableHeaderCell, { width: playerColWidth }]}
             numberOfLines={1}
           >
             {initials[name]}
@@ -72,20 +84,32 @@ export default function ScoreTable({
       </View>
 
       {/* Data Rows */}
-      <ScrollView nestedScrollEnabled style={{ maxHeight: 300 }}>
-        {data.map((item) => (
-          <ScoreTableRow
-            key={item.id}
-            label={item.label}
-            scores={item.scores}
-            playerNames={playerNames}
-            game={showGameThumbnails ? item.game : undefined}
-            lowestScoreWins={item.lowestScoreWins}
-            onEdit={() => onEdit(item.roundNumber, item.entryIndex)}
-            onDelete={() => onDelete(item.roundNumber, item.entryIndex)}
-          />
-        ))}
-      </ScrollView>
+      {data.map((item) => (
+        <ScoreTableRow
+          key={item.id}
+          label={item.label}
+          scores={item.scores}
+          playerNames={playerNames}
+          playerColumnWidth={playerColWidth}
+          firstColumnWidth={firstColumnWidth}
+          game={showGameThumbnails ? item.game : undefined}
+          lowestScoreWins={item.lowestScoreWins}
+          onEdit={() => onEdit(item.roundNumber, item.entryIndex)}
+          onDelete={() => onDelete(item.roundNumber, item.entryIndex)}
+        />
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={styles.tableContainer}>
+      {needsScroll ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {tableContent}
+        </ScrollView>
+      ) : (
+        tableContent
+      )}
     </View>
   );
 }

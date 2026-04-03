@@ -10,6 +10,8 @@ interface StackRankingChartProps {
   animate?: boolean;
   /** When true, sort ascending (lowest score at top) for lowest-score-wins games */
   sortAscending?: boolean;
+  /** When provided, all players are shown — those without scores get 0 */
+  allPlayerNames?: string[];
 }
 
 export default function StackRankingChart({
@@ -17,11 +19,21 @@ export default function StackRankingChart({
   maxValue: providedMaxValue,
   animate = true,
   sortAscending = false,
+  allPlayerNames,
 }: StackRankingChartProps) {
-  // Sort data based on sortAscending flag
+  // Merge allPlayerNames with 0 for any player not already represented
+  const mergedData = useMemo(() => {
+    if (!allPlayerNames || allPlayerNames.length === 0) return data;
+    const existing = new Set(data.map((d) => d.player));
+    const extras: PlayerRanking[] = allPlayerNames
+      .filter((n) => !existing.has(n))
+      .map((n) => ({ player: n, total: 0 }));
+    return [...data, ...extras];
+  }, [data, allPlayerNames]);
+  // Sort mergedData based on sortAscending flag
   const sortedData = useMemo(
-    () => [...data].sort((a, b) => sortAscending ? a.total - b.total : b.total - a.total),
-    [data, sortAscending]
+    () => [...mergedData].sort((a, b) => sortAscending ? a.total - b.total : b.total - a.total),
+    [mergedData, sortAscending]
   );
 
   // Calculate min/max values for bar scaling (supports negative scores)

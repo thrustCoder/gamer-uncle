@@ -113,6 +113,7 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
         <StackRankingChart
           data={ranking}
           sortAscending={gameScore.lowestScoreWins === true}
+          allPlayerNames={playerNames}
         />
       )}
 
@@ -121,6 +122,7 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
         playerNames={playerNames}
         data={tableData}
         firstColumnHeader="Round"
+        firstColumnWidth={72}
         onEdit={(roundNumber) => roundNumber !== undefined && handleEditRound(roundNumber)}
         onDelete={(roundNumber) => roundNumber !== undefined && handleDeleteRound(roundNumber)}
       />
