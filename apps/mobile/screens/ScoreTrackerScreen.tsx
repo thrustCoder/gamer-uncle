@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Keyboard,
+  Pressable,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -22,8 +24,27 @@ import LeaderboardSection from '../components/scoreTracker/LeaderboardSection';
 import EnableGroupsToggle from '../components/EnableGroupsToggle';
 import GroupPicker from '../components/GroupPicker';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
+import type { GameScoreSession, LeaderboardEntry } from '../types/scoreTracker';
 
 const MAX_PLAYERS = 20;
+
+/**
+ * Extracts the ordered list of player names from existing score data.
+ * Uses the first round's score keys (game score) or first entry's score keys (leaderboard).
+ * Object.keys preserves insertion order, which matches the player list order when scores were entered.
+ */
+function extractPlayerNamesFromScores(
+  scoreData: GameScoreSession | null,
+  leaderboardData: LeaderboardEntry[],
+): string[] {
+  if (scoreData?.rounds?.[0]?.scores) {
+    return Object.keys(scoreData.rounds[0].scores);
+  }
+  if (leaderboardData.length > 0 && leaderboardData[0].scores) {
+    return Object.keys(leaderboardData[0].scores);
+  }
+  return [];
+}
 
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
@@ -38,13 +59,16 @@ export default function ScoreTrackerScreen() {
   
   // Track previous names for rename detection
   const prevPlayerNamesRef = useRef<string[]>([]);
+  // Track current (in-flight) names so onBlur always reads the latest value
+  const currentPlayerNamesRef = useRef<string[]>([]);
 
   // Hydrate player data from cache on mount (or from active group when groups enabled)
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
       setPlayerCount(activeGroup.playerCount);
       setPlayerNames(activeGroup.playerNames);
-      prevPlayerNamesRef.current = activeGroup.playerNames;
+      prevPlayerNamesRef.current = [...activeGroup.playerNames];
+      currentPlayerNamesRef.current = [...activeGroup.playerNames];
       // Guard: only call loadGroupData after ScoreTrackerContext finishes its own
       // cache hydration, otherwise the appCache load will overwrite our null back
       // to stale data.
@@ -55,22 +79,34 @@ export default function ScoreTrackerScreen() {
     }
     if (isLoading) return;
     (async () => {
-      const [pc, names] = await Promise.all([
+      const [pc, names, scoreData, leaderboardData] = await Promise.all([
         appCache.getPlayerCount(4),
         appCache.getPlayers([]),
+        appCache.getGameScore(),
+        appCache.getLeaderboard(),
       ]);
       setPlayerCount(pc);
-      if (names.length > 0) {
-        const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
-        setPlayerNames(adjusted);
-        prevPlayerNamesRef.current = adjusted;
-      } else {
-        const defaultNames = Array.from({ length: pc }, (_, i) => `P${i + 1}`);
-        setPlayerNames(defaultNames);
-        prevPlayerNamesRef.current = defaultNames;
+      const freshNames = names.length > 0
+        ? Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`)
+        : Array.from({ length: pc }, (_, i) => `P${i + 1}`);
+
+      // Detect renames by comparing cache names against names stored in score data.
+      // Score data keys reflect the "old" names before any external rename (e.g. Turn Selector).
+      const oldNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
+      if (oldNames.length > 0) {
+        const limit = Math.min(oldNames.length, freshNames.length);
+        for (let i = 0; i < limit; i++) {
+          if (oldNames[i] && freshNames[i] && oldNames[i] !== freshNames[i]) {
+            renamePlayer(oldNames[i], freshNames[i]);
+          }
+        }
       }
+
+      setPlayerNames(freshNames);
+      prevPlayerNamesRef.current = [...freshNames];
+      currentPlayerNamesRef.current = [...freshNames];
     })();
-  }, [groupsState.enabled, activeGroup?.id, loadGroupData, isLoading]);
+  }, [groupsState.enabled, activeGroup?.id, loadGroupData, isLoading, renamePlayer]);
 
   // Persist player count changes
   useEffect(() => {
@@ -90,30 +126,70 @@ export default function ScoreTrackerScreen() {
     }
   }, [gameScore, leaderboard], 400);
 
-  const handleNameChange = (index: number, newName: string) => {
+  // When returning from another screen (Turn Selector, Team Randomizer),
+  // re-read names from cache and apply renames to score data.
+  useFocusEffect(
+    useCallback(() => {
+      if (groupsState.enabled || isLoading) return;
+      (async () => {
+        const [pc, names] = await Promise.all([
+          appCache.getPlayerCount(4),
+          appCache.getPlayers([]),
+        ]);
+        if (names.length === 0) return;
+        const fresh = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
+        const prev = prevPlayerNamesRef.current;
+
+        // Only apply renames if we have a baseline to compare against
+        if (prev.length > 0) {
+          const limit = Math.min(prev.length, fresh.length);
+          for (let i = 0; i < limit; i++) {
+            if (prev[i] && fresh[i] && prev[i] !== fresh[i]) {
+              renamePlayer(prev[i], fresh[i]);
+            }
+          }
+        }
+
+        setPlayerCount(pc);
+        setPlayerNames(fresh);
+        prevPlayerNamesRef.current = [...fresh];
+        currentPlayerNamesRef.current = [...fresh];
+      })();
+    }, [groupsState.enabled, isLoading, renamePlayer])
+  );
+
+  const handleNameChange = useCallback((index: number, newName: string) => {
+    // Update local state and current ref — rename happens on blur
+    setPlayerNames(prev => {
+      const updated = [...prev];
+      updated[index] = newName;
+      currentPlayerNamesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  const handleNameBlur = useCallback((index: number) => {
+    const currentName = currentPlayerNamesRef.current[index];
     const oldName = prevPlayerNamesRef.current[index];
-    
-    // Update local state
-    const updated = [...playerNames];
-    updated[index] = newName;
-    setPlayerNames(updated);
-    
-    // If name actually changed and both are non-empty, sync to stored data
-    if (oldName && newName && oldName !== newName) {
-      renamePlayer(oldName, newName);
+
+    // If both non-empty and different, rename across stored score data
+    if (oldName && currentName && oldName !== currentName) {
+      renamePlayer(oldName, currentName);
     }
-    
-    // Update ref to track future changes
-    prevPlayerNamesRef.current = updated;
-  };
+
+    // Commit the current name as the "last known" name
+    if (currentName) {
+      prevPlayerNamesRef.current[index] = currentName;
+    }
+  }, [renamePlayer]);
 
   const applyPlayerCountChange = (newCount: number) => {
     setPlayerCount(newCount);
-    setPlayerNames(
-      Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`)
-    );
-    // Update ref for rename tracking
-    prevPlayerNamesRef.current = Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`);
+    const newNames = Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`);
+    setPlayerNames(newNames);
+    // Update refs for rename tracking
+    prevPlayerNamesRef.current = [...newNames];
+    currentPlayerNamesRef.current = [...newNames];
   };
 
   const showPlayerCountPicker = () => {
@@ -194,8 +270,9 @@ export default function ScoreTrackerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
       >
-        <View style={styles.container}>
+        <Pressable style={styles.container} onPress={Keyboard.dismiss}>
           {/* Title */}
           <Text style={styles.title}>Score Tracker</Text>
 
@@ -211,6 +288,7 @@ export default function ScoreTrackerScreen() {
                 playerNames={playerNames}
                 onPlayerCountPress={showPlayerCountPicker}
                 onNameChange={handleNameChange}
+                onNameBlur={handleNameBlur}
               />
               <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={-26} switchScale={0.7} />
             </>
@@ -225,7 +303,7 @@ export default function ScoreTrackerScreen() {
 
           {/* Leaderboard Section */}
           {hasLeaderboard && (
-            <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: hasGameScore ? 4 : 16 }}>
               <LeaderboardSection playerNames={playerNames.slice(0, playerCount)} />
             </View>
           )}
@@ -272,7 +350,7 @@ export default function ScoreTrackerScreen() {
               <Text style={styles.secondaryButtonText}>➕ Add Game Score</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </Pressable>
       </ScrollView>
     </ImageBackground>
   );

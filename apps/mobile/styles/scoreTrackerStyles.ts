@@ -100,7 +100,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -166,6 +166,16 @@ export const scoreTrackerStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+  },
+  rankingInitialsPill: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Colors.wheelLightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    paddingHorizontal: 8,
   },
   rankingInitialsText: {
     color: Colors.white,

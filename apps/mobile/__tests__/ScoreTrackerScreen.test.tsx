@@ -10,6 +10,10 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => { cb(); }, []);
+  },
 }));
 
 // Mock BackButton

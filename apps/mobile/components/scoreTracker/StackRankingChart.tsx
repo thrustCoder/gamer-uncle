@@ -59,6 +59,15 @@ export default function StackRankingChart({
     [sortedData]
   );
 
+  // Determine if any initials are long enough to need pill-shaped badges
+  const maxInitialsLen = useMemo(
+    () => Math.max(...Object.values(initials).map((v) => v.length), 1),
+    [initials]
+  );
+  const usePillBadge = maxInitialsLen > 3;
+  // Uniform pill width based on the longest initials (approx 9px per char + 16px padding)
+  const pillWidth = usePillBadge ? maxInitialsLen * 9 + 16 : undefined;
+
   if (sortedData.length === 0) {
     return null;
   }
@@ -70,9 +79,9 @@ export default function StackRankingChart({
 
         return (
           <View key={item.player} style={styles.rankingRow}>
-            {/* Player initials circle */}
-            <View style={styles.rankingInitials}>
-              <Text style={styles.rankingInitialsText}>
+            {/* Player initials badge — circle for short, pill for long */}
+            <View style={usePillBadge ? [styles.rankingInitialsPill, { width: pillWidth }] : styles.rankingInitials}>
+              <Text style={styles.rankingInitialsText} numberOfLines={1}>
                 {initials[item.player]}
               </Text>
             </View>

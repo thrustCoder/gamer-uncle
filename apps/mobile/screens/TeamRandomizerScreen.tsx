@@ -10,6 +10,7 @@ import {
   ScrollView,
   Animated,
   Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
@@ -209,6 +210,7 @@ export default function TeamRandomizerScreen() {
   }, [playerNames], 400);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
       <View style={styles.container} testID="team-randomizer">
@@ -371,5 +373,6 @@ export default function TeamRandomizerScreen() {
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

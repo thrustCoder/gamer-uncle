@@ -8,6 +8,7 @@ interface PlayerNamesSectionProps {
   playerNames: string[];
   onPlayerCountPress: () => void;
   onNameChange: (index: number, name: string) => void;
+  onNameBlur?: (index: number) => void;
 }
 
 export default function PlayerNamesSection({
@@ -15,6 +16,7 @@ export default function PlayerNamesSection({
   playerNames,
   onPlayerCountPress,
   onNameChange,
+  onNameBlur,
 }: PlayerNamesSectionProps) {
   // Determine input width based on player count
   const getInputStyle = () => {
@@ -49,6 +51,7 @@ export default function PlayerNamesSection({
               placeholderTextColor={Colors.grayDark}
               value={playerNames[index] ?? ''}
               onChangeText={(text) => onNameChange(index, text)}
+              onBlur={() => onNameBlur?.(index)}
               testID={`player-name-input-${index}`}
             />
           ))}

@@ -9,6 +9,8 @@ import {
   Animated,
   ImageBackground,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
@@ -161,6 +163,7 @@ export default function TurnSelectorScreen() {
   }, [playerNames], 400);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground 
       source={require('../assets/images/tool_background.png')} 
       style={[styles.container, { flex: 1 }]}
@@ -295,5 +298,6 @@ export default function TurnSelectorScreen() {
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

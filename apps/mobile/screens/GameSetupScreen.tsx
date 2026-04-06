@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
@@ -173,6 +174,7 @@ Please provide step-by-step setup instructions including:
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground
       source={require('../assets/images/tool_background.png')}
       style={styles.container}
@@ -296,5 +298,6 @@ Please provide step-by-step setup instructions including:
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

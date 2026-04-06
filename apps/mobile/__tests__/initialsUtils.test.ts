@@ -17,12 +17,19 @@ describe('generateUniqueInitials', () => {
     expect(result['Bob']).toBe('Bob');
   });
 
-  it('returns Title Case for 3-letter initials with similar names', () => {
+  it('returns Title Case for longer prefixes with similar names like Alice and Alicia', () => {
     const result = generateUniqueInitials(['Alice', 'Alicia', 'Bob']);
-    // Alice and Alicia both start with 'Ali', need numeric suffix for duplicate
-    expect(result['Alice']).toBe('Ali');
-    expect(result['Alicia']).toBe('Al2');
+    // Alice and Alicia differ at position 5 (e→a), so need 5 chars
+    expect(result['Alice']).toBe('Alice');
+    expect(result['Alicia']).toBe('Alici');
     expect(result['Bob']).toBe('Bob');
+  });
+
+  it('differentiates names sharing 4+ prefix characters like Yogita and Yogesh', () => {
+    const result = generateUniqueInitials(['Yogita', 'Yogesh']);
+    // Yogita and Yogesh differ at position 4 (i→e), so need 4 chars
+    expect(result['Yogita']).toBe('Yogi');
+    expect(result['Yogesh']).toBe('Yoge');
   });
 
   it('keeps single character initials uppercase', () => {
@@ -49,8 +56,8 @@ describe('generateUniqueInitials', () => {
 
   it('handles duplicate names - same key gets overwritten with suffixed value', () => {
     const result = generateUniqueInitials(['Alice', 'Alice']);
-    // When duplicate names exist, the second one overwrites with Al2 suffix
-    expect(result['Alice']).toBe('Al2');
+    // When duplicate names exist, the second one overwrites with numeric suffix
+    expect(result['Alice']).toBe('Alice2');
   });
 
   it('handles whitespace in names', () => {
