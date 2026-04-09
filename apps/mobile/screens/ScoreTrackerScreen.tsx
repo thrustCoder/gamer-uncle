@@ -85,19 +85,24 @@ export default function ScoreTrackerScreen() {
         appCache.getGameScore(),
         appCache.getLeaderboard(),
       ]);
-      setPlayerCount(pc);
+
+      // When score data exists, derive player count from it (the shared cache
+      // may have been overwritten by Turn Selector / Team Randomizer).
+      const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
+      const effectiveCount = scorePlayerNames.length > 0 ? scorePlayerNames.length : pc;
+
+      setPlayerCount(effectiveCount);
       const freshNames = names.length > 0
-        ? Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`)
-        : Array.from({ length: pc }, (_, i) => `P${i + 1}`);
+        ? Array.from({ length: effectiveCount }, (_, i) => names[i] || `P${i + 1}`)
+        : Array.from({ length: effectiveCount }, (_, i) => `P${i + 1}`);
 
       // Detect renames by comparing cache names against names stored in score data.
       // Score data keys reflect the "old" names before any external rename (e.g. Turn Selector).
-      const oldNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
-      if (oldNames.length > 0) {
-        const limit = Math.min(oldNames.length, freshNames.length);
+      if (scorePlayerNames.length > 0) {
+        const limit = Math.min(scorePlayerNames.length, freshNames.length);
         for (let i = 0; i < limit; i++) {
-          if (oldNames[i] && freshNames[i] && oldNames[i] !== freshNames[i]) {
-            renamePlayer(oldNames[i], freshNames[i]);
+          if (scorePlayerNames[i] && freshNames[i] && scorePlayerNames[i] !== freshNames[i]) {
+            renamePlayer(scorePlayerNames[i], freshNames[i]);
           }
         }
       }
@@ -132,12 +137,19 @@ export default function ScoreTrackerScreen() {
     useCallback(() => {
       if (groupsState.enabled || isLoading) return;
       (async () => {
-        const [pc, names] = await Promise.all([
+        const [pc, names, scoreData, leaderboardData] = await Promise.all([
           appCache.getPlayerCount(4),
           appCache.getPlayers([]),
+          appCache.getGameScore(),
+          appCache.getLeaderboard(),
         ]);
         if (names.length === 0) return;
-        const fresh = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
+
+        // When score data exists, derive player count from it
+        const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
+        const effectiveCount = scorePlayerNames.length > 0 ? scorePlayerNames.length : pc;
+
+        const fresh = Array.from({ length: effectiveCount }, (_, i) => names[i] || `P${i + 1}`);
         const prev = prevPlayerNamesRef.current;
 
         // Only apply renames if we have a baseline to compare against
@@ -150,7 +162,7 @@ export default function ScoreTrackerScreen() {
           }
         }
 
-        setPlayerCount(pc);
+        setPlayerCount(effectiveCount);
         setPlayerNames(fresh);
         prevPlayerNamesRef.current = [...fresh];
         currentPlayerNamesRef.current = [...fresh];

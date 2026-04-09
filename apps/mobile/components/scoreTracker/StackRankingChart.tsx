@@ -76,6 +76,9 @@ export default function StackRankingChart({
     <View style={styles.rankingContainer}>
       {sortedData.map((item, index) => {
         const barWidth = valueRange > 0 ? ((item.total - minValue) / valueRange) * 100 : 0;
+        // Minimum bar width just enough to show score label; use a tiny base
+        // so relative differences between low/negative scores are visible.
+        const minBar = 5;
 
         return (
           <View key={item.player} style={styles.rankingRow}>
@@ -92,7 +95,7 @@ export default function StackRankingChart({
                 style={[
                   styles.rankingBar,
                   {
-                    width: `${Math.max(barWidth, 15)}%`,
+                    width: `${Math.max(barWidth, minBar)}%`,
                   },
                 ]}
               >

@@ -64,13 +64,15 @@ export default function GameSetupScreen() {
       return;
     }
     (async () => {
-      const [savedName, savedCount, savedResponse] = await Promise.all([
+      const [savedName, savedCount, savedResponse, sharedCount] = await Promise.all([
         appCache.getGameSetupGameName(),
         appCache.getGameSetupPlayerCount(),
         appCache.getGameSetupResponse(),
+        appCache.getPlayerCount(4),
       ]);
       if (savedName) setGameName(savedName);
-      if (savedCount) setPlayerCount(savedCount);
+      // Prefer shared player count from other screens; fall back to game-setup-specific count
+      setPlayerCount(sharedCount || savedCount || 4);
       if (savedResponse) setSetupResponse(savedResponse);
       setIsHydrated(true);
     })();

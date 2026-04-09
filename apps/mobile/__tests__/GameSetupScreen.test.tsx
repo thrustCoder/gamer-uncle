@@ -65,6 +65,7 @@ jest.mock('../services/storage/appCache', () => ({
     getGameSetupResponse: jest.fn((): Promise<string | null> => Promise.resolve(null)),
     setGameSetupResponse: jest.fn((): Promise<void> => Promise.resolve()),
     clearGameSetup: jest.fn((): Promise<void> => Promise.resolve()),
+    getPlayerCount: jest.fn((): Promise<number> => Promise.resolve(4)),
   },
 }));
 
@@ -368,6 +369,7 @@ describe('GameSetupScreen', () => {
       mockAppCache.getGameSetupGameName.mockResolvedValueOnce('Catan');
       mockAppCache.getGameSetupPlayerCount.mockResolvedValueOnce(3);
       mockAppCache.getGameSetupResponse.mockResolvedValueOnce('Saved setup instructions...');
+      mockAppCache.getPlayerCount.mockResolvedValueOnce(3);
 
       const { getByTestId, getByText } = render(<GameSetupScreen />);
 
