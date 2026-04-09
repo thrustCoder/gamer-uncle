@@ -94,6 +94,7 @@ export default function ScoreTable({
           firstColumnWidth={firstColumnWidth}
           game={showGameThumbnails ? item.game : undefined}
           lowestScoreWins={item.lowestScoreWins}
+          swipeEnabled={!needsScroll}
           onEdit={() => onEdit(item.roundNumber, item.entryIndex)}
           onDelete={() => onDelete(item.roundNumber, item.entryIndex)}
         />
@@ -104,7 +105,7 @@ export default function ScoreTable({
   return (
     <View style={styles.tableContainer}>
       {needsScroll ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={true} nestedScrollEnabled>
           {tableContent}
         </ScrollView>
       ) : (

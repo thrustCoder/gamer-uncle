@@ -25,6 +25,8 @@ interface ScoreTableRowProps {
   game?: GameInfo;
   /** When true, shows a swap icon indicating scores were inverted */
   lowestScoreWins?: boolean;
+  /** When false, disables swipe-to-edit to avoid conflicting with horizontal scroll */
+  swipeEnabled?: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -37,6 +39,7 @@ export default function ScoreTableRow({
   firstColumnWidth = 80,
   game,
   lowestScoreWins,
+  swipeEnabled = true,
   onEdit,
   onDelete,
 }: ScoreTableRowProps) {
@@ -47,6 +50,7 @@ export default function ScoreTableRow({
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (!swipeEnabled) return false;
         // Only respond to horizontal gestures
         return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
       },
@@ -114,6 +118,7 @@ export default function ScoreTableRow({
   return (
     <View style={{ overflow: 'hidden', position: 'relative' }}>
       {/* Action buttons (revealed on swipe) - positioned absolutely behind the row */}
+      {swipeEnabled && (
       <View
         style={{
           position: 'absolute',
@@ -137,6 +142,7 @@ export default function ScoreTableRow({
           <Text style={styles.swipeActionText}>Delete</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       {/* Main row content (swipeable) - covers action buttons when not swiped */}
       <Animated.View
@@ -147,7 +153,7 @@ export default function ScoreTableRow({
             backgroundColor: Colors.wheelGray, // Match table background color
           },
         ]}
-        {...panResponder.panHandlers}
+        {...(swipeEnabled ? panResponder.panHandlers : {})}
       >
         {/* First column - label or game */}
         {game ? (

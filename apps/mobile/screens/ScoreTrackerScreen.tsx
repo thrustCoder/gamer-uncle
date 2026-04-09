@@ -9,7 +9,6 @@ import {
   Alert,
   Platform,
   Keyboard,
-  Pressable,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
@@ -320,9 +319,10 @@ export default function ScoreTrackerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         onScrollBeginDrag={Keyboard.dismiss}
       >
-        <Pressable style={styles.container} onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
           {/* Title */}
           <Text style={styles.title}>Score Tracker</Text>
 
@@ -400,7 +400,7 @@ export default function ScoreTrackerScreen() {
               <Text style={styles.secondaryButtonText}>➕ Add Game Score</Text>
             </TouchableOpacity>
           )}
-        </Pressable>
+        </View>
       </ScrollView>
     </ImageBackground>
   );
