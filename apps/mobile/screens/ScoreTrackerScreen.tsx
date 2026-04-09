@@ -73,7 +73,22 @@ export default function ScoreTrackerScreen() {
       // cache hydration, otherwise the appCache load will overwrite our null back
       // to stale data.
       if (!isLoading) {
-        loadGroupData(activeGroup.gameScore, activeGroup.leaderboard);
+        loadGroupData(activeGroup.gameScore ?? null, activeGroup.leaderboard ?? []);
+
+        // Detect renames: compare group's current playerNames against names in score data.
+        // Must run AFTER loadGroupData so renamePlayer operates on the loaded state.
+        const scorePlayerNames = extractPlayerNamesFromScores(
+          activeGroup.gameScore ?? null,
+          activeGroup.leaderboard ?? [],
+        );
+        if (scorePlayerNames.length > 0) {
+          const limit = Math.min(scorePlayerNames.length, activeGroup.playerNames.length);
+          for (let i = 0; i < limit; i++) {
+            if (scorePlayerNames[i] && activeGroup.playerNames[i] && scorePlayerNames[i] !== activeGroup.playerNames[i]) {
+              renamePlayer(scorePlayerNames[i], activeGroup.playerNames[i]);
+            }
+          }
+        }
       }
       return;
     }
@@ -131,11 +146,34 @@ export default function ScoreTrackerScreen() {
     }
   }, [gameScore, leaderboard], 400);
 
-  // When returning from another screen (Turn Selector, Team Randomizer),
-  // re-read names from cache and apply renames to score data.
+  // When returning from another screen, detect renames and sync.
+  // Handles both group and non-group modes.
   useFocusEffect(
     useCallback(() => {
-      if (groupsState.enabled || isLoading) return;
+      if (isLoading) return;
+
+      // Groups mode: detect renames from CreateGroup screen edits
+      if (groupsState.enabled && activeGroup) {
+        const scorePlayerNames = extractPlayerNamesFromScores(
+          activeGroup.gameScore ?? null,
+          activeGroup.leaderboard ?? [],
+        );
+        if (scorePlayerNames.length > 0) {
+          const limit = Math.min(scorePlayerNames.length, activeGroup.playerNames.length);
+          for (let i = 0; i < limit; i++) {
+            if (scorePlayerNames[i] && activeGroup.playerNames[i] && scorePlayerNames[i] !== activeGroup.playerNames[i]) {
+              renamePlayer(scorePlayerNames[i], activeGroup.playerNames[i]);
+            }
+          }
+        }
+        setPlayerCount(activeGroup.playerCount);
+        setPlayerNames(activeGroup.playerNames);
+        prevPlayerNamesRef.current = [...activeGroup.playerNames];
+        currentPlayerNamesRef.current = [...activeGroup.playerNames];
+        return;
+      }
+
+      // Non-group mode: detect renames from Turn Selector / Team Randomizer
       (async () => {
         const [pc, names, scoreData, leaderboardData] = await Promise.all([
           appCache.getPlayerCount(4),
@@ -167,7 +205,7 @@ export default function ScoreTrackerScreen() {
         prevPlayerNamesRef.current = [...fresh];
         currentPlayerNamesRef.current = [...fresh];
       })();
-    }, [groupsState.enabled, isLoading, renamePlayer])
+    }, [groupsState.enabled, activeGroup, isLoading, renamePlayer])
   );
 
   const handleNameChange = useCallback((index: number, newName: string) => {
