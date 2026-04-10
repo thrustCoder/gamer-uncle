@@ -24,7 +24,6 @@ interface ScoreTableProps {
   firstColumnWidth?: number;
   showGameThumbnails?: boolean;
   onEdit: (roundNumber?: number, entryIndex?: number) => void;
-  onDelete: (roundNumber?: number, entryIndex?: number) => void;
 }
 
 const PLAYER_COL_WIDTH = 48;
@@ -37,7 +36,6 @@ export default function ScoreTable({
   firstColumnWidth = DEFAULT_FIRST_COL_WIDTH,
   showGameThumbnails = false,
   onEdit,
-  onDelete,
 }: ScoreTableProps) {
   // Generate initials for player names
   const initials = useMemo(
@@ -48,12 +46,13 @@ export default function ScoreTable({
   const { width: screenWidth } = useWindowDimensions();
   // Estimate available width inside the table container (screen minus outer padding)
   const availableWidth = screenWidth - 48; // ~24px padding on each side
-  const fixedTotalWidth = firstColumnWidth + playerNames.length * PLAYER_COL_WIDTH + 16;
+  const PENCIL_COL_WIDTH = 28;
+  const fixedTotalWidth = firstColumnWidth + playerNames.length * PLAYER_COL_WIDTH + PENCIL_COL_WIDTH + 16;
   const needsScroll = fixedTotalWidth > availableWidth;
   // When content fits, distribute remaining space equally to player columns
   const playerColWidth = needsScroll
     ? PLAYER_COL_WIDTH
-    : Math.floor((availableWidth - firstColumnWidth - 16) / playerNames.length);
+    : Math.floor((availableWidth - firstColumnWidth - PENCIL_COL_WIDTH - 16) / playerNames.length);
 
   if (data.length === 0) {
     return (
@@ -94,9 +93,7 @@ export default function ScoreTable({
           firstColumnWidth={firstColumnWidth}
           game={showGameThumbnails ? item.game : undefined}
           lowestScoreWins={item.lowestScoreWins}
-          swipeEnabled={!needsScroll}
           onEdit={() => onEdit(item.roundNumber, item.entryIndex)}
-          onDelete={() => onDelete(item.roundNumber, item.entryIndex)}
         />
       ))}
     </View>

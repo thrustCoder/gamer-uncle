@@ -1,20 +1,14 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
-  Animated,
-  PanResponder,
-  Dimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../../styles/scoreTrackerStyles';
 import { Colors } from '../../styles/colors';
 import type { GameInfo } from '../../types/scoreTracker';
-
-const SWIPE_THRESHOLD = 80;
-const ACTION_WIDTH = 140; // Total width of both action buttons
 
 interface ScoreTableRowProps {
   label: string;
@@ -25,10 +19,7 @@ interface ScoreTableRowProps {
   game?: GameInfo;
   /** When true, shows a swap icon indicating scores were inverted */
   lowestScoreWins?: boolean;
-  /** When false, disables swipe-to-edit to avoid conflicting with horizontal scroll */
-  swipeEnabled?: boolean;
   onEdit: () => void;
-  onDelete: () => void;
 }
 
 export default function ScoreTableRow({
@@ -39,159 +30,51 @@ export default function ScoreTableRow({
   firstColumnWidth = 80,
   game,
   lowestScoreWins,
-  swipeEnabled = true,
   onEdit,
-  onDelete,
 }: ScoreTableRowProps) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const isOpen = useRef(false);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (!swipeEnabled) return false;
-        // Only respond to horizontal gestures
-        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderGrant: () => {
-        // Stop any ongoing animation
-        translateX.stopAnimation();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // Calculate new position
-        const newValue = isOpen.current
-          ? -ACTION_WIDTH + gestureState.dx
-          : gestureState.dx;
-        
-        // Clamp the value
-        const clampedValue = Math.max(-ACTION_WIDTH, Math.min(0, newValue));
-        translateX.setValue(clampedValue);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const shouldOpen = gestureState.dx < -SWIPE_THRESHOLD || 
-          (isOpen.current && gestureState.dx > -SWIPE_THRESHOLD && gestureState.dx < SWIPE_THRESHOLD);
-        
-        if (shouldOpen && !isOpen.current) {
-          // Open
-          Animated.spring(translateX, {
-            toValue: -ACTION_WIDTH,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 10,
-          }).start();
-          isOpen.current = true;
-        } else if (!shouldOpen || gestureState.dx > SWIPE_THRESHOLD) {
-          // Close
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 10,
-          }).start();
-          isOpen.current = false;
-        }
-      },
-    })
-  ).current;
-
-  const closeRow = () => {
-    Animated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-    isOpen.current = false;
-  };
-
-  const handleEdit = () => {
-    closeRow();
-    onEdit();
-  };
-
-  const handleDelete = () => {
-    closeRow();
-    onDelete();
-  };
-
   return (
-    <View style={{ overflow: 'hidden', position: 'relative' }}>
-      {/* Action buttons (revealed on swipe) - positioned absolutely behind the row */}
-      {swipeEnabled && (
-      <View
-        style={{
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: ACTION_WIDTH,
-          flexDirection: 'row',
-        }}
-      >
-        <TouchableOpacity
-          style={[styles.swipeActionButton, styles.swipeActionEdit]}
-          onPress={handleEdit}
-        >
-          <Text style={styles.swipeActionText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.swipeActionButton, styles.swipeActionDelete]}
-          onPress={handleDelete}
-        >
-          <Text style={styles.swipeActionText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.tableRow}>
+      {/* First column - label or game */}
+      {game ? (
+        <View style={[styles.gameCell, { width: firstColumnWidth }]}>
+          {game.thumbnailUrl ? (
+            <Image
+              source={{ uri: game.thumbnailUrl }}
+              style={styles.gameCellThumbnail}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.gameCellThumbnail, { backgroundColor: Colors.grayPlaceholder, alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialCommunityIcons name="dice-multiple" size={16} color={Colors.grayDark} />
+            </View>
+          )}
+          <Text style={styles.gameCellName} numberOfLines={1}>
+            {label}
+          </Text>
+          {lowestScoreWins && (
+            <MaterialCommunityIcons
+              name="swap-vertical"
+              size={14}
+              color={Colors.grayLight}
+              style={{ marginLeft: 2 }}
+            />
+          )}
+        </View>
+      ) : (
+        <Text style={[styles.tableCell, styles.tableCellFirst, { width: firstColumnWidth }]}>{label}</Text>
       )}
 
-      {/* Main row content (swipeable) - covers action buttons when not swiped */}
-      <Animated.View
-        style={[
-          styles.tableRow,
-          {
-            transform: [{ translateX }],
-            backgroundColor: Colors.wheelGray, // Match table background color
-          },
-        ]}
-        {...(swipeEnabled ? panResponder.panHandlers : {})}
-      >
-        {/* First column - label or game */}
-        {game ? (
-          <View style={[styles.gameCell, { width: firstColumnWidth }]}>
-            {game.thumbnailUrl ? (
-              <Image
-                source={{ uri: game.thumbnailUrl }}
-                style={styles.gameCellThumbnail}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.gameCellThumbnail, { backgroundColor: Colors.grayPlaceholder, alignItems: 'center', justifyContent: 'center' }]}>
-                <MaterialCommunityIcons name="dice-multiple" size={16} color={Colors.grayDark} />
-              </View>
-            )}
-            <Text style={styles.gameCellName} numberOfLines={1}>
-              {label}
-            </Text>
-            {lowestScoreWins && (
-              <MaterialCommunityIcons
-                name="swap-vertical"
-                size={14}
-                color={Colors.grayLight}
-                style={{ marginLeft: 2 }}
-              />
-            )}
-          </View>
-        ) : (
-          <Text style={[styles.tableCell, styles.tableCellFirst, { width: firstColumnWidth }]}>{label}</Text>
-        )}
+      {/* Score columns */}
+      {playerNames.map((playerName, index) => (
+        <Text key={index} style={[styles.tableCell, { width: playerColumnWidth, textAlign: 'center' }]}>
+          {scores[playerName] ?? 0}
+        </Text>
+      ))}
 
-        {/* Score columns */}
-        {playerNames.map((playerName, index) => (
-          <Text key={index} style={[styles.tableCell, { width: playerColumnWidth, textAlign: 'center' }]}>
-            {scores[playerName] ?? 0}
-          </Text>
-        ))}
-      </Animated.View>
+      {/* Edit pencil icon */}
+      <TouchableOpacity onPress={onEdit} style={styles.rowEditButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <MaterialCommunityIcons name="pencil-outline" size={16} color={Colors.grayLight} />
+      </TouchableOpacity>
     </View>
   );
 }

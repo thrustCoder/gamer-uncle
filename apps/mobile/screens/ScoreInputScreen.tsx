@@ -63,8 +63,10 @@ export default function ScoreInputScreen() {
     startGameScore,
     addRound,
     updateRound,
+    deleteRound,
     addLeaderboardEntry,
     updateLeaderboardEntry,
+    deleteLeaderboardEntry,
     leaderboard,
   } = useScoreTracker();
 
@@ -298,6 +300,31 @@ export default function ScoreInputScreen() {
     navigation.goBack();
   };
 
+  const handleDelete = () => {
+    const title = mode === 'editRound'
+      ? `Delete Round ${roundNumber}?`
+      : `Delete "${selectedGame?.name || 'this entry'}"?`;
+    const message = mode === 'editRound'
+      ? 'This round and its scores will be permanently removed.'
+      : 'This game and its scores will be permanently removed from the leaderboard.';
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          if (mode === 'editRound' && roundNumber !== undefined) {
+            deleteRound(roundNumber);
+          } else if (mode === 'editLeaderboard' && entryIndex !== undefined) {
+            deleteLeaderboardEntry(entryIndex);
+          }
+          navigation.goBack();
+        },
+      },
+    ]);
+  };
+
   const canSave = needsGameSelection ? selectedGame !== null : true;
 
   if (!isInitialized) {
@@ -323,7 +350,7 @@ export default function ScoreInputScreen() {
       <BackButton />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingTop: 60 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 60 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -450,6 +477,20 @@ export default function ScoreInputScreen() {
             {isEditMode ? 'Update' : 'Save'}
           </Text>
         </TouchableOpacity>
+
+        {/* Delete Button (edit mode only) */}
+        {isEditMode && (
+          <TouchableOpacity
+            style={styles.deleteEntryButton}
+            onPress={handleDelete}
+            testID="delete-button"
+          >
+            <MaterialCommunityIcons name="trash-can-outline" size={20} color={Colors.white} style={{ marginRight: 8 }} />
+            <Text style={styles.deleteEntryButtonText}>
+              {mode === 'editRound' ? 'Delete Round' : 'Delete Entry'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Game Search Modal */}

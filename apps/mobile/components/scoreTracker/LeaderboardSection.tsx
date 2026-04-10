@@ -111,7 +111,6 @@ export default function LeaderboardSection({ playerNames }: LeaderboardSectionPr
         firstColumnWidth={90}
         showGameThumbnails
         onEdit={(_, entryIndex) => handleEditEntry(entryIndex!)}
-        onDelete={(_, entryIndex) => handleDeleteEntry(entryIndex!)}
       />
 
       {/* Add Game Button */}

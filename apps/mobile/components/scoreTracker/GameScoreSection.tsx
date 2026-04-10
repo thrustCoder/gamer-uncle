@@ -124,7 +124,6 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
         firstColumnHeader="Round"
         firstColumnWidth={72}
         onEdit={(roundNumber) => roundNumber !== undefined && handleEditRound(roundNumber)}
-        onDelete={(roundNumber) => roundNumber !== undefined && handleDeleteRound(roundNumber)}
       />
 
       {/* Add Round Button */}

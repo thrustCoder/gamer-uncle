@@ -264,6 +264,11 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  rowEditButton: {
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   // === Add Row Button ===
   addRowButton: {
@@ -393,6 +398,25 @@ export const scoreTrackerStyles = StyleSheet.create({
   },
   saveButtonDisabled: {
     backgroundColor: Colors.grayDisabled,
+  },
+  deleteEntryButton: {
+    backgroundColor: Colors.wheelRed,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    elevation: 4,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  deleteEntryButtonText: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 
   // === Lowest Score Wins Toggle ===
