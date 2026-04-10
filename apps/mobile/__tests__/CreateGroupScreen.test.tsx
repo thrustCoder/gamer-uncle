@@ -37,18 +37,19 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
 
 const mockCreateGroup = jest.fn();
 const mockUpdateGroup = jest.fn();
+const mockGroupState = {
+  enabled: true,
+  activeGroupId: 'g1',
+  groups: [{
+    id: 'g1', name: 'Group 1', playerCount: 2,
+    playerNames: ['A', 'B'], teamCount: 2,
+    gameScore: null, leaderboard: [],
+    gameSetupGameName: '', gameSetupPlayerCount: 2, gameSetupResponse: null,
+  }],
+};
 jest.mock('../store/PlayerGroupsContext', () => ({
   usePlayerGroups: () => ({
-    state: {
-      enabled: true,
-      activeGroupId: 'g1',
-      groups: [{
-        id: 'g1', name: 'Group 1', playerCount: 2,
-        playerNames: ['A', 'B'], teamCount: 2,
-        gameScore: null, leaderboard: [],
-        gameSetupGameName: '', gameSetupPlayerCount: 2, gameSetupResponse: null,
-      }],
-    },
+    state: mockGroupState,
     createGroup: mockCreateGroup,
     updateGroup: mockUpdateGroup,
   }),
@@ -57,9 +58,10 @@ jest.mock('../store/PlayerGroupsContext', () => ({
 
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
+let mockRouteParams: any = {};
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
-  useRoute: () => ({ params: {} }),
+  useRoute: () => ({ params: mockRouteParams }),
 }));
 
 const renderScreen = () => render(<CreateGroupScreen />);
@@ -67,6 +69,7 @@ const renderScreen = () => render(<CreateGroupScreen />);
 describe('CreateGroupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = {};
   });
 
   it('should render create group form', async () => {
@@ -116,6 +119,105 @@ describe('CreateGroupScreen', () => {
       expect(getByTestId('group-player-name-1')).toBeTruthy();
       expect(getByTestId('group-player-name-2')).toBeTruthy();
       expect(getByTestId('group-player-name-3')).toBeTruthy();
+    });
+  });
+
+  it('should call createGroup with correct args on save', async () => {
+    const { getByTestId } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByTestId('group-name-input')).toBeTruthy();
+    });
+
+    fireEvent.changeText(getByTestId('group-name-input'), 'Weekend Warriors');
+    fireEvent.press(getByTestId('save-group-button'));
+
+    expect(mockCreateGroup).toHaveBeenCalledWith(
+      'Weekend Warriors',
+      4,
+      expect.any(Array),
+    );
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('should clear error when typing a name', async () => {
+    const { getByTestId, getByText, queryByText } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByTestId('save-group-button')).toBeTruthy();
+    });
+
+    // Trigger error
+    fireEvent.changeText(getByTestId('group-name-input'), '');
+    fireEvent.press(getByTestId('save-group-button'));
+    expect(getByText('Group name is required')).toBeTruthy();
+
+    // Type a name - error should disappear
+    fireEvent.changeText(getByTestId('group-name-input'), 'Test');
+    expect(queryByText('Group name is required')).toBeNull();
+  });
+
+  it('should allow editing player names', async () => {
+    const { getByTestId } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByTestId('group-player-name-0')).toBeTruthy();
+    });
+
+    fireEvent.changeText(getByTestId('group-player-name-0'), 'Alice');
+    fireEvent.changeText(getByTestId('group-player-name-1'), 'Bob');
+
+    const input0 = getByTestId('group-player-name-0');
+    const input1 = getByTestId('group-player-name-1');
+    expect(input0.props.value).toBe('Alice');
+    expect(input1.props.value).toBe('Bob');
+  });
+
+  describe('edit mode', () => {
+    it('should show Edit Group title when editing', async () => {
+      mockRouteParams = { groupId: 'g1' };
+      const { getByText } = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Edit Group')).toBeTruthy();
+      });
+    });
+
+    it('should pre-populate form with existing group data', async () => {
+      mockRouteParams = { groupId: 'g1' };
+      const { getByTestId } = renderScreen();
+
+      await waitFor(() => {
+        const nameInput = getByTestId('group-name-input');
+        expect(nameInput.props.value).toBe('Group 1');
+      });
+    });
+
+    it('should show Save Changes button text in edit mode', async () => {
+      mockRouteParams = { groupId: 'g1' };
+      const { getByText } = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Save Changes')).toBeTruthy();
+      });
+    });
+
+    it('should call updateGroup instead of createGroup in edit mode', async () => {
+      mockRouteParams = { groupId: 'g1' };
+      const { getByTestId } = renderScreen();
+
+      await waitFor(() => {
+        expect(getByTestId('group-name-input')).toBeTruthy();
+      });
+
+      fireEvent.changeText(getByTestId('group-name-input'), 'Updated Name');
+      fireEvent.press(getByTestId('save-group-button'));
+
+      expect(mockUpdateGroup).toHaveBeenCalledWith('g1', expect.objectContaining({
+        name: 'Updated Name',
+      }));
+      expect(mockCreateGroup).not.toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 });

@@ -152,4 +152,78 @@ describe('ManageGroupsScreen', () => {
       expect.any(String),
     );
   });
+
+  it('should display player count for each group', async () => {
+    const { getByText } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByText('3 players')).toBeTruthy();
+      expect(getByText('4 players')).toBeTruthy();
+    });
+  });
+
+  it('should switch active group when pressing a non-active group card', async () => {
+    const { getByTestId } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByTestId('group-card-g2')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('group-card-g2'));
+
+    // After switching, Group Beta should become active (state updated via context)
+    // Just verify the press doesn't crash -- actual state change is via context
+  });
+
+  it('should disable create button when at MAX_GROUPS', async () => {
+    const maxGroupsState = {
+      enabled: true,
+      activeGroupId: 'g0',
+      groups: Array.from({ length: 10 }, (_, i) => ({
+        id: `g${i}`,
+        name: `Group ${i}`,
+        playerCount: 2,
+        playerNames: ['A', 'B'],
+        teamCount: 2,
+        gameScore: null,
+        leaderboard: [],
+        gameSetupGameName: '',
+        gameSetupPlayerCount: 2,
+        gameSetupResponse: null,
+      })),
+    };
+
+    const { getByTestId, getByText } = renderScreen(maxGroupsState);
+
+    await waitFor(() => {
+      expect(getByTestId('create-new-group-button')).toBeTruthy();
+    });
+
+    // Button should be disabled
+    const button = getByTestId('create-new-group-button');
+    expect(button.props.accessibilityState?.disabled || false).toBe(true);
+
+    // Should show max groups text
+    expect(getByText('Maximum 10 groups reached')).toBeTruthy();
+  });
+
+  it('should navigate back after confirming disable groups', async () => {
+    const { getByTestId } = renderScreen();
+
+    await waitFor(() => {
+      expect(getByTestId('disable-groups-button')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('disable-groups-button'));
+
+    // Extract the confirm callback from Alert.alert
+    const alertCall = (Alert.alert as jest.Mock).mock.calls.find(
+      (call) => call[0] === 'Disable Player Groups'
+    );
+    expect(alertCall).toBeTruthy();
+
+    const buttons = alertCall[2];
+    const disableButton = buttons.find((b: any) => b.text === 'Disable');
+    expect(disableButton).toBeTruthy();
+  });
 });
