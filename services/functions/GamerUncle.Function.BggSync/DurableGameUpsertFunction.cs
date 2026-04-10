@@ -308,13 +308,48 @@ namespace GamerUncle.Functions
         public async Task DurableHighSignalUpsertOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
         {
             var request = context.GetInput<HighSignalSyncRequest>() ?? new HighSignalSyncRequest();
+            int chunkSize = request.ChunkSize > 0 ? request.ChunkSize : 1000;
+
+            int totalUpserted = 0;
+
+            for (int chunkStart = request.StartId; chunkStart <= request.EndId; chunkStart += chunkSize)
+            {
+                int remainingLimit = request.Limit - totalUpserted;
+                if (remainingLimit <= 0)
+                {
+                    break;
+                }
+
+                int chunkEnd = Math.Min(chunkStart + chunkSize - 1, request.EndId);
+
+                var chunkRequest = new HighSignalChunkRequest
+                {
+                    StartId = chunkStart,
+                    EndId = chunkEnd,
+                    Limit = remainingLimit,
+                    MinAverage = request.MinAverage,
+                    MinBayes = request.MinBayes,
+                    MinVotes = request.MinVotes
+                };
+
+                int chunkUpserted = await context.CallSubOrchestratorAsync<int>(
+                    nameof(HighSignalChunkOrchestrator), chunkRequest);
+
+                totalUpserted += chunkUpserted;
+            }
+        }
+
+        [Function(nameof(HighSignalChunkOrchestrator))]
+        public async Task<int> HighSignalChunkOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
+        {
+            var chunk = context.GetInput<HighSignalChunkRequest>() ?? new HighSignalChunkRequest();
 
             int upserted = 0;
             int skipped = 0;
             
-            for (int id = request.StartId; id <= request.EndId; id++)
+            for (int id = chunk.StartId; id <= chunk.EndId; id++)
             {
-                if (upserted >= request.Limit)
+                if (upserted >= chunk.Limit)
                 {
                     break;
                 }
@@ -337,12 +372,14 @@ namespace GamerUncle.Functions
                     continue;
                 }
 
-                if (HighSignalFilter.IsHighSignal(game, request.MinAverage, request.MinBayes, request.MinVotes))
+                if (HighSignalFilter.IsHighSignal(game, chunk.MinAverage, chunk.MinBayes, chunk.MinVotes))
                 {
                     await context.CallActivityAsync(nameof(UpsertGameDocumentActivity), game);
                     upserted++;
                 }
             }
+
+            return upserted;
         }
 
         [Function("GameSyncHighSignalStart")]
@@ -514,6 +551,17 @@ namespace GamerUncle.Functions
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
         public int Limit { get; set; } = 7_000; // how many to upsert
+        public int ChunkSize { get; set; } = 1_000; // IDs per sub-orchestration to bound replay history
+        public double MinAverage { get; set; } = 5.0;
+        public double MinBayes { get; set; } = 5.0;
+        public int MinVotes { get; set; } = 50;
+    }
+
+    public class HighSignalChunkRequest
+    {
+        public int StartId { get; set; }
+        public int EndId { get; set; }
+        public int Limit { get; set; }
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
         public int MinVotes { get; set; } = 50;

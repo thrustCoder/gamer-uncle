@@ -640,6 +640,48 @@ namespace GamerUncle.Functions.Tests
 
             Assert.Equal(5.0, request.MinBayes);
         }
+
+        [Fact]
+        public void DefaultChunkSize_Is1000()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(1_000, request.ChunkSize);
+        }
+    }
+
+    public class HighSignalChunkRequestTests
+    {
+        [Fact]
+        public void DefaultFilterValues_AreCorrect()
+        {
+            var chunk = new HighSignalChunkRequest();
+
+            Assert.Equal(5.0, chunk.MinAverage);
+            Assert.Equal(5.0, chunk.MinBayes);
+            Assert.Equal(50, chunk.MinVotes);
+        }
+
+        [Fact]
+        public void CustomValues_ArePreserved()
+        {
+            var chunk = new HighSignalChunkRequest
+            {
+                StartId = 200000,
+                EndId = 201000,
+                Limit = 500,
+                MinAverage = 6.0,
+                MinBayes = 6.0,
+                MinVotes = 100
+            };
+
+            Assert.Equal(200000, chunk.StartId);
+            Assert.Equal(201000, chunk.EndId);
+            Assert.Equal(500, chunk.Limit);
+            Assert.Equal(6.0, chunk.MinAverage);
+            Assert.Equal(6.0, chunk.MinBayes);
+            Assert.Equal(100, chunk.MinVotes);
+        }
     }
 
     public class HighSignalFilterTests
