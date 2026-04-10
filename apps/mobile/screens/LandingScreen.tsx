@@ -28,11 +28,11 @@ const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Scoreboard', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
   { key: 'turn', label: 'Pick\nTurns', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
-  { key: 'search', label: 'Search\nGames', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
+  { key: 'search', label: 'Search Games', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
   { key: 'team', label: 'Shuffle Teams', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
   { key: 'dice', label: 'Roll\nDice', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
-  { key: 'setup', label: 'Game\nSetup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
+  { key: 'setup', label: 'Game Setup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
 ];
 
 // Calculate position for each icon in a circle (starting from top, going clockwise)
@@ -46,17 +46,17 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   if (featureKey === 'turn') {
     radiusAdjustment = -20; // Move Turn Selector closer to center
   } else if (featureKey === 'timer') {
-    radiusAdjustment = -15; // Move Timer closer to center
+    radiusAdjustment = -18; // Move Timer closer to center
   } else if (featureKey === 'chat') {
     radiusAdjustment = -15; // Move Talk to Uncle closer to center
   } else if (featureKey === 'team') {
-    radiusAdjustment = -20; // Move Team Randomizer closer to center
+    radiusAdjustment = -27; // Move Shuffle Teams closer to center
   } else if (featureKey === 'search') {
-    radiusAdjustment = -20; // Move Game Search closer to center
+    radiusAdjustment = -34; // Move Game Search closer to center
   } else if (featureKey === 'dice') {
     radiusAdjustment = -15; // Move Dice Roller closer to center
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -10; // Move Game Setup closer to Talk to Uncle
+    radiusAdjustment = -5; // Keep Game Setup at default radius
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   let verticalOffset = 0;
@@ -90,7 +90,7 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   
   if (featureKey === 'search') {
     verticalOffset = 20;
-    horizontalOffset = 5;
+    horizontalOffset = 15;
   }
   
   return {
@@ -175,7 +175,7 @@ export default function LandingScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >
               {renderIcon(feature)}
-              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }, feature.key === 'chat' && { width: 130 * labelScaleMultiplier }]}>{feature.label}</Text>
+              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }, feature.key === 'chat' && { width: 130 * labelScaleMultiplier }, feature.key === 'search' && { marginTop: -1 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }]}>{feature.label}</Text>
             </TouchableOpacity>
           );
         })}
