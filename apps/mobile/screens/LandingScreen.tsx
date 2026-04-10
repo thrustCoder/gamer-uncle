@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, Text, Platform, Dimensions } from 'react-native';
+import { View, Image, TouchableOpacity, ImageBackground, Text, Platform, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
 import Constants from 'expo-constants';
@@ -21,7 +21,7 @@ const centerX = screenWidth / 2;
 const centerY = screenHeight / 2 - 20; // Center of screen
 const circleRadius = Math.min(screenWidth, screenHeight) * (isTablet ? 0.38 : 0.45); // Adjust radius for tablets
 const iconSize = 100 * scaleMultiplier; // Larger icon touch area, scaled for tablets
-const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.255 : 0.2975); // Size of tappable center circle (reduced 15%)
+const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 : 0.35); // Size of tappable center circle
 
 // Feature configuration for circular layout
 const features = [
@@ -128,12 +128,11 @@ export default function LandingScreen() {
   const navigation = useNavigation<any>();
 
   return (
-    <View style={styles.backgroundContainer}>
-      <Image
-        source={require('../assets/images/v3.0/background.png')}
-        style={styles.scaledBackground}
-        resizeMode="cover"
-      />
+    <ImageBackground
+      source={require('../assets/images/v3.0/background.png')}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <View style={styles.container}>
         {/* Tappable center circle area */}
         <TouchableOpacity
@@ -189,6 +188,6 @@ export default function LandingScreen() {
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>
       </View>
-    </View>
+    </ImageBackground>
   );
 }

@@ -18,22 +18,10 @@ const labelScaleMultiplier = isTablet ? 1.5 : 1;
 const avatarSize = Math.min(screenWidth, screenHeight) * 0.28;
 
 export const landingStyles = StyleSheet.create({
-  backgroundContainer: {
-    flex: 1,
-    backgroundColor: '#D97B1A',
-  },
   background: {
     flex: 1,
     width: '100%',
     height: '100%',
-  },
-  scaledBackground: {
-    position: 'absolute',
-    width: screenWidth / 0.85,
-    height: screenHeight / 0.85,
-    left: -(screenWidth / 0.85 - screenWidth) / 2,
-    top: -(screenHeight / 0.85 - screenHeight) / 2,
-    transform: [{ scale: 0.85 }],
   },
   container: {
     flex: 1,
