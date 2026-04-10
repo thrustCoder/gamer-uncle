@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, TouchableOpacity, ImageBackground, Text, Platform, Dimensions } from 'react-native';
+import { View, Image, TouchableOpacity, Text, Platform, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
 import Constants from 'expo-constants';
@@ -21,17 +21,17 @@ const centerX = screenWidth / 2;
 const centerY = screenHeight / 2 - 20; // Center of screen
 const circleRadius = Math.min(screenWidth, screenHeight) * (isTablet ? 0.38 : 0.45); // Adjust radius for tablets
 const iconSize = 100 * scaleMultiplier; // Larger icon touch area, scaled for tablets
-const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 : 0.35); // Size of tappable center circle
+const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.255 : 0.2975); // Size of tappable center circle (reduced 15%)
 
 // Feature configuration for circular layout
 const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
-  { key: 'score', label: 'Score\nTracker', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
-  { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
-  { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
-  { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
+  { key: 'score', label: 'Scoreboard', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
+  { key: 'turn', label: 'Pick\nTurns', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
+  { key: 'search', label: 'Search\nGames', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
+  { key: 'team', label: 'Shuffle Teams', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
-  { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
+  { key: 'dice', label: 'Roll\nDice', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
   { key: 'setup', label: 'Game\nSetup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
 ];
 
@@ -128,11 +128,12 @@ export default function LandingScreen() {
   const navigation = useNavigation<any>();
 
   return (
-    <ImageBackground
-      source={require('../assets/images/v3.0/background.png')}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={styles.backgroundContainer}>
+      <Image
+        source={require('../assets/images/v3.0/background.png')}
+        style={styles.scaledBackground}
+        resizeMode="cover"
+      />
       <View style={styles.container}>
         {/* Tappable center circle area */}
         <TouchableOpacity
@@ -188,6 +189,6 @@ export default function LandingScreen() {
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
