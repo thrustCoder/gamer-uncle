@@ -47,7 +47,7 @@ export interface GameDetails {
 /**
  * Service for game search API interactions
  */
-class GameSearchService {
+export class GameSearchService {
   private api: AxiosInstance;
 
   constructor() {

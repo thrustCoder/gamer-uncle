@@ -1,6 +1,21 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+
+// Mock react-native-svg (default + named exports)
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockSvg = (props: any) => React.createElement(View, props);
+  const MockCircle = (props: any) => React.createElement(View, props);
+  return {
+    __esModule: true,
+    default: MockSvg,
+    Svg: MockSvg,
+    Circle: MockCircle,
+  };
+});
+
 import TimerScreen from '../screens/TimerScreen';
 
 // Mock timer context
@@ -120,10 +135,10 @@ describe('TimerScreen', () => {
 
     const { getByTestId } = render(<TimerScreen />);
 
-    expect(getByTestId('preset-10s').props.disabled).toBe(true);
-    expect(getByTestId('preset-30s').props.disabled).toBe(true);
-    expect(getByTestId('preset-1m').props.disabled).toBe(true);
-    expect(getByTestId('preset-5m').props.disabled).toBe(true);
+    expect(getByTestId('preset-10s').props.accessibilityState?.disabled).toBe(true);
+    expect(getByTestId('preset-30s').props.accessibilityState?.disabled).toBe(true);
+    expect(getByTestId('preset-1m').props.accessibilityState?.disabled).toBe(true);
+    expect(getByTestId('preset-5m').props.accessibilityState?.disabled).toBe(true);
   });
 
   it('shows START and RESET buttons when showStartButton is true and not running', () => {

@@ -17,7 +17,7 @@ const mockDeleteRound = jest.fn();
 let mockGameScore: any = null;
 let mockRanking: any[] = [];
 
-jest.mock('../../store/ScoreTrackerContext', () => ({
+jest.mock('../store/ScoreTrackerContext', () => ({
   useScoreTracker: () => ({
     gameScore: mockGameScore,
     clearGameScore: mockClearGameScore,
@@ -27,7 +27,7 @@ jest.mock('../../store/ScoreTrackerContext', () => ({
 }));
 
 // Mock StackRankingChart
-jest.mock('./StackRankingChart', () => {
+jest.mock('../components/scoreTracker/StackRankingChart', () => {
   const React = require('react');
   const { View } = require('react-native');
   return function MockStackRankingChart() {
@@ -36,7 +36,7 @@ jest.mock('./StackRankingChart', () => {
 });
 
 // Mock ScoreTable
-jest.mock('./ScoreTable', () => {
+jest.mock('../components/scoreTracker/ScoreTable', () => {
   const React = require('react');
   const { View } = require('react-native');
   return function MockScoreTable({ data, onEdit }: any) {

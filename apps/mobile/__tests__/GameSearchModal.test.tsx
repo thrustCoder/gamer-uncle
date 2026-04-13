@@ -1,5 +1,16 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+
+// Mock KeyboardAvoidingView
+jest.mock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: (props: any) => React.createElement(View, props, props.children),
+  };
+});
+
 import GameSearchModal from '../components/scoreTracker/GameSearchModal';
 
 // Mock useDebounce hook
@@ -48,10 +59,8 @@ describe('GameSearchModal', () => {
     const { queryByText } = render(
       <GameSearchModal {...defaultProps} visible={false} />
     );
-    // Modal still renders but is invisible - check that it doesn't
-    // show the title when visible=false
-    // Note: Modal in test still renders children, so we just check the prop
-    expect(queryByText('Select Game')).toBeTruthy(); // Modal renders children in test env
+    // When visible=false, the modal resets search state and hides content
+    expect(queryByText('Select Game')).toBeNull();
   });
 
   it('updates search query on text input', () => {

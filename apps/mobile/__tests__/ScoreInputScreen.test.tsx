@@ -110,6 +110,10 @@ describe('ScoreInputScreen', () => {
     jest.clearAllMocks();
     mockRouteParams = { mode: 'addRound' };
     mockGameScore = null;
+    // Restore appCache mocks to default behavior
+    const { appCache } = require('../services/storage/appCache');
+    appCache.getPlayerCount.mockImplementation(() => Promise.resolve(3));
+    appCache.getPlayers.mockImplementation(() => Promise.resolve(['Alice', 'Bob', 'Charlie']));
   });
 
   describe('Add Round mode', () => {
@@ -222,7 +226,7 @@ describe('ScoreInputScreen', () => {
         expect(getByText('Edit Round 2')).toBeTruthy();
       });
 
-      const deleteBtn = getByText('Delete');
+      const deleteBtn = getByText('Delete Round');
       fireEvent.press(deleteBtn);
 
       expect(Alert.alert).toHaveBeenCalledWith(

@@ -109,7 +109,6 @@ describe('GameContext', () => {
     });
 
     it('should persist players to AsyncStorage after debounce', async () => {
-      jest.useFakeTimers();
       const { result } = renderHook(() => useGame(), { wrapper });
       await act(async () => {
         await new Promise((r) => setTimeout(r, 0));
@@ -119,17 +118,15 @@ describe('GameContext', () => {
         result.current.setPlayers(['Alice', 'Bob']);
       });
 
-      // Advance past debounce delay (400ms)
-      act(() => {
-        jest.advanceTimersByTime(500);
+      // useDebouncedEffect debounces at 400ms, wait for it to fire
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 500));
       });
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         'app.playersList',
         JSON.stringify(['Alice', 'Bob'])
       );
-
-      jest.useRealTimers();
     });
 
     it('should handle empty players array', async () => {
