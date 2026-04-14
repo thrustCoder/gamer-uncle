@@ -80,7 +80,7 @@ export const landingStyles = StyleSheet.create({
     zIndex: 5,
   },
   iconLabel: {
-    fontSize: 18 * labelScaleMultiplier,
+    fontSize: 14 * labelScaleMultiplier,
     color: '#000000',
     textAlign: 'center',
     marginTop: 4 * labelScaleMultiplier,

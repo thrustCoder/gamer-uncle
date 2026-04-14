@@ -56,18 +56,19 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   } else if (featureKey === 'dice') {
     radiusAdjustment = -15; // Move Dice Roller closer to center
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -5; // Keep Game Setup at default radius
+    radiusAdjustment = -15; // Move Game Setup closer to center
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   let verticalOffset = 0;
   let horizontalOffset = 0;
   
-  // Shift Talk to Uncle slightly higher towards top
+  // Shift Talk to Uncle slightly lower
   if (featureKey === 'chat') {
-    verticalOffset = -5;
+    verticalOffset = 5;
   }
 
   if (featureKey === 'score') {
+    verticalOffset = 10;
     horizontalOffset = -5;
   }
 

@@ -317,7 +317,7 @@ export default function TeamRandomizerScreen() {
         </View>
 
         <TouchableOpacity style={styles.randomizeButton} onPress={randomizeTeams}>
-            <Text style={styles.randomizeText}>RANDOMIZE</Text>
+            <Text style={styles.randomizeText}>SHUFFLE</Text>
         </TouchableOpacity>
 
         <ScrollView 
