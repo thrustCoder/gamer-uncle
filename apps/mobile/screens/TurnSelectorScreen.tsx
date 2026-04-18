@@ -11,6 +11,7 @@ import {
   Alert,
   Keyboard,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
@@ -172,7 +173,8 @@ export default function TurnSelectorScreen() {
       <BackButton />
       <Text style={styles.pageHeader}>Pick Turns</Text>
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, paddingHorizontal: 10, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
+      <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible' }]} testID="turn-selector">
         {groupsState.enabled ? (
           <>
             <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
@@ -267,6 +269,7 @@ export default function TurnSelectorScreen() {
           <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
         </View>
       </View>
+      </ScrollView>
       {celebrate && (
         <Animated.View 
           style={{ 

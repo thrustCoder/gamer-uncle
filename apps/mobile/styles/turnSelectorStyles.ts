@@ -66,7 +66,7 @@ export const turnSelectorStyles = StyleSheet.create({
   },
   pageHeader: {
     position: 'absolute',
-    top: 63,
+    top: 57,
     left: 0,
     right: 0,
     zIndex: 9,

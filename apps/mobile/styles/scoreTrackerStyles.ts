@@ -118,6 +118,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.white,
     marginLeft: 10,
+    flex: 1,
   },
   closeButton: {
     width: 32,

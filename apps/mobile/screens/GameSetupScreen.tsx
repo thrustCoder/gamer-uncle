@@ -183,6 +183,7 @@ Please provide step-by-step setup instructions including:
       resizeMode="cover"
     >
       <BackButton />
+      <Text style={styles.pageHeader}>Game Setup</Text>
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -194,15 +195,14 @@ Please provide step-by-step setup instructions including:
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Title */}
-          <Text style={styles.title}>Game Setup</Text>
+          {/* Subtitle as input section heading */}
           <Text style={styles.subtitle}>Get setup instructions for any board game</Text>
 
           {/* Input Section */}
           <View style={styles.inputSection}>
             {/* Game Name Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Game Name</Text>
+              <Text style={styles.label}>Game</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g., Catan, Ticket to Ride, Pandemic..."
