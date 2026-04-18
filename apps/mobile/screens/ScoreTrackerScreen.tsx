@@ -55,6 +55,9 @@ export default function ScoreTrackerScreen() {
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array.from({ length: 4 }, (_, i) => `P${i + 1}`)
   );
+  // Track whether player data has been hydrated from cache/group.
+  // Prevents persist effects from overwriting the cache with initial defaults.
+  const hydratedRef = useRef(false);
   
   // Track previous names for rename detection
   const prevPlayerNamesRef = useRef<string[]>([]);
@@ -72,6 +75,7 @@ export default function ScoreTrackerScreen() {
       setPlayerNames(activeGroup.playerNames);
       prevPlayerNamesRef.current = [...activeGroup.playerNames];
       currentPlayerNamesRef.current = [...activeGroup.playerNames];
+      hydratedRef.current = true;
       // Guard: only call loadGroupData after ScoreTrackerContext finishes its own
       // cache hydration, otherwise the appCache load will overwrite our null back
       // to stale data.
@@ -106,15 +110,14 @@ export default function ScoreTrackerScreen() {
         appCache.getLeaderboard(),
       ]);
 
-      // When score data exists, derive player count from it (the shared cache
-      // may have been overwritten by Turn Selector / Team Randomizer).
+      // Always use appCache player count as the source of truth.
+      // Score data names are only used for rename detection below.
       const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
-      const effectiveCount = scorePlayerNames.length > 0 ? scorePlayerNames.length : pc;
 
-      setPlayerCount(effectiveCount);
+      setPlayerCount(pc);
       const freshNames = names.length > 0
-        ? Array.from({ length: effectiveCount }, (_, i) => names[i] || `P${i + 1}`)
-        : Array.from({ length: effectiveCount }, (_, i) => `P${i + 1}`);
+        ? Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`)
+        : Array.from({ length: pc }, (_, i) => `P${i + 1}`);
 
       // Detect renames by comparing cache names against names stored in score data.
       // Score data keys reflect the "old" names before any external rename (e.g. Turn Selector).
@@ -130,17 +133,22 @@ export default function ScoreTrackerScreen() {
       setPlayerNames(freshNames);
       prevPlayerNamesRef.current = [...freshNames];
       currentPlayerNamesRef.current = [...freshNames];
+      hydratedRef.current = true;
     })();
   }, [groupsState.enabled, activeGroup?.id, loadGroupData, isLoading, renamePlayer]);
 
-  // Persist player count changes
+  // Persist player count changes (skip initial default before hydration)
   useEffect(() => {
-    appCache.setPlayerCount(playerCount);
+    if (hydratedRef.current) {
+      appCache.setPlayerCount(playerCount);
+    }
   }, [playerCount]);
 
-  // Persist player names with debounce
+  // Persist player names with debounce (skip initial default before hydration)
   useDebouncedEffect(() => {
-    appCache.setPlayers(playerNames);
+    if (hydratedRef.current) {
+      appCache.setPlayers(playerNames);
+    }
   }, [playerNames], 400);
 
   // When groups are enabled, sync score tracker state back to the active group
@@ -175,6 +183,7 @@ export default function ScoreTrackerScreen() {
         setPlayerNames(activeGroup.playerNames);
         prevPlayerNamesRef.current = [...activeGroup.playerNames];
         currentPlayerNamesRef.current = [...activeGroup.playerNames];
+        hydratedRef.current = true;
         return;
       }
 
@@ -188,11 +197,11 @@ export default function ScoreTrackerScreen() {
         ]);
         if (names.length === 0) return;
 
-        // When score data exists, derive player count from it
+        // Always use appCache player count as the source of truth.
+        // Score data names are only used for rename detection below.
         const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
-        const effectiveCount = scorePlayerNames.length > 0 ? scorePlayerNames.length : pc;
 
-        const fresh = Array.from({ length: effectiveCount }, (_, i) => names[i] || `P${i + 1}`);
+        const fresh = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
         const prev = prevPlayerNamesRef.current;
 
         // Only apply renames if we have a baseline to compare against
@@ -205,10 +214,11 @@ export default function ScoreTrackerScreen() {
           }
         }
 
-        setPlayerCount(effectiveCount);
+        setPlayerCount(pc);
         setPlayerNames(fresh);
         prevPlayerNamesRef.current = [...fresh];
         currentPlayerNamesRef.current = [...fresh];
+        hydratedRef.current = true;
       })();
     }, [groupsState.enabled, activeGroup, isLoading, renamePlayer])
   );
