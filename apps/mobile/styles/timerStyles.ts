@@ -128,4 +128,18 @@ export const timerStyles = StyleSheet.create({
     backgroundColor: Colors.grayDisabled,
     opacity: 0.6,
   },
+  pageHeader: {
+    position: 'absolute',
+    top: 63,
+    left: 0,
+    right: 0,
+    zIndex: 9,
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.themeYellow,
+    textAlign: 'center',
+    textShadowColor: Colors.black,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
 });

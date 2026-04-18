@@ -213,6 +213,7 @@ export default function TeamRandomizerScreen() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
+      <Text style={styles.pageHeader}>Shuffle Teams</Text>
       <View style={styles.container} testID="team-randomizer">
         {groupsState.enabled ? (
           <View style={styles.sectionCard}>

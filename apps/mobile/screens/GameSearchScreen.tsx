@@ -153,8 +153,7 @@ export default function GameSearchScreen() {
 
   const renderSearchView = () => (
     <>
-      {/* Title */}
-      <Text style={styles.title}>Game Search</Text>
+      {/* Subtitle as search section heading */}
       <Text style={styles.subtitle}>Find information about any board game</Text>
 
       {/* Search Section */}
@@ -341,7 +340,7 @@ export default function GameSearchScreen() {
 
     return (
       <View style={styles.detailsContainer}>
-        {/* Header Row with Back Button and Search Icon */}
+        {/* Header Row with Back Button and Game Title */}
         <View style={styles.detailsHeader}>
           <TouchableOpacity
             style={styles.detailsBackButton}
@@ -350,12 +349,8 @@ export default function GameSearchScreen() {
           >
             <Text style={styles.detailsBackArrow}>←</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.detailsSearchButton}
-            onPress={handleBackToSearch}
-          >
-            <Ionicons name="search" size={22} color={Colors.themeBrownDark} />
-          </TouchableOpacity>
+          <Text style={styles.detailsTitle} numberOfLines={2}>{selectedGame.name}</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         {/* Game Image - Outside the dark container */}
@@ -379,9 +374,6 @@ export default function GameSearchScreen() {
         {/* Main Content Container (dark brown background) */}
         <View style={styles.detailsSection}>
           <View style={styles.detailsContent}>
-            {/* Game Name */}
-            <Text style={styles.gameName}>{selectedGame.name}</Text>
-
             {/* Average Rating */}
             <View style={styles.ratingsRow}>
               <StarRating 
@@ -509,6 +501,7 @@ export default function GameSearchScreen() {
     >
       {/* Only show global BackButton in search view */}
       {viewState === 'search' && <BackButton />}
+      {viewState === 'search' && <Text style={styles.pageHeader}>Game Search</Text>}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

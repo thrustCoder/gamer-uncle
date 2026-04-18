@@ -154,4 +154,18 @@ export const teamRandomizerStyles = StyleSheet.create({
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
   },
+  pageHeader: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    zIndex: 9,
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.themeYellow,
+    textAlign: 'center',
+    textShadowColor: Colors.black,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
 });

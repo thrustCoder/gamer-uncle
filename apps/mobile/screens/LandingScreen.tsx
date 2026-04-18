@@ -44,7 +44,7 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   // Radial offset to move icons closer/further from center
   let radiusAdjustment = 0;
   if (featureKey === 'turn') {
-    radiusAdjustment = -20; // Move Turn Selector closer to center
+    radiusAdjustment = -25; // Move Turn Selector closer to center
   } else if (featureKey === 'timer') {
     radiusAdjustment = -18; // Move Timer closer to center
   } else if (featureKey === 'chat') {

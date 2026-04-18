@@ -170,6 +170,7 @@ export default function TurnSelectorScreen() {
       resizeMode="cover"
     >
       <BackButton />
+      <Text style={styles.pageHeader}>Pick Turns</Text>
 
       <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, paddingHorizontal: 10, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
         {groupsState.enabled ? (
