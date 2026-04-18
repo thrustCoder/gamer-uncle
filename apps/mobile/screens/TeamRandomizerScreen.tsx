@@ -172,8 +172,11 @@ export default function TeamRandomizerScreen() {
   // hydrate cache on mount (or from active group when groups enabled)
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
-      setPlayerCount(activeGroup.playerCount);
-      setTeamCount(activeGroup.teamCount);
+      const pc = activeGroup.playerCount;
+      const maxTeams = Math.floor(pc / 2);
+      const clampedTeamCount = Math.max(2, Math.min(activeGroup.teamCount, maxTeams));
+      setPlayerCount(pc);
+      setTeamCount(clampedTeamCount);
       setPlayerNames(activeGroup.playerNames);
       return;
     }
@@ -217,7 +220,7 @@ export default function TeamRandomizerScreen() {
       <View style={styles.container} testID="team-randomizer">
         {groupsState.enabled ? (
           <View style={styles.sectionCard}>
-            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={25} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} rowJustify="flex-start" containerMarginBottom={0} />
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} rowJustify="flex-start" containerMarginBottom={0} />
           </View>
         ) : (
           <>

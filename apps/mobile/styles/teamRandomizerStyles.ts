@@ -30,7 +30,7 @@ export const teamRandomizerStyles = StyleSheet.create({
     elevation: 4,
   },
   title: {
-    fontSize: 25,
+    fontSize: 18,
     fontWeight: 'bold',
     color: Colors.teamTitleYellow,
     marginRight: 10,

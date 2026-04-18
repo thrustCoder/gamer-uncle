@@ -18,7 +18,7 @@ interface GroupPickerProps {
 
 export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelFontWeight = 'bold', labelColor, useTextShadow = true, textShadowStrong = false, rowJustify = 'flex-start', containerMarginBottom = 15 }: GroupPickerProps) {
   const { state, activeGroup, setActiveGroup, updateActiveGroupData } = usePlayerGroups();
-  const { gameScore, leaderboard } = useScoreTracker();
+  const { gameScore, leaderboard, loadGroupData } = useScoreTracker();
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const handleSelectGroup = (groupId: string) => {
@@ -30,6 +30,11 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
     const doSwitch = () => {
       // Save current score state to the outgoing group before switching
       updateActiveGroupData({ gameScore, leaderboard });
+      // Eagerly load the new group's score data BEFORE switching.
+      // This prevents a transient render where the old group's scores
+      // are displayed with the new group's player names.
+      const newGroup = state.groups.find((g) => g.id === groupId);
+      loadGroupData(newGroup?.gameScore ?? null, newGroup?.leaderboard ?? []);
       setActiveGroup(groupId);
       trackEvent(AnalyticsEvents.PLAYER_GROUP_SWITCHED, {
         groupId,
@@ -85,7 +90,7 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
             }}
             testID="group-picker-dropdown"
           >
-            <Text style={{ color: Colors.themeYellow, fontSize: 15, fontWeight: 'bold', marginRight: 6 }}>
+            <Text style={{ color: Colors.themeYellow, fontSize: 15, fontWeight: 'bold', marginRight: 6, maxWidth: 100 }} numberOfLines={1} ellipsizeMode="tail">
               {activeGroup?.name ?? 'Select Group'}
             </Text>
             <Text style={{ color: Colors.themeYellow, fontSize: 12 }}>▼</Text>

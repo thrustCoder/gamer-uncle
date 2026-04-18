@@ -60,10 +60,14 @@ export default function ScoreTrackerScreen() {
   const prevPlayerNamesRef = useRef<string[]>([]);
   // Track current (in-flight) names so onBlur always reads the latest value
   const currentPlayerNamesRef = useRef<string[]>([]);
+  // Track which group's data has been loaded to prevent stale debounced syncs
+  const loadedGroupIdRef = useRef<string | null>(null);
 
   // Hydrate player data from cache on mount (or from active group when groups enabled)
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
+      // Mark the group as not-yet-loaded to block stale debounced syncs
+      loadedGroupIdRef.current = null;
       setPlayerCount(activeGroup.playerCount);
       setPlayerNames(activeGroup.playerNames);
       prevPlayerNamesRef.current = [...activeGroup.playerNames];
@@ -73,6 +77,8 @@ export default function ScoreTrackerScreen() {
       // to stale data.
       if (!isLoading) {
         loadGroupData(activeGroup.gameScore ?? null, activeGroup.leaderboard ?? []);
+        // Mark this group as loaded so debounced sync can proceed
+        loadedGroupIdRef.current = activeGroup.id;
 
         // Detect renames: compare group's current playerNames against names in score data.
         // Must run AFTER loadGroupData so renamePlayer operates on the loaded state.
@@ -140,7 +146,7 @@ export default function ScoreTrackerScreen() {
   // When groups are enabled, sync score tracker state back to the active group
   // so that navigating away and back doesn't lose changes.
   useDebouncedEffect(() => {
-    if (groupsState.enabled && activeGroup && !isLoading) {
+    if (groupsState.enabled && activeGroup && !isLoading && loadedGroupIdRef.current === activeGroup.id) {
       updateActiveGroupData({ gameScore, leaderboard });
     }
   }, [gameScore, leaderboard], 400);
