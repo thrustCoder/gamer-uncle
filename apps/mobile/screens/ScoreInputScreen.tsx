@@ -11,7 +11,11 @@ import {
   Keyboard,
   Image,
   Switch,
+  Dimensions,
 } from 'react-native';
+
+const { width: _sw, height: _sh } = Dimensions.get('window');
+const _isTablet = Math.min(_sw, _sh) >= 768;
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
@@ -453,17 +457,23 @@ export default function ScoreInputScreen() {
         ))}
 
         {/* Lowest Score Wins Toggle */}
-        <View style={styles.lowestScoreToggleRow}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.lowestScoreToggleRow}
+          onPress={isToggleLocked ? undefined : () => setLowestScoreWins(prev => !prev)}
+          disabled={isToggleLocked}
+        >
           <Text style={styles.lowestScoreToggleLabel}>Lowest score wins</Text>
           <Switch
             value={lowestScoreWins}
-            onValueChange={setLowestScoreWins}
+            onValueChange={isToggleLocked ? undefined : setLowestScoreWins}
             disabled={isToggleLocked}
             trackColor={{ false: '#767577', true: '#81b0ff' }}
             thumbColor={lowestScoreWins ? '#2196F3' : '#f4f3f4'}
             testID="lowest-score-wins-toggle"
+            style={_isTablet ? { transform: [{ scaleX: 0.75 }, { scaleY: 0.75 }] } : undefined}
           />
-        </View>
+        </TouchableOpacity>
 
         {/* Save Button */}
         <TouchableOpacity

@@ -1,5 +1,8 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 import { Colors } from './colors';
+
+const { width: _screenW, height: _screenH } = Dimensions.get('window');
+const _isTablet = Math.min(_screenW, _screenH) >= 768;
 
 export const scoreTrackerStyles = StyleSheet.create({
   // === Container Styles ===
@@ -428,7 +431,8 @@ export const scoreTrackerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: _isTablet ? 65 : 16,
     marginTop: 8,
   },
   lowestScoreToggleLabel: {
