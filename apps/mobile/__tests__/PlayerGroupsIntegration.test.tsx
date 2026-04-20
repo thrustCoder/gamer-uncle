@@ -395,13 +395,13 @@ describe('Player Groups Integration — groups enabled path', () => {
     });
 
     it('should hydrate player count and team count from active group', async () => {
-      // activeGroup has playerCount=3 and teamCount=3
+      // activeGroup has playerCount=3 and teamCount=3, but component clamps
+      // teamCount to max(2, min(3, floor(3/2))) = 2
       const { getByText } = render(<TeamRandomizerScreen />);
 
       await waitFor(() => {
-        // The team count displays as text "3" and button says "RANDOMIZE" (uppercase)
-        expect(getByText('RANDOMIZE')).toBeTruthy();
-        expect(getByText('3')).toBeTruthy();
+        expect(getByText('SHUFFLE')).toBeTruthy();
+        expect(getByText('2')).toBeTruthy();
       });
     });
 
@@ -409,11 +409,11 @@ describe('Player Groups Integration — groups enabled path', () => {
       // When groups are enabled, the player name inputs are hidden
       // (GroupPicker replaces the expand/name-input section).
       // Verify the team count loaded from the group instead.
+      // teamCount is clamped to 2 (see above).
       const { getByText } = render(<TeamRandomizerScreen />);
 
       await waitFor(() => {
-        // Team count from activeGroup.teamCount = 3
-        expect(getByText('3')).toBeTruthy();
+        expect(getByText('2')).toBeTruthy();
         expect(getByText('Team count')).toBeTruthy();
       });
     });

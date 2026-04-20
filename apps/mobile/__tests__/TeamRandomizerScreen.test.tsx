@@ -201,9 +201,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[0], '');
     fireEvent.changeText(inputs[1], '');
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Teams should display fallback names for empty inputs
     await waitFor(() => {
@@ -229,9 +229,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[1], 'Bob');
     fireEvent.changeText(inputs[2], '');
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Teams should display both custom names and fallback names
     await waitFor(() => {
@@ -258,9 +258,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[1], '');
     // inputs[2] and inputs[3] remain as P3, P4
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Verify team composition
     await waitFor(() => {

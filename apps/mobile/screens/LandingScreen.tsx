@@ -186,7 +186,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.5.5'}
+            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.6.0'}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>
