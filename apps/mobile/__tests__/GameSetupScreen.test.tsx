@@ -65,6 +65,7 @@ jest.mock('../services/storage/appCache', () => ({
     getGameSetupResponse: jest.fn((): Promise<string | null> => Promise.resolve(null)),
     setGameSetupResponse: jest.fn((): Promise<void> => Promise.resolve()),
     clearGameSetup: jest.fn((): Promise<void> => Promise.resolve()),
+    getPlayerCount: jest.fn((): Promise<number> => Promise.resolve(4)),
   },
 }));
 
@@ -74,6 +75,26 @@ const mockAppCache = appCache as jest.Mocked<typeof appCache>;
 
 // Spy on Alert
 jest.spyOn(Alert, 'alert');
+
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
 
 describe('GameSetupScreen', () => {
   beforeEach(() => {
@@ -348,6 +369,7 @@ describe('GameSetupScreen', () => {
       mockAppCache.getGameSetupGameName.mockResolvedValueOnce('Catan');
       mockAppCache.getGameSetupPlayerCount.mockResolvedValueOnce(3);
       mockAppCache.getGameSetupResponse.mockResolvedValueOnce('Saved setup instructions...');
+      mockAppCache.getPlayerCount.mockResolvedValueOnce(3);
 
       const { getByTestId, getByText } = render(<GameSetupScreen />);
 

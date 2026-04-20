@@ -9,8 +9,11 @@ import {
   Alert,
   ScrollView,
   Animated,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Audio } from 'expo-av';
+import { useNavigation } from '@react-navigation/native';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -18,13 +21,19 @@ import RatingModal from '../components/RatingModal';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
 export default function TeamRandomizerScreen() {
+  const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [teamCount, setTeamCount] = useState(2);
+  const [playerDetailExpanded, setPlayerDetailExpanded] = useState(false);
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
   const hasRandomizedOnce = useRef(false);
@@ -134,6 +143,7 @@ export default function TeamRandomizerScreen() {
   };
 
   const randomizeTeams = async () => {
+    Keyboard.dismiss();
     // Create array of objects with name and original index
     const playersWithIndex = playerNames.slice(0, playerCount).map((name, index) => ({
       name: name || `P${index + 1}`,
@@ -159,8 +169,17 @@ export default function TeamRandomizerScreen() {
     await trackEngagement();
   };
 
-  // hydrate cache on mount
+  // hydrate cache on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      const pc = activeGroup.playerCount;
+      const maxTeams = Math.floor(pc / 2);
+      const clampedTeamCount = Math.max(2, Math.min(activeGroup.teamCount, maxTeams));
+      setPlayerCount(pc);
+      setTeamCount(clampedTeamCount);
+      setPlayerNames(activeGroup.playerNames);
+      return;
+    }
     (async () => {
       const [pc, tc, names] = await Promise.all([
         appCache.getPlayerCount(4),
@@ -178,7 +197,7 @@ export default function TeamRandomizerScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   // persist when core counts change
   useEffect(() => {
@@ -194,86 +213,115 @@ export default function TeamRandomizerScreen() {
   }, [playerNames], 400);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground source={require('../assets/images/tool_background.png')} style={styles.background}>
       <BackButton />
+      <Text style={styles.pageHeader}>Shuffle Teams</Text>
       <View style={styles.container} testID="team-randomizer">
-        <View style={styles.inlineRow}>
-          <Text style={styles.title}>Number of players</Text>
-          <TouchableOpacity 
-            onPress={showPlayerCountPicker}
-            style={{ 
-              backgroundColor: Colors.themeBrownDark, 
-              borderRadius: 7,
-              shadowColor: Colors.black,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-              width: 48,
-              height: 30,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 2,
-              borderColor: Colors.themeYellow,
-            }}
-          >
-            <Text style={{
-              color: Colors.themeYellow,
-              fontSize: 15,
-              fontWeight: 'bold',
-            }}>
-              {playerCount}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {playerCount < 7 && (
-          <View style={styles.nameInputs}>
-            {playerNames.slice(0, playerCount).map((name, index) => (
-              <TextInput
-                key={index}
-                style={[styles.nameInput, playerCount <= 4 && styles.nameInputWide]}
-                placeholder={`Player ${index + 1}`}
-                placeholderTextColor="#999"
-                value={name}
-                onChangeText={(text) => handleNameChange(index, text)}
-              />
-            ))}
+        {groupsState.enabled ? (
+          <View style={styles.sectionCard}>
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} rowJustify="flex-start" containerMarginBottom={0} />
           </View>
+        ) : (
+          <>
+            <View style={styles.sectionCard}>
+              <View style={styles.playerCountRowOuter}>
+                <View style={styles.playerCountInner}>
+                  <Text style={styles.title}>Player count</Text>
+                  <TouchableOpacity
+                    onPress={showPlayerCountPicker}
+                    style={{
+                      backgroundColor: Colors.themeBrownDark,
+                      borderRadius: 7,
+                      shadowColor: Colors.black,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 8,
+                      width: 48,
+                      height: 30,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: Colors.themeYellow,
+                    }}
+                  >
+                    <Text style={{
+                      color: Colors.themeYellow,
+                      fontSize: 15,
+                      fontWeight: 'bold',
+                    }}>
+                      {playerCount}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  testID="expand-player-details"
+                  onPress={() => setPlayerDetailExpanded(v => !v)}
+                  style={styles.chevronButton}
+                >
+                  <Text style={styles.chevronText}>{playerDetailExpanded ? '▼' : '◀'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {playerDetailExpanded && (
+                <>
+                  {playerCount < 7 && (
+                    <View style={styles.nameInputs}>
+                      {playerNames.slice(0, playerCount).map((name, index) => (
+                        <TextInput
+                          key={index}
+                          style={[styles.nameInput, playerCount <= 4 && styles.nameInputWide]}
+                          placeholder={`Player ${index + 1}`}
+                          placeholderTextColor="#999"
+                          value={name}
+                          onChangeText={(text) => handleNameChange(index, text)}
+                        />
+                      ))}
+                    </View>
+                  )}
+                  <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={17} labelColor="#f4e4bc" useTextShadow={true} textShadowStrong={true} switchScale={0.65} marginTop={10} />
+                </>
+              )}
+            </View>
+          </>
         )}
 
-        <View style={styles.inlineRow}>
-          <Text style={styles.title}>Number of teams</Text>
-          <TouchableOpacity 
-            onPress={showTeamCountPicker}
-            style={{ 
-              backgroundColor: Colors.themeBrownDark, 
-              borderRadius: 7,
-              shadowColor: Colors.black,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-              width: 48,
-              height: 30,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 2,
-              borderColor: Colors.themeYellow,
-            }}
-          >
-            <Text style={{
-              color: Colors.themeYellow,
-              fontSize: 15,
-              fontWeight: 'bold',
-            }}>
-              {teamCount}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.sectionCard}>
+          <View style={styles.inlineRow}>
+            <Text style={styles.title}>Team count</Text>
+            <TouchableOpacity 
+              onPress={showTeamCountPicker}
+              style={{ 
+                backgroundColor: Colors.themeBrownDark, 
+                borderRadius: 7,
+                shadowColor: Colors.black,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+                width: 48,
+                height: 30,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: Colors.themeYellow,
+              }}
+            >
+              <Text style={{
+                color: Colors.themeYellow,
+                fontSize: 15,
+                fontWeight: 'bold',
+              }}>
+                {teamCount}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <TouchableOpacity style={[styles.randomizeButton, { width: '98%', marginHorizontal: '1%' }]} onPress={randomizeTeams}>
-          <Text style={styles.randomizeText}>RANDOMIZE</Text>
+        <TouchableOpacity style={styles.randomizeButton} onPress={randomizeTeams}>
+            <Text style={styles.randomizeText}>SHUFFLE</Text>
         </TouchableOpacity>
 
         <ScrollView 
@@ -329,5 +377,6 @@ export default function TeamRandomizerScreen() {
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

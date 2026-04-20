@@ -9,8 +9,8 @@ const isTablet = Math.min(screenWidth, screenHeight) >= 768;
 // Detect landscape orientation (width > height)
 const isLandscape = screenWidth > screenHeight;
 
-// Scale multiplier: 3x for tablets, 1x for phones
-const scaleMultiplier = isTablet ? 3 : 1;
+// Scale multiplier: 2.25x for tablets (reduced 25% from 3x), 1x for phones
+const scaleMultiplier = isTablet ? 2.25 : 1;
 // Label scale multiplier: 1.5x for tablets (half of icon scale), 1x for phones
 const labelScaleMultiplier = isTablet ? 1.5 : 1;
 
@@ -80,7 +80,7 @@ export const landingStyles = StyleSheet.create({
     zIndex: 5,
   },
   iconLabel: {
-    fontSize: 18 * labelScaleMultiplier,
+    fontSize: 14 * labelScaleMultiplier,
     color: '#000000',
     textAlign: 'center',
     marginTop: 4 * labelScaleMultiplier,

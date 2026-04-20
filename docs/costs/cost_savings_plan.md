@@ -1,7 +1,7 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: February 17, 2026 — Cross-referenced with [scaling_analysis.md](../performance/scaling_analysis.md) traffic projections  
+> **Updated**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
 > **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
@@ -113,7 +113,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
 | gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–1000 RU/s, **no free tier** | ~$18 |
 | gamer-uncle-prod-vault | Key Vault | Standard | ~$0 |
-| gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention | ~$0 |
+| gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0 |
 | gamer-uncle-prod-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
 | gameruncleprodstorage | Storage Account | Standard_LRS | ~$0.05 |
 | gameruncleprofuncstorage | Storage Account | Standard_LRS | ~$0.05 |
@@ -136,7 +136,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 
 | # | Recommendation | Env | Cost Contributor (1-10) | Risk if Changed (1-10) | Est. Monthly Savings | Scale Impact | Implemented? |
 |---|----------------|:---:|:-----------------------:|:----------------------:|:--------------------:|:------------:|:------------:|
-| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | ✅ (partial — autoscale min→1, Mar 2026) |
+| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | ✅ (partial — autoscale min→1 verified Apr 2026; S1 downgrade deferred) |
 | 2 | [Consolidate dev AFD onto prod profile](#2-consolidate-dev-afd-onto-prod-profile) | Dev | **9** | **2** | $35/mo | Safe at scale | ✅ |
 | 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | ✅ (Mar 2026) |
 | 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $25–31/mo | Safe at scale | ✅ |
@@ -145,7 +145,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
 | 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
-| 10 | [Set Log Analytics daily cap on dev](#10-set-log-analytics-daily-cap-on-dev) | Dev | **2** | **1** | $1–2/mo | Safe at scale | ✅ (Mar 2026) |
+| 10 | [Set Log Analytics daily cap on dev and prod](#10-set-log-analytics-daily-cap-on-dev) | Both | **2** | **1** | $1–5/mo | Safe at scale | ✅ (dev Mar 2026, prod Apr 2026) |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
 
 ### How to read this table
@@ -286,18 +286,22 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 
 ---
 
-### 10. Set Log Analytics Daily Cap on Dev
+### 10. Set Log Analytics Daily Cap on Dev and Prod
 
 | | |
 |---|---|
 | **Cost Contributor** | 2/10 |
 | **Risk** | 1/10 |
-| **Savings** | $1–2/mo |
-| **Implemented** | ✅ (Mar 2026) |
+| **Savings** | $1–5/mo |
+| **Implemented** | ✅ (dev Mar 2026, prod Apr 2026) |
 
-**What was done**: Set 0.5 GB/day daily cap on both the dev workspace (`gamer-uncle-dev-log-analytics-ws`) and the default workspace (`defaultworkspace-*-wus`). This prevents the cost spikes seen in the Feb–Mar billing period ($3.56 dev + $17.15 default = $20.71 combined).
+**What was done**:
+
+**Dev (Mar 2026)**: Set 0.5 GB/day daily cap on both the dev workspace (`gamer-uncle-dev-log-analytics-ws`) and the default workspace (`defaultworkspace-*-wus`). This prevents the cost spikes seen in the Feb–Mar billing period ($3.56 dev + $17.15 default = $20.71 combined).
 
 Additionally, dev App Insights was relinked from the default workspace to `gamer-uncle-dev-log-analytics-ws` (it was misconfigured, sending 5.6 GB/mo to the wrong workspace), and `StorageWrite` diagnostic logging was disabled on `gameruncledevfuncstorage` (was generating 1.1 GB/mo of `StorageBlobLogs`).
+
+**Prod (Apr 2026)**: Set 0.5 GB/day daily cap on prod workspace (`gamer-uncle-prod-log-analytics-ws`). The prod workspace had **no daily cap** (`dailyQuotaGb: -1`), which caused $24 Log Analytics + $15 Azure Monitor charges in March 2026 — up from near-zero in January. This was likely amplified by the 2-instance App Service configuration generating double the telemetry. Verified via `az monitor log-analytics workspace show` (dailyCapGb=0.5).
 
 First 5 GB/mo is free with Log Analytics. With the daily cap at 0.5 GB, maximum billable ingestion is ~15 GB/mo per workspace, capping worst-case cost at ~$28/workspace/mo.
 
@@ -313,9 +317,11 @@ First 5 GB/mo is free with Log Analytics. With the daily cap at 0.5 GB, maximum 
 | **Risk** | 4/10 |
 | **Savings** | $45/mo (temporary — ~2-3 months) |
 | **Scale Impact** | **Temporary savings** — upgrade back to S2/P1v3 at 500+ users |
-| **Implemented** | ✅ partial (Mar 2026) — autoscale min→1; full S1 downgrade deferred |
+| **Implemented** | ✅ partial (Apr 2026) — autoscale min→1 (verified: min=1, default=1, max=4, currently 1 instance); full S1 downgrade deferred |
 
 **Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
+
+> **April 2026 fix**: The autoscale setting `gamer-uncle-prod-autoscale` was found with min=2, default=2 despite being marked as fixed in March. This caused the plan to run 2× P1v3 instances ($196/mo) throughout March. Fixed on April 8, 2026 — independently verified via `az monitor autoscale show` and `az appservice plan show` (capacity=1).
 
 **Why it's oversized NOW**: With ~60 users and ~5 peak concurrent, P1v3 is significant overkill. The app is an API proxy to AI services — not compute-heavy.
 
@@ -578,6 +584,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 - [ ] **#3**: Lower prod Cosmos DB autoscale max from 4000 to 1000 RU/s → **$54/mo saved** (temporary)
   - ⚠️ **Prerequisite**: Fix CosmosClientOptions (scaling Finding #4) first
 - [ ] **#1**: Downgrade prod App Service from P1v3 to S1 → **$45/mo saved** (temporary)
+  - ✅ **Autoscale min→1**: Fixed Apr 2026 (was stuck at min=2, causing $196/mo App Service bill in March). Verified: min=1, default=1, capacity=1.
 
 ### Phase 2 — Moderate Effort (Next Sprint, $20/mo additional savings)
 - [x] **#4**: Nightly F1 parking + auto scale-up in pipeline/testit → **$25–31/mo saved** (permanent) — completed Feb 2026
@@ -585,7 +592,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
   - Pipeline scale-up: `DevDeployApi` stage auto-scales to B1 before deploying
   - Manual toggle: `scripts/dev-appservice-toggle.ps1 start|stop|status`
   - testit integration: Auto-scales when `API_ENVIRONMENT=dev`
-- [ ] **#10**: Set dev Log Analytics daily cap to 0.5 GB → **$1–2/mo saved** (permanent)
+- [x] **#10**: Set Log Analytics daily cap to 0.5 GB → **$1–5/mo saved** (permanent) — dev completed Mar 2026, prod completed Apr 2026
 - [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
 
 ### Phase 3 — Optimization at Scale (Before Marketing Push)

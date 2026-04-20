@@ -369,6 +369,12 @@ On **Windows**, the local API server is started for local development.
 
 6. **Start the Expo mobile app in a new terminal window** (so the QR code is visible):
    - **CRITICAL**: Must use `Start-Process PowerShell` so the QR code is displayed in a real terminal window. Running Expo inline or in a background terminal hides the QR code from the user.
+   - **Office/Corporate Wi-Fi**: If the user is on a corporate network (e.g., MSFTCONNECT) where the phone cannot reach the laptop directly (client isolation, no internet on phone Wi-Fi), use `--tunnel` instead of `--clear`:
+     ```powershell
+     Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --tunnel --clear"
+     ```
+     The tunnel routes through ngrok so the phone can connect over cellular data. The laptop must have outbound internet (disconnect from corp Ethernet if it blocks ngrok; use phone hotspot or guest Wi-Fi for laptop connectivity).
+   - **Home/Normal Wi-Fi** (default): Use regular LAN mode:
    ```powershell
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --clear"
    ```
@@ -383,6 +389,7 @@ On **Windows**, the local API server is started for local development.
 - Change `API_ENVIRONMENT` in `apps/mobile/config/apiConfig.ts` to switch between 'local', 'dev', or 'prod'
 - **Dev App Service scale-up**: When `API_ENVIRONMENT` is `dev`, the dev App Service may be parked on F1 (free) by the nightly schedule. Step 0.5 wakes it up. When using `dev`, do NOT start a local API server — the mobile app connects to Azure dev via AFD.
 - **Local does NOT need scale-up**: When `API_ENVIRONMENT` is `local`, the mobile app hits `localhost:5001` (local API server), not the dev App Service.
+- **Office/Corporate network troubleshooting**: Corporate networks like MSFTCONNECT block device-to-device LAN traffic and may block ngrok tunnels too. If `--tunnel` fails with "remote gone away", the laptop's outbound internet is blocked — disconnect from corp Ethernet, use iPhone Personal Hotspot for laptop internet, then retry `--tunnel`. The phone should use cellular data (not corp Wi-Fi) to reach the tunnel URL. ADB is Android-only and won't work with iOS devices.
 
 ## Pull Request Conventions
 - **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.

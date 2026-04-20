@@ -15,7 +15,7 @@ export const timerStyles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     backgroundColor: 'transparent',
-    marginTop: 50, // Adjusted for better spacing
+    marginTop: 60, // Adjusted for better spacing
   },
   title: {
     fontSize: 70,
@@ -127,5 +127,19 @@ export const timerStyles = StyleSheet.create({
   disabledButton: {
     backgroundColor: Colors.grayDisabled,
     opacity: 0.6,
+  },
+  pageHeader: {
+    position: 'absolute',
+    top: 57,
+    left: 0,
+    right: 0,
+    zIndex: 9,
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.themeYellow,
+    textAlign: 'center',
+    textShadowColor: Colors.black,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
 });

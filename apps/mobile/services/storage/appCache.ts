@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GameScoreSession, LeaderboardEntry } from '../../types/scoreTracker';
+import type { PlayerGroupsState } from '../../types/playerGroups';
+import { DEFAULT_PLAYER_GROUPS_STATE } from '../../types/playerGroups';
 
 // Centralized keys for persisted game state
 const Keys = {
@@ -12,6 +14,7 @@ const Keys = {
   gameSetupGameName: 'app.gameSetup.gameName',
   gameSetupPlayerCount: 'app.gameSetup.playerCount',
   gameSetupResponse: 'app.gameSetup.response',
+  playerGroups: 'app.playerGroups',
 } as const;
 
 async function getNumber(key: string, fallback: number): Promise<number> {
@@ -134,6 +137,12 @@ export const appCache = {
       // noop
     }
   },
+
+  // player groups
+  getPlayerGroups: (): Promise<PlayerGroupsState> =>
+    getObject<PlayerGroupsState>(Keys.playerGroups, DEFAULT_PLAYER_GROUPS_STATE),
+  setPlayerGroups: (state: PlayerGroupsState): Promise<void> =>
+    setObject(Keys.playerGroups, state),
 
   // utility for tests/debug
   __keys: Keys,

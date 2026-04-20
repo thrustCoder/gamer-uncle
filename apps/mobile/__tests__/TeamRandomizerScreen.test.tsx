@@ -3,6 +3,11 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { Animated } from 'react-native';
 import TeamRandomizerScreen from '../screens/TeamRandomizerScreen';
 
+// Mock navigation
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+}));
+
 // Override Animated methods that may not be mocked by jest-expo
 const originalAnimatedSequence = Animated.sequence;
 const originalAnimatedParallel = Animated.parallel;
@@ -74,6 +79,26 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
   },
 }));
 
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
+
 // Use fake timers to control setTimeout calls
 jest.useFakeTimers();
 
@@ -87,9 +112,33 @@ describe('TeamRandomizerScreen', () => {
     jest.runOnlyPendingTimers();
   });
 
+  it('should show and hide player details when chevron is pressed', async () => {
+    const { getByTestId, queryByDisplayValue } = render(<TeamRandomizerScreen />);
+
+    // Initially collapsed — no inputs visible
+    expect(queryByDisplayValue('P1')).toBeNull();
+
+    // Expand
+    fireEvent.press(getByTestId('expand-player-details'));
+
+    await waitFor(() => {
+      expect(queryByDisplayValue('P1')).toBeTruthy();
+    });
+
+    // Collapse again
+    fireEvent.press(getByTestId('expand-player-details'));
+
+    await waitFor(() => {
+      expect(queryByDisplayValue('P1')).toBeNull();
+    });
+  });
+
   it('should allow clearing player names without auto-populating', async () => {
-    const { getAllByDisplayValue, queryByDisplayValue } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, queryByDisplayValue, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -112,8 +161,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should allow setting custom names after clearing', async () => {
-    const { getAllByDisplayValue, getByDisplayValue } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByDisplayValue, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -134,8 +186,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should display fallback names in teams when inputs are empty', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -146,9 +201,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[0], '');
     fireEvent.changeText(inputs[1], '');
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Teams should display fallback names for empty inputs
     await waitFor(() => {
@@ -158,8 +213,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should maintain custom names in teams when some inputs are custom', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -171,9 +229,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[1], 'Bob');
     fireEvent.changeText(inputs[2], '');
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Teams should display both custom names and fallback names
     await waitFor(() => {
@@ -184,8 +242,11 @@ describe('TeamRandomizerScreen', () => {
   });
 
   it('should handle mixed empty and custom names correctly', async () => {
-    const { getAllByDisplayValue, getByText } = render(<TeamRandomizerScreen />);
+    const { getAllByDisplayValue, getByText, getByTestId } = render(<TeamRandomizerScreen />);
     
+    // Expand the player details section
+    fireEvent.press(getByTestId('expand-player-details'));
+
     // Wait for component to load  
     await waitFor(() => {
       expect(getAllByDisplayValue(/P\d+/)).toHaveLength(4);
@@ -197,9 +258,9 @@ describe('TeamRandomizerScreen', () => {
     fireEvent.changeText(inputs[1], '');
     // inputs[2] and inputs[3] remain as P3, P4
 
-    // Click randomize button
-    const randomizeButton = getByText('RANDOMIZE');
-    fireEvent.press(randomizeButton);
+    // Click shuffle button
+    const shuffleButton = getByText('SHUFFLE');
+    fireEvent.press(shuffleButton);
 
     // Verify team composition
     await waitFor(() => {

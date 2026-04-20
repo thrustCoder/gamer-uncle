@@ -10,6 +10,10 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
+  useFocusEffect: (cb: () => void) => {
+    const React = require('react');
+    React.useEffect(() => { cb(); }, []);
+  },
 }));
 
 // Mock BackButton
@@ -77,6 +81,26 @@ jest.mock('../services/hooks/useDebouncedEffect', () => ({
     React.useEffect(callback, deps);
   },
 }));
+
+// Mock PlayerGroupsContext
+jest.mock('../store/PlayerGroupsContext', () => ({
+  usePlayerGroups: () => ({
+    state: { enabled: false, activeGroupId: null, groups: [] },
+    activeGroup: null,
+    updateActiveGroupData: jest.fn(),
+  }),
+  PlayerGroupsProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock EnableGroupsToggle and GroupPicker
+jest.mock('../components/EnableGroupsToggle', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'enable-groups-toggle' });
+});
+jest.mock('../components/GroupPicker', () => {
+  const React = require('react');
+  return () => React.createElement('View', { testID: 'group-picker' });
+});
 
 // Mock AsyncStorage for ScoreTrackerContext
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -220,6 +244,78 @@ describe('ScoreTrackerScreen', () => {
     });
     
     expect(getByTestId('player-count').props.children).toBe('Players: 4');
+  });
+});
+
+describe('ScoreTrackerScreen - player count from cache vs score data', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('uses appCache player count when score data has fewer players', async () => {
+    // Simulate: user set 6 players in Shuffle Teams, but old score data has 4 players
+    const { appCache } = require('../services/storage/appCache');
+    appCache.getPlayerCount.mockResolvedValue(6);
+    appCache.getPlayers.mockResolvedValue(['Alice', 'Bob', 'Carol', 'Dave', 'Eve', 'Frank']);
+    appCache.getGameScore.mockResolvedValue({
+      game: { name: 'Old Game' },
+      rounds: [
+        {
+          roundNumber: 1,
+          scores: { OldP1: 10, OldP2: 20, OldP3: 30, OldP4: 40 },
+          timestamp: Date.now(),
+        },
+      ],
+      createdAt: Date.now(),
+      lowestScoreWins: false,
+    });
+    appCache.getLeaderboard.mockResolvedValue([]);
+
+    const { getByTestId } = renderWithContext(<ScoreTrackerScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('player-count')).toBeTruthy();
+    });
+
+    // Should show 6 players (from appCache), NOT 4 (from score data)
+    expect(getByTestId('player-count').props.children).toBe('Players: 6');
+    expect(getByTestId('player-name-5')).toBeTruthy();
+    expect(getByTestId('player-name-5').props.value).toBe('Frank');
+  });
+
+  it('uses appCache player count when no score data exists', async () => {
+    const { appCache } = require('../services/storage/appCache');
+    appCache.getPlayerCount.mockResolvedValue(6);
+    appCache.getPlayers.mockResolvedValue(['A', 'B', 'C', 'D', 'E', 'F']);
+    appCache.getGameScore.mockResolvedValue(null);
+    appCache.getLeaderboard.mockResolvedValue([]);
+
+    const { getByTestId } = renderWithContext(<ScoreTrackerScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('player-count')).toBeTruthy();
+    });
+
+    expect(getByTestId('player-count').props.children).toBe('Players: 6');
+  });
+
+  it('does not overwrite cached player count with default value on mount', async () => {
+    // Simulate: cache has 6 players from Shuffle Teams
+    const { appCache } = require('../services/storage/appCache');
+    appCache.getPlayerCount.mockResolvedValue(6);
+    appCache.getPlayers.mockResolvedValue(['A', 'B', 'C', 'D', 'E', 'F']);
+    appCache.getGameScore.mockResolvedValue(null);
+    appCache.getLeaderboard.mockResolvedValue([]);
+
+    const { getByTestId } = renderWithContext(<ScoreTrackerScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('player-count').props.children).toBe('Players: 6');
+    });
+
+    // setPlayerCount should NOT have been called with the default value 4
+    const setCountCalls = appCache.setPlayerCount.mock.calls.map((c: any[]) => c[0]);
+    expect(setCountCalls).not.toContain(4);
   });
 });
 

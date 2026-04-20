@@ -4,13 +4,24 @@ using Xunit.Abstractions;
 
 namespace GamerUncle.Api.FunctionalTests.Authentication
 {
-    public class AuthenticationIntegrationTestsUnit
+    public class AuthenticationIntegrationTestsUnit : IDisposable
     {
         private readonly ITestOutputHelper _output;
+        private readonly string? _originalTestEnvironment;
+        private readonly string? _originalApiBaseUrl;
 
         public AuthenticationIntegrationTestsUnit(ITestOutputHelper output)
         {
             _output = output;
+            _originalTestEnvironment = Environment.GetEnvironmentVariable("TEST_ENVIRONMENT");
+            _originalApiBaseUrl = Environment.GetEnvironmentVariable("API_BASE_URL");
+        }
+
+        public void Dispose()
+        {
+            // Restore environment variables to prevent cross-test contamination
+            Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", _originalTestEnvironment);
+            Environment.SetEnvironmentVariable("API_BASE_URL", _originalApiBaseUrl);
         }
 
         [Fact]
@@ -20,15 +31,23 @@ namespace GamerUncle.Api.FunctionalTests.Authentication
             Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", "Local");
             Environment.SetEnvironmentVariable("API_BASE_URL", "http://localhost:5000");
 
-            // Act
-            using var fixture = new TestFixture();
+            try
+            {
+                // Act
+                using var fixture = new TestFixture();
 
-            // Assert - only require that host resolves to localhost; port may be dynamic
-            var configured = fixture.Configuration.BaseUrl.TrimEnd('/');
-            _output.WriteLine($"Configured BaseUrl: {configured}");
-            Assert.StartsWith("http://localhost", configured);
-            var uri = new Uri(configured);
-            Assert.Equal("localhost", uri.Host);
+                // Assert - only require that host resolves to localhost; port may be dynamic
+                var configured = fixture.Configuration.BaseUrl.TrimEnd('/');
+                _output.WriteLine($"Configured BaseUrl: {configured}");
+                Assert.StartsWith("http://localhost", configured);
+                var uri = new Uri(configured);
+                Assert.Equal("localhost", uri.Host);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", _originalTestEnvironment);
+                Environment.SetEnvironmentVariable("API_BASE_URL", _originalApiBaseUrl);
+            }
         }
 
         [Fact]
@@ -38,12 +57,20 @@ namespace GamerUncle.Api.FunctionalTests.Authentication
             Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", "Dev");
             Environment.SetEnvironmentVariable("API_BASE_URL", "https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net");
 
-            // Act
-            using var fixture = new TestFixture();
+            try
+            {
+                // Act
+                using var fixture = new TestFixture();
 
-            // Assert
-            Assert.Equal("https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net", fixture.Configuration.BaseUrl);
-            _output.WriteLine($"Configured BaseUrl: {fixture.Configuration.BaseUrl}");
+                // Assert
+                Assert.Equal("https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net", fixture.Configuration.BaseUrl);
+                _output.WriteLine($"Configured BaseUrl: {fixture.Configuration.BaseUrl}");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TEST_ENVIRONMENT", _originalTestEnvironment);
+                Environment.SetEnvironmentVariable("API_BASE_URL", _originalApiBaseUrl);
+            }
         }
 
         [Fact]

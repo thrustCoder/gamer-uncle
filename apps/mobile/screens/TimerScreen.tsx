@@ -93,6 +93,7 @@ export default function TimerScreen() {
       resizeMode="repeat"
     >
       <BackButton />
+      <Text style={styles.pageHeader}>Timer</Text>
       <View style={styles.container} testID="timer-screen">
 
         {/* Additive presets: 10s, 30s, 1m, 5m */}

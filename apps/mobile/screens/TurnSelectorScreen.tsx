@@ -9,8 +9,12 @@ import {
   Animated,
   ImageBackground,
   Alert,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Audio } from 'expo-av';
+import { useNavigation } from '@react-navigation/native';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
@@ -19,10 +23,15 @@ import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import RatingModal from '../components/RatingModal';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
 export default function TurnSelectorScreen() {
+  const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [winner, setWinner] = useState<string | null>(null);
@@ -123,8 +132,13 @@ export default function TurnSelectorScreen() {
     );
   };
 
-  // hydrate cache on mount
+  // hydrate cache on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      setPlayerCount(activeGroup.playerCount);
+      setPlayerNames(activeGroup.playerNames);
+      return;
+    }
     (async () => {
       const [pc, names] = await Promise.all([
         appCache.getPlayerCount(4),
@@ -139,7 +153,7 @@ export default function TurnSelectorScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   useEffect(() => {
     appCache.setPlayerCount(playerCount);
@@ -150,30 +164,37 @@ export default function TurnSelectorScreen() {
   }, [playerNames], 400);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground 
       source={require('../assets/images/tool_background.png')} 
       style={[styles.container, { flex: 1 }]}
       resizeMode="cover"
     >
       <BackButton />
+      <Text style={styles.pageHeader}>Pick Turns</Text>
 
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 40, marginTop: 40, overflow: 'visible' }]} testID="turn-selector">
+      <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible' }]} testID="turn-selector">
+        {groupsState.enabled ? (
+          <View style={{ zIndex: 20 }}>
+            <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
+          </View>
+        ) : (
+          <>
         <View style={{ 
           flexDirection: 'row', 
           alignItems: 'center', 
-          justifyContent: 'space-between', 
+          justifyContent: 'center',
+          gap: 12,
           marginBottom: 20 
         }}>
           <Text style={[styles.label, { 
             fontSize: 25, 
             color: Colors.themeYellow, 
-            flex: 1, 
             fontWeight: 'bold',
             textShadowColor: Colors.black,
             textShadowOffset: { width: 2, height: 2 },
             textShadowRadius: 4,
-            marginRight: 0,
-            marginLeft: 20,
           }]}>Number of players</Text>
 
           <TouchableOpacity 
@@ -210,14 +231,14 @@ export default function TurnSelectorScreen() {
             flexDirection: 'row',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
-            marginBottom: 20,
-            paddingHorizontal: 5,
+            marginBottom: 10,
+            paddingHorizontal: 0,
           }}>
             {Array.from({ length: playerCount }).map((_, i) => (
               <TextInput
                 key={i}
                 style={{
-                  backgroundColor: Colors.whiteTransparent,
+                  backgroundColor: '#f4e4bc',
                   borderRadius: 8,
                   paddingHorizontal: 12,
                   paddingVertical: 10,
@@ -240,9 +261,15 @@ export default function TurnSelectorScreen() {
             ))}
           </View>
         )}
+            <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} labelFontSize={17} switchScale={0.65} marginTop={-8} />
+          </>
+        )}
 
-        <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
+        <View style={{ marginTop: 30 }}>
+          <SpinningWheel playerNames={playerNames} onSpinEnd={handleSpin} />
+        </View>
       </View>
+      </ScrollView>
       {celebrate && (
         <Animated.View 
           style={{ 
@@ -275,5 +302,6 @@ export default function TurnSelectorScreen() {
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
@@ -21,6 +23,8 @@ import { getRecommendations } from '../services/ApiClient';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { useRatingPrompt } from '../hooks/useRatingPrompt';
 import { appCache } from '../services/storage/appCache';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
 
 const MAX_PLAYERS = 20;
 
@@ -35,6 +39,7 @@ const generateUserId = () => {
 
 export default function GameSetupScreen() {
   const navigation = useNavigation<any>();
+  const { state: groupsState, activeGroup } = usePlayerGroups();
   const [gameName, setGameName] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,20 +52,31 @@ export default function GameSetupScreen() {
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
     useRatingPrompt('gameSetup');
 
-  // Restore persisted game setup state on mount
+  // Restore persisted game setup state on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      // Always use the group's canonical playerCount — gameSetupPlayerCount may
+      // carry a stale value from a prior ungrouped session baked in at group creation.
+      setPlayerCount(activeGroup.playerCount);
+      if (activeGroup.gameSetupGameName) setGameName(activeGroup.gameSetupGameName);
+      if (activeGroup.gameSetupResponse) setSetupResponse(activeGroup.gameSetupResponse);
+      setIsHydrated(true);
+      return;
+    }
     (async () => {
-      const [savedName, savedCount, savedResponse] = await Promise.all([
+      const [savedName, savedCount, savedResponse, sharedCount] = await Promise.all([
         appCache.getGameSetupGameName(),
         appCache.getGameSetupPlayerCount(),
         appCache.getGameSetupResponse(),
+        appCache.getPlayerCount(4),
       ]);
       if (savedName) setGameName(savedName);
-      if (savedCount) setPlayerCount(savedCount);
+      // Prefer shared player count from other screens; fall back to game-setup-specific count
+      setPlayerCount(sharedCount || savedCount || 4);
       if (savedResponse) setSetupResponse(savedResponse);
       setIsHydrated(true);
     })();
-  }, []);
+  }, [groupsState.enabled, activeGroup?.id]);
 
   // Persist game name when it changes (after hydration)
   useEffect(() => {
@@ -91,6 +107,7 @@ export default function GameSetupScreen() {
   };
 
   const handleGetSetup = async () => {
+    Keyboard.dismiss();
     if (!gameName.trim()) {
       Alert.alert('Missing Game Name', 'Please enter the name of the game.');
       return;
@@ -159,12 +176,14 @@ Please provide step-by-step setup instructions including:
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <ImageBackground
       source={require('../assets/images/tool_background.png')}
       style={styles.container}
       resizeMode="cover"
     >
       <BackButton />
+      <Text style={styles.pageHeader}>Game Setup</Text>
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -176,15 +195,14 @@ Please provide step-by-step setup instructions including:
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Title */}
-          <Text style={styles.title}>Game Setup</Text>
+          {/* Subtitle as input section heading */}
           <Text style={styles.subtitle}>Get setup instructions for any board game</Text>
 
           {/* Input Section */}
           <View style={styles.inputSection}>
             {/* Game Name Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Game Name</Text>
+              <Text style={styles.label}>Game</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g., Catan, Ticket to Ride, Pandemic..."
@@ -199,19 +217,25 @@ Please provide step-by-step setup instructions including:
             </View>
 
             {/* Player Count Picker */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Number of Players</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={showPlayerCountPicker}
-                testID="player-count-picker"
-                {...(Platform.OS === 'web' && { 'data-testid': 'player-count-picker' })}
-              >
-                <Text style={styles.pickerButtonText}>
-                  {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {groupsState.enabled ? (
+              <View style={styles.inputGroup}>
+                <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} labelFontSize={18} labelFontWeight="600" />
+              </View>
+            ) : (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Number of Players</Text>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={showPlayerCountPicker}
+                  testID="player-count-picker"
+                  {...(Platform.OS === 'web' && { 'data-testid': 'player-count-picker' })}
+                >
+                  <Text style={styles.pickerButtonText}>
+                    {playerCount} {playerCount === 1 ? 'Player' : 'Players'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Get Setup Button */}
             <TouchableOpacity
@@ -276,5 +300,6 @@ Please provide step-by-step setup instructions including:
         onDismiss={handleDismiss}
       />
     </ImageBackground>
+    </TouchableWithoutFeedback>
   );
 }

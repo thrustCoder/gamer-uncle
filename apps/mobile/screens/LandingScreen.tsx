@@ -11,8 +11,8 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 // Detect tablet/iPad (screen width >= 768 is typically tablet)
 const isTablet = Math.min(screenWidth, screenHeight) >= 768;
 
-// Scale multiplier: 3x for tablets, 1x for phones
-const scaleMultiplier = isTablet ? 3 : 1;
+// Scale multiplier: 2.25x for tablets (reduced 25% from 3x), 1x for phones
+const scaleMultiplier = isTablet ? 2.25 : 1;
 // Label scale multiplier: 1.5x for tablets (half of icon scale), 1x for phones
 const labelScaleMultiplier = isTablet ? 1.5 : 1;
 
@@ -26,13 +26,13 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 
 // Feature configuration for circular layout
 const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
-  { key: 'score', label: 'Score\nTracker', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
-  { key: 'turn', label: 'Turn\nSelector', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
-  { key: 'search', label: 'Game\nSearch', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
-  { key: 'team', label: 'Team Randomizer', screen: 'Team', icon: 'people', iconType: 'ionicon' },
+  { key: 'score', label: 'Scoreboard', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
+  { key: 'turn', label: 'Pick\nTurns', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
+  { key: 'search', label: 'Search Games', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
+  { key: 'team', label: 'Shuffle Teams', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
-  { key: 'dice', label: 'Dice\nRoller', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
-  { key: 'setup', label: 'Game\nSetup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
+  { key: 'dice', label: 'Roll\nDice', screen: 'Dice', icon: 'dice-multiple', iconType: 'material' },
+  { key: 'setup', label: 'Game Setup', screen: 'GameSetup', icon: 'settings', iconType: 'ionicon' },
 ];
 
 // Calculate position for each icon in a circle (starting from top, going clockwise)
@@ -43,31 +43,34 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   
   // Radial offset to move icons closer/further from center
   let radiusAdjustment = 0;
-  if (featureKey === 'turn') {
-    radiusAdjustment = -20; // Move Turn Selector closer to center
+  if (featureKey === 'score') {
+    radiusAdjustment = isTablet ? -15 : 0; // Move Scoreboard closer to center on tablets
+  } else if (featureKey === 'turn') {
+    radiusAdjustment = isTablet ? -65 : -30; // Move Turn Selector closer to center (extra on tablets)
   } else if (featureKey === 'timer') {
-    radiusAdjustment = -15; // Move Timer closer to center
+    radiusAdjustment = isTablet ? -70 : -35; // Move Timer closer to center (extra on tablets)
   } else if (featureKey === 'chat') {
-    radiusAdjustment = -15; // Move Talk to Uncle closer to center
+    radiusAdjustment = isTablet ? -25 : -15; // Move Talk to Uncle closer to center (extra on tablets)
   } else if (featureKey === 'team') {
-    radiusAdjustment = -20; // Move Team Randomizer closer to center
+    radiusAdjustment = isTablet ? -85 : -45; // Move Shuffle Teams closer to center (extra on tablets)
   } else if (featureKey === 'search') {
-    radiusAdjustment = -20; // Move Game Search closer to center
+    radiusAdjustment = isTablet ? -90 : -50; // Move Game Search closer to center (extra on tablets)
   } else if (featureKey === 'dice') {
-    radiusAdjustment = -15; // Move Dice Roller closer to center
+    radiusAdjustment = isTablet ? -60 : -20; // Move Dice Roller closer to center (extra on tablets)
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -10; // Move Game Setup closer to Talk to Uncle
+    radiusAdjustment = isTablet ? -30 : -15; // Move Game Setup closer to center (extra on tablets)
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   let verticalOffset = 0;
   let horizontalOffset = 0;
   
-  // Shift Talk to Uncle slightly higher towards top
+  // Shift Talk to Uncle slightly lower
   if (featureKey === 'chat') {
-    verticalOffset = -5;
+    verticalOffset = 5;
   }
 
   if (featureKey === 'score') {
+    verticalOffset = 10;
     horizontalOffset = -5;
   }
 
@@ -90,7 +93,7 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   
   if (featureKey === 'search') {
     verticalOffset = 20;
-    horizontalOffset = 5;
+    horizontalOffset = 15;
   }
   
   return {
@@ -175,7 +178,7 @@ export default function LandingScreen() {
               {...(Platform.OS === 'web' && { 'data-testid': `${feature.key}-button` })}
             >
               {renderIcon(feature)}
-              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }, feature.key === 'chat' && { width: 130 * labelScaleMultiplier }]}>{feature.label}</Text>
+              <Text style={[styles.iconLabel, feature.key === 'team' && { marginTop: -2 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }, feature.key === 'chat' && { width: 130 * labelScaleMultiplier }, feature.key === 'search' && { marginTop: -1 * labelScaleMultiplier, width: 130 * labelScaleMultiplier }]}>{feature.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -183,7 +186,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.5.5'}
+            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.6.0'}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>

@@ -101,16 +101,16 @@ export default function LeaderboardSection({ playerNames }: LeaderboardSectionPr
       </View>
 
       {/* Stack Ranking Chart */}
-      {ranking.length > 0 && <StackRankingChart data={ranking} />}
+      {ranking.length > 0 && <StackRankingChart data={ranking} allPlayerNames={playerNames} />}
 
       {/* Score Table */}
       <ScoreTable
         playerNames={playerNames}
         data={tableData}
         firstColumnHeader="Game"
+        firstColumnWidth={90}
         showGameThumbnails
         onEdit={(_, entryIndex) => handleEditEntry(entryIndex!)}
-        onDelete={(_, entryIndex) => handleDeleteEntry(entryIndex!)}
       />
 
       {/* Add Game Button */}

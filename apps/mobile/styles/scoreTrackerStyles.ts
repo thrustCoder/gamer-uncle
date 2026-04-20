@@ -1,5 +1,8 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 import { Colors } from './colors';
+
+const { width: _screenW, height: _screenH } = Dimensions.get('window');
+const _isTablet = Math.min(_screenW, _screenH) >= 768;
 
 export const scoreTrackerStyles = StyleSheet.create({
   // === Container Styles ===
@@ -38,7 +41,8 @@ export const scoreTrackerStyles = StyleSheet.create({
   playerSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
     marginBottom: 15,
   },
   sectionLabel: {
@@ -99,7 +103,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -117,6 +121,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.white,
     marginLeft: 10,
+    flex: 1,
   },
   closeButton: {
     width: 32,
@@ -165,6 +170,16 @@ export const scoreTrackerStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+  },
+  rankingInitialsPill: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Colors.wheelLightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    paddingHorizontal: 8,
   },
   rankingInitialsText: {
     color: Colors.white,
@@ -252,6 +267,11 @@ export const scoreTrackerStyles = StyleSheet.create({
     color: Colors.white,
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  rowEditButton: {
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // === Add Row Button ===
@@ -383,6 +403,25 @@ export const scoreTrackerStyles = StyleSheet.create({
   saveButtonDisabled: {
     backgroundColor: Colors.grayDisabled,
   },
+  deleteEntryButton: {
+    backgroundColor: Colors.wheelRed,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    elevation: 4,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  deleteEntryButtonText: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 
   // === Lowest Score Wins Toggle ===
   lowestScoreToggleRow: {
@@ -392,7 +431,8 @@ export const scoreTrackerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: _isTablet ? 10 : 3,
     marginTop: 8,
   },
   lowestScoreToggleLabel: {

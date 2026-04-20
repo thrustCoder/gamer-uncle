@@ -74,23 +74,43 @@ jest.mock('@react-navigation/stack', () => ({
 }));
 
 // Mock react-native-svg
-jest.mock('react-native-svg', () => ({
-  Svg: 'Svg',
-  Circle: 'Circle',
-  Path: 'Path',
-  G: 'G',
-  Text: 'Text',
-}));
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockSvg = (props) => React.createElement(View, props);
+  const MockCircle = (props) => React.createElement(View, props);
+  const MockPath = (props) => React.createElement(View, props);
+  const MockG = (props) => React.createElement(View, props);
+  const MockText = (props) => React.createElement(View, props);
+  return {
+    __esModule: true,
+    default: MockSvg,
+    Svg: MockSvg,
+    Circle: MockCircle,
+    Path: MockPath,
+    G: MockG,
+    Text: MockText,
+  };
+});
 
 // Mock @expo/vector-icons
-jest.mock('@expo/vector-icons', () => ({
-  Ionicons: 'Ionicons',
-  MaterialIcons: 'MaterialIcons',
-  FontAwesome: 'FontAwesome',
-  Feather: 'Feather',
-  MaterialCommunityIcons: 'MaterialCommunityIcons',
-  AntDesign: 'AntDesign',
-}));
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const createMockIcon = (name) => {
+    const MockIcon = (props) => React.createElement(View, { ...props, testID: `icon-${name}` });
+    MockIcon.displayName = name;
+    return MockIcon;
+  };
+  return {
+    Ionicons: createMockIcon('Ionicons'),
+    MaterialIcons: createMockIcon('MaterialIcons'),
+    FontAwesome: createMockIcon('FontAwesome'),
+    Feather: createMockIcon('Feather'),
+    MaterialCommunityIcons: createMockIcon('MaterialCommunityIcons'),
+    AntDesign: createMockIcon('AntDesign'),
+  };
+});
 
 // Mock expo-av
 jest.mock('expo-av', () => ({
@@ -184,9 +204,9 @@ jest.mock('expo-constants', () => ({
   default: {
     expoConfig: {
       extra: {},
-      version: '3.5.5',
+      version: '3.6.0',
     },
-    appVersion: '3.5.5',
+    appVersion: '3.6.0',
   },
 }));
 

@@ -10,6 +10,8 @@ interface StackRankingChartProps {
   animate?: boolean;
   /** When true, sort ascending (lowest score at top) for lowest-score-wins games */
   sortAscending?: boolean;
+  /** When provided, all players are shown — those without scores get 0 */
+  allPlayerNames?: string[];
 }
 
 export default function StackRankingChart({
@@ -17,11 +19,21 @@ export default function StackRankingChart({
   maxValue: providedMaxValue,
   animate = true,
   sortAscending = false,
+  allPlayerNames,
 }: StackRankingChartProps) {
-  // Sort data based on sortAscending flag
+  // Merge allPlayerNames with 0 for any player not already represented
+  const mergedData = useMemo(() => {
+    if (!allPlayerNames || allPlayerNames.length === 0) return data;
+    const existing = new Set(data.map((d) => d.player));
+    const extras: PlayerRanking[] = allPlayerNames
+      .filter((n) => !existing.has(n))
+      .map((n) => ({ player: n, total: 0 }));
+    return [...data, ...extras];
+  }, [data, allPlayerNames]);
+  // Sort mergedData based on sortAscending flag
   const sortedData = useMemo(
-    () => [...data].sort((a, b) => sortAscending ? a.total - b.total : b.total - a.total),
-    [data, sortAscending]
+    () => [...mergedData].sort((a, b) => sortAscending ? a.total - b.total : b.total - a.total),
+    [mergedData, sortAscending]
   );
 
   // Calculate min/max values for bar scaling (supports negative scores)
@@ -47,6 +59,15 @@ export default function StackRankingChart({
     [sortedData]
   );
 
+  // Determine if any initials are long enough to need pill-shaped badges
+  const maxInitialsLen = useMemo(
+    () => Math.max(...Object.values(initials).map((v) => v.length), 1),
+    [initials]
+  );
+  const usePillBadge = maxInitialsLen > 3;
+  // Uniform pill width based on the longest initials (approx 9px per char + 16px padding)
+  const pillWidth = usePillBadge ? maxInitialsLen * 9 + 16 : undefined;
+
   if (sortedData.length === 0) {
     return null;
   }
@@ -55,12 +76,15 @@ export default function StackRankingChart({
     <View style={styles.rankingContainer}>
       {sortedData.map((item, index) => {
         const barWidth = valueRange > 0 ? ((item.total - minValue) / valueRange) * 100 : 0;
+        // Minimum bar width just enough to show score label; use a tiny base
+        // so relative differences between low/negative scores are visible.
+        const minBar = 5;
 
         return (
           <View key={item.player} style={styles.rankingRow}>
-            {/* Player initials circle */}
-            <View style={styles.rankingInitials}>
-              <Text style={styles.rankingInitialsText}>
+            {/* Player initials badge — circle for short, pill for long */}
+            <View style={usePillBadge ? [styles.rankingInitialsPill, { width: pillWidth }] : styles.rankingInitials}>
+              <Text style={styles.rankingInitialsText} numberOfLines={1}>
                 {initials[item.player]}
               </Text>
             </View>
@@ -71,7 +95,7 @@ export default function StackRankingChart({
                 style={[
                   styles.rankingBar,
                   {
-                    width: `${Math.max(barWidth, 15)}%`,
+                    width: `${Math.max(barWidth, minBar)}%`,
                   },
                 ]}
               >

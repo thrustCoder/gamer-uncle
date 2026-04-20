@@ -75,4 +75,64 @@ describe('appCache', () => {
       await expect(appCache.getGameSetupResponse()).resolves.toBeNull();
     });
   });
+
+  describe('player groups persistence', () => {
+    it('persists and retrieves player groups state', async () => {
+      const groupsState = {
+        enabled: true,
+        activeGroupId: 'g1',
+        groups: [{
+          id: 'g1', name: 'Friday Night Crew', playerCount: 4,
+          playerNames: ['Alice', 'Bob', 'Carol', 'Dave'], teamCount: 2,
+          gameScore: null, leaderboard: [],
+          gameSetupGameName: 'Catan', gameSetupPlayerCount: 4, gameSetupResponse: null,
+        }],
+      };
+      await appCache.setPlayerGroups(groupsState);
+      const retrieved = await appCache.getPlayerGroups();
+      expect(retrieved).toEqual(groupsState);
+    });
+
+    it('returns default state when no groups data exists', async () => {
+      const retrieved = await appCache.getPlayerGroups();
+      expect(retrieved).toEqual({
+        enabled: false,
+        activeGroupId: null,
+        groups: [],
+      });
+    });
+
+    it('persists multiple groups', async () => {
+      const groupsState = {
+        enabled: true,
+        activeGroupId: 'g2',
+        groups: [
+          { id: 'g1', name: 'Group A', playerCount: 2, playerNames: ['A', 'B'], teamCount: 2, gameScore: null, leaderboard: [], gameSetupGameName: '', gameSetupPlayerCount: 2, gameSetupResponse: null },
+          { id: 'g2', name: 'Group B', playerCount: 3, playerNames: ['X', 'Y', 'Z'], teamCount: 2, gameScore: null, leaderboard: [], gameSetupGameName: '', gameSetupPlayerCount: 3, gameSetupResponse: null },
+        ],
+      };
+      await appCache.setPlayerGroups(groupsState);
+      const retrieved = await appCache.getPlayerGroups();
+      expect(retrieved.groups).toHaveLength(2);
+      expect(retrieved.activeGroupId).toBe('g2');
+    });
+
+    it('overwrites previous groups state', async () => {
+      const state1 = {
+        enabled: true,
+        activeGroupId: 'g1',
+        groups: [{ id: 'g1', name: 'Old', playerCount: 2, playerNames: ['A', 'B'], teamCount: 2, gameScore: null, leaderboard: [], gameSetupGameName: '', gameSetupPlayerCount: 2, gameSetupResponse: null }],
+      };
+      const state2 = {
+        enabled: false,
+        activeGroupId: null as string | null,
+        groups: [] as any[],
+      };
+      await appCache.setPlayerGroups(state1);
+      await appCache.setPlayerGroups(state2);
+      const retrieved = await appCache.getPlayerGroups();
+      expect(retrieved.enabled).toBe(false);
+      expect(retrieved.groups).toEqual([]);
+    });
+  });
 });

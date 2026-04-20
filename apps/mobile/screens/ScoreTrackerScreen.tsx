@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Keyboard,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -19,76 +20,241 @@ import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import PlayerNamesSection from '../components/scoreTracker/PlayerNamesSection';
 import GameScoreSection from '../components/scoreTracker/GameScoreSection';
 import LeaderboardSection from '../components/scoreTracker/LeaderboardSection';
+import EnableGroupsToggle from '../components/EnableGroupsToggle';
+import GroupPicker from '../components/GroupPicker';
+import { usePlayerGroups } from '../store/PlayerGroupsContext';
+import type { GameScoreSession, LeaderboardEntry } from '../types/scoreTracker';
 
 const MAX_PLAYERS = 20;
 
+/**
+ * Extracts the ordered list of player names from existing score data.
+ * Uses the first round's score keys (game score) or first entry's score keys (leaderboard).
+ * Object.keys preserves insertion order, which matches the player list order when scores were entered.
+ */
+function extractPlayerNamesFromScores(
+  scoreData: GameScoreSession | null,
+  leaderboardData: LeaderboardEntry[],
+): string[] {
+  if (scoreData?.rounds?.[0]?.scores) {
+    return Object.keys(scoreData.rounds[0].scores);
+  }
+  if (leaderboardData.length > 0 && leaderboardData[0].scores) {
+    return Object.keys(leaderboardData[0].scores);
+  }
+  return [];
+}
+
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
-  const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard } = useScoreTracker();
+  const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard, loadGroupData } = useScoreTracker();
+  const { state: groupsState, activeGroup, updateActiveGroupData } = usePlayerGroups();
   
   // Player state - synced with appCache
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array.from({ length: 4 }, (_, i) => `P${i + 1}`)
   );
+  // Track whether player data has been hydrated from cache/group.
+  // Prevents persist effects from overwriting the cache with initial defaults.
+  const hydratedRef = useRef(false);
   
   // Track previous names for rename detection
   const prevPlayerNamesRef = useRef<string[]>([]);
+  // Track current (in-flight) names so onBlur always reads the latest value
+  const currentPlayerNamesRef = useRef<string[]>([]);
+  // Track which group's data has been loaded to prevent stale debounced syncs
+  const loadedGroupIdRef = useRef<string | null>(null);
 
-  // Hydrate player data from cache on mount
+  // Hydrate player data from cache on mount (or from active group when groups enabled)
   useEffect(() => {
+    if (groupsState.enabled && activeGroup) {
+      // Mark the group as not-yet-loaded to block stale debounced syncs
+      loadedGroupIdRef.current = null;
+      setPlayerCount(activeGroup.playerCount);
+      setPlayerNames(activeGroup.playerNames);
+      prevPlayerNamesRef.current = [...activeGroup.playerNames];
+      currentPlayerNamesRef.current = [...activeGroup.playerNames];
+      hydratedRef.current = true;
+      // Guard: only call loadGroupData after ScoreTrackerContext finishes its own
+      // cache hydration, otherwise the appCache load will overwrite our null back
+      // to stale data.
+      if (!isLoading) {
+        loadGroupData(activeGroup.gameScore ?? null, activeGroup.leaderboard ?? []);
+        // Mark this group as loaded so debounced sync can proceed
+        loadedGroupIdRef.current = activeGroup.id;
+
+        // Detect renames: compare group's current playerNames against names in score data.
+        // Must run AFTER loadGroupData so renamePlayer operates on the loaded state.
+        const scorePlayerNames = extractPlayerNamesFromScores(
+          activeGroup.gameScore ?? null,
+          activeGroup.leaderboard ?? [],
+        );
+        if (scorePlayerNames.length > 0) {
+          const limit = Math.min(scorePlayerNames.length, activeGroup.playerNames.length);
+          for (let i = 0; i < limit; i++) {
+            if (scorePlayerNames[i] && activeGroup.playerNames[i] && scorePlayerNames[i] !== activeGroup.playerNames[i]) {
+              renamePlayer(scorePlayerNames[i], activeGroup.playerNames[i]);
+            }
+          }
+        }
+      }
+      return;
+    }
+    if (isLoading) return;
     (async () => {
-      const [pc, names] = await Promise.all([
+      const [pc, names, scoreData, leaderboardData] = await Promise.all([
         appCache.getPlayerCount(4),
         appCache.getPlayers([]),
+        appCache.getGameScore(),
+        appCache.getLeaderboard(),
       ]);
-      setPlayerCount(pc);
-      if (names.length > 0) {
-        const adjusted = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
-        setPlayerNames(adjusted);
-        prevPlayerNamesRef.current = adjusted;
-      } else {
-        const defaultNames = Array.from({ length: pc }, (_, i) => `P${i + 1}`);
-        setPlayerNames(defaultNames);
-        prevPlayerNamesRef.current = defaultNames;
-      }
-    })();
-  }, []);
 
-  // Persist player count changes
+      // Always use appCache player count as the source of truth.
+      // Score data names are only used for rename detection below.
+      const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
+
+      setPlayerCount(pc);
+      const freshNames = names.length > 0
+        ? Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`)
+        : Array.from({ length: pc }, (_, i) => `P${i + 1}`);
+
+      // Detect renames by comparing cache names against names stored in score data.
+      // Score data keys reflect the "old" names before any external rename (e.g. Turn Selector).
+      if (scorePlayerNames.length > 0) {
+        const limit = Math.min(scorePlayerNames.length, freshNames.length);
+        for (let i = 0; i < limit; i++) {
+          if (scorePlayerNames[i] && freshNames[i] && scorePlayerNames[i] !== freshNames[i]) {
+            renamePlayer(scorePlayerNames[i], freshNames[i]);
+          }
+        }
+      }
+
+      setPlayerNames(freshNames);
+      prevPlayerNamesRef.current = [...freshNames];
+      currentPlayerNamesRef.current = [...freshNames];
+      hydratedRef.current = true;
+    })();
+  }, [groupsState.enabled, activeGroup?.id, loadGroupData, isLoading, renamePlayer]);
+
+  // Persist player count changes (skip initial default before hydration)
   useEffect(() => {
-    appCache.setPlayerCount(playerCount);
+    if (hydratedRef.current) {
+      appCache.setPlayerCount(playerCount);
+    }
   }, [playerCount]);
 
-  // Persist player names with debounce
+  // Persist player names with debounce (skip initial default before hydration)
   useDebouncedEffect(() => {
-    appCache.setPlayers(playerNames);
+    if (hydratedRef.current) {
+      appCache.setPlayers(playerNames);
+    }
   }, [playerNames], 400);
 
-  const handleNameChange = (index: number, newName: string) => {
-    const oldName = prevPlayerNamesRef.current[index];
-    
-    // Update local state
-    const updated = [...playerNames];
-    updated[index] = newName;
-    setPlayerNames(updated);
-    
-    // If name actually changed and both are non-empty, sync to stored data
-    if (oldName && newName && oldName !== newName) {
-      renamePlayer(oldName, newName);
+  // When groups are enabled, sync score tracker state back to the active group
+  // so that navigating away and back doesn't lose changes.
+  useDebouncedEffect(() => {
+    if (groupsState.enabled && activeGroup && !isLoading && loadedGroupIdRef.current === activeGroup.id) {
+      updateActiveGroupData({ gameScore, leaderboard });
     }
-    
-    // Update ref to track future changes
-    prevPlayerNamesRef.current = updated;
-  };
+  }, [gameScore, leaderboard], 400);
+
+  // When returning from another screen, detect renames and sync.
+  // Handles both group and non-group modes.
+  useFocusEffect(
+    useCallback(() => {
+      if (isLoading) return;
+
+      // Groups mode: detect renames from CreateGroup screen edits
+      if (groupsState.enabled && activeGroup) {
+        const scorePlayerNames = extractPlayerNamesFromScores(
+          activeGroup.gameScore ?? null,
+          activeGroup.leaderboard ?? [],
+        );
+        if (scorePlayerNames.length > 0) {
+          const limit = Math.min(scorePlayerNames.length, activeGroup.playerNames.length);
+          for (let i = 0; i < limit; i++) {
+            if (scorePlayerNames[i] && activeGroup.playerNames[i] && scorePlayerNames[i] !== activeGroup.playerNames[i]) {
+              renamePlayer(scorePlayerNames[i], activeGroup.playerNames[i]);
+            }
+          }
+        }
+        setPlayerCount(activeGroup.playerCount);
+        setPlayerNames(activeGroup.playerNames);
+        prevPlayerNamesRef.current = [...activeGroup.playerNames];
+        currentPlayerNamesRef.current = [...activeGroup.playerNames];
+        hydratedRef.current = true;
+        return;
+      }
+
+      // Non-group mode: detect renames from Turn Selector / Team Randomizer
+      (async () => {
+        const [pc, names, scoreData, leaderboardData] = await Promise.all([
+          appCache.getPlayerCount(4),
+          appCache.getPlayers([]),
+          appCache.getGameScore(),
+          appCache.getLeaderboard(),
+        ]);
+        if (names.length === 0) return;
+
+        // Always use appCache player count as the source of truth.
+        // Score data names are only used for rename detection below.
+        const scorePlayerNames = extractPlayerNamesFromScores(scoreData, leaderboardData);
+
+        const fresh = Array.from({ length: pc }, (_, i) => names[i] || `P${i + 1}`);
+        const prev = prevPlayerNamesRef.current;
+
+        // Only apply renames if we have a baseline to compare against
+        if (prev.length > 0) {
+          const limit = Math.min(prev.length, fresh.length);
+          for (let i = 0; i < limit; i++) {
+            if (prev[i] && fresh[i] && prev[i] !== fresh[i]) {
+              renamePlayer(prev[i], fresh[i]);
+            }
+          }
+        }
+
+        setPlayerCount(pc);
+        setPlayerNames(fresh);
+        prevPlayerNamesRef.current = [...fresh];
+        currentPlayerNamesRef.current = [...fresh];
+        hydratedRef.current = true;
+      })();
+    }, [groupsState.enabled, activeGroup, isLoading, renamePlayer])
+  );
+
+  const handleNameChange = useCallback((index: number, newName: string) => {
+    // Update local state and current ref — rename happens on blur
+    setPlayerNames(prev => {
+      const updated = [...prev];
+      updated[index] = newName;
+      currentPlayerNamesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  const handleNameBlur = useCallback((index: number) => {
+    const currentName = currentPlayerNamesRef.current[index];
+    const oldName = prevPlayerNamesRef.current[index];
+
+    // If both non-empty and different, rename across stored score data
+    if (oldName && currentName && oldName !== currentName) {
+      renamePlayer(oldName, currentName);
+    }
+
+    // Commit the current name as the "last known" name
+    if (currentName) {
+      prevPlayerNamesRef.current[index] = currentName;
+    }
+  }, [renamePlayer]);
 
   const applyPlayerCountChange = (newCount: number) => {
     setPlayerCount(newCount);
-    setPlayerNames(
-      Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`)
-    );
-    // Update ref for rename tracking
-    prevPlayerNamesRef.current = Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`);
+    const newNames = Array.from({ length: newCount }, (_, j) => playerNames[j] || `P${j + 1}`);
+    setPlayerNames(newNames);
+    // Update refs for rename tracking
+    prevPlayerNamesRef.current = [...newNames];
+    currentPlayerNamesRef.current = [...newNames];
   };
 
   const showPlayerCountPicker = () => {
@@ -169,27 +335,43 @@ export default function ScoreTrackerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScrollBeginDrag={Keyboard.dismiss}
       >
         <View style={styles.container}>
           {/* Title */}
           <Text style={styles.title}>Score Tracker</Text>
 
           {/* Player Names Section */}
-          <PlayerNamesSection
-            playerCount={playerCount}
-            playerNames={playerNames}
-            onPlayerCountPress={showPlayerCountPicker}
-            onNameChange={handleNameChange}
-          />
+          {groupsState.enabled ? (
+            <View style={{ marginTop: 12 }}>
+              <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
+            </View>
+          ) : (
+            <>
+              <PlayerNamesSection
+                playerCount={playerCount}
+                playerNames={playerNames}
+                onPlayerCountPress={showPlayerCountPicker}
+                onNameChange={handleNameChange}
+                onNameBlur={handleNameBlur}
+              />
+              <EnableGroupsToggle onEnabled={() => navigation.navigate('ManageGroups')} marginTop={-26} switchScale={0.7} />
+            </>
+          )}
 
           {/* Game Score Section */}
           {hasGameScore && (
-            <GameScoreSection playerNames={playerNames.slice(0, playerCount)} />
+            <View style={{ marginTop: 16 }}>
+              <GameScoreSection playerNames={playerNames.slice(0, playerCount)} />
+            </View>
           )}
 
           {/* Leaderboard Section */}
           {hasLeaderboard && (
-            <LeaderboardSection playerNames={playerNames.slice(0, playerCount)} />
+            <View style={{ marginTop: hasGameScore ? 4 : 16 }}>
+              <LeaderboardSection playerNames={playerNames.slice(0, playerCount)} />
+            </View>
           )}
 
           {/* Empty State - Both buttons when no data */}
