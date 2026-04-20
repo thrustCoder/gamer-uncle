@@ -44,6 +44,7 @@ export default function EnableGroupsToggle({ onEnabled, labelFontSize = 20, labe
         gap: 12,
         paddingVertical: 4,
         marginTop,
+        zIndex: 20,
       }}
       testID="enable-groups-toggle"
     >

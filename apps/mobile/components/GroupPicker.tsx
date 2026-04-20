@@ -60,6 +60,7 @@ export default function GroupPicker({ onManageGroups, labelFontSize = 20, labelF
   return (
     <View style={{
       marginBottom: containerMarginBottom,
+      zIndex: 20,
     }}>
       {/* Dropdown trigger with gear icon */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: rowJustify }}>

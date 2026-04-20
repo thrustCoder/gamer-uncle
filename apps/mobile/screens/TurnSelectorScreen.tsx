@@ -176,9 +176,9 @@ export default function TurnSelectorScreen() {
       <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible' }]} testID="turn-selector">
         {groupsState.enabled ? (
-          <>
+          <View style={{ zIndex: 20 }}>
             <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
-          </>
+          </View>
         ) : (
           <>
         <View style={{ 

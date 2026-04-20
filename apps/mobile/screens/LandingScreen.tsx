@@ -43,20 +43,22 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   
   // Radial offset to move icons closer/further from center
   let radiusAdjustment = 0;
-  if (featureKey === 'turn') {
-    radiusAdjustment = -25; // Move Turn Selector closer to center
+  if (featureKey === 'score') {
+    radiusAdjustment = isTablet ? -15 : 0; // Move Scoreboard closer to center on tablets
+  } else if (featureKey === 'turn') {
+    radiusAdjustment = isTablet ? -65 : -30; // Move Turn Selector closer to center (extra on tablets)
   } else if (featureKey === 'timer') {
-    radiusAdjustment = -18; // Move Timer closer to center
+    radiusAdjustment = isTablet ? -70 : -35; // Move Timer closer to center (extra on tablets)
   } else if (featureKey === 'chat') {
-    radiusAdjustment = -15; // Move Talk to Uncle closer to center
+    radiusAdjustment = isTablet ? -25 : -15; // Move Talk to Uncle closer to center (extra on tablets)
   } else if (featureKey === 'team') {
-    radiusAdjustment = -27; // Move Shuffle Teams closer to center
+    radiusAdjustment = isTablet ? -85 : -45; // Move Shuffle Teams closer to center (extra on tablets)
   } else if (featureKey === 'search') {
-    radiusAdjustment = -34; // Move Game Search closer to center
+    radiusAdjustment = isTablet ? -90 : -50; // Move Game Search closer to center (extra on tablets)
   } else if (featureKey === 'dice') {
-    radiusAdjustment = -15; // Move Dice Roller closer to center
+    radiusAdjustment = isTablet ? -60 : -20; // Move Dice Roller closer to center (extra on tablets)
   } else if (featureKey === 'setup') {
-    radiusAdjustment = -15; // Move Game Setup closer to center
+    radiusAdjustment = isTablet ? -30 : -15; // Move Game Setup closer to center (extra on tablets)
   }
   const adjustedRadius = circleRadius + radiusAdjustment;
   let verticalOffset = 0;

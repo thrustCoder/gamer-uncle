@@ -432,7 +432,7 @@ export const scoreTrackerStyles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingLeft: 16,
-    paddingRight: _isTablet ? 65 : 16,
+    paddingRight: _isTablet ? 10 : 3,
     marginTop: 8,
   },
   lowestScoreToggleLabel: {
