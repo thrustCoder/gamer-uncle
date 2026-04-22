@@ -610,14 +610,6 @@ namespace GamerUncle.Functions.Tests
     public class HighSignalSyncRequestDefaultsTests
     {
         [Fact]
-        public void DefaultLimit_Is7000()
-        {
-            var request = new HighSignalSyncRequest();
-
-            Assert.Equal(7_000, request.Limit);
-        }
-
-        [Fact]
         public void DefaultMinVotes_Is50()
         {
             var request = new HighSignalSyncRequest();
@@ -669,7 +661,6 @@ namespace GamerUncle.Functions.Tests
             {
                 StartId = 200000,
                 EndId = 201000,
-                Limit = 500,
                 MinAverage = 6.0,
                 MinBayes = 6.0,
                 MinVotes = 100
@@ -677,7 +668,6 @@ namespace GamerUncle.Functions.Tests
 
             Assert.Equal(200000, chunk.StartId);
             Assert.Equal(201000, chunk.EndId);
-            Assert.Equal(500, chunk.Limit);
             Assert.Equal(6.0, chunk.MinAverage);
             Assert.Equal(6.0, chunk.MinBayes);
             Assert.Equal(100, chunk.MinVotes);

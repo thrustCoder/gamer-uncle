@@ -310,32 +310,21 @@ namespace GamerUncle.Functions
             var request = context.GetInput<HighSignalSyncRequest>() ?? new HighSignalSyncRequest();
             int chunkSize = request.ChunkSize > 0 ? request.ChunkSize : 1000;
 
-            int totalUpserted = 0;
-
             for (int chunkStart = request.StartId; chunkStart <= request.EndId; chunkStart += chunkSize)
             {
-                int remainingLimit = request.Limit - totalUpserted;
-                if (remainingLimit <= 0)
-                {
-                    break;
-                }
-
                 int chunkEnd = Math.Min(chunkStart + chunkSize - 1, request.EndId);
 
                 var chunkRequest = new HighSignalChunkRequest
                 {
                     StartId = chunkStart,
                     EndId = chunkEnd,
-                    Limit = remainingLimit,
                     MinAverage = request.MinAverage,
                     MinBayes = request.MinBayes,
                     MinVotes = request.MinVotes
                 };
 
-                int chunkUpserted = await context.CallSubOrchestratorAsync<int>(
+                await context.CallSubOrchestratorAsync<int>(
                     nameof(HighSignalChunkOrchestrator), chunkRequest);
-
-                totalUpserted += chunkUpserted;
             }
         }
 
@@ -349,11 +338,6 @@ namespace GamerUncle.Functions
             
             for (int id = chunk.StartId; id <= chunk.EndId; id++)
             {
-                if (upserted >= chunk.Limit)
-                {
-                    break;
-                }
-
                 var gameId = id.ToString();
                 
                 // First check if the game already exists in Cosmos DB
@@ -550,7 +534,6 @@ namespace GamerUncle.Functions
     {
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
-        public int Limit { get; set; } = 7_000; // how many to upsert
         public int ChunkSize { get; set; } = 1_000; // IDs per sub-orchestration to bound replay history
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
@@ -561,7 +544,6 @@ namespace GamerUncle.Functions
     {
         public int StartId { get; set; }
         public int EndId { get; set; }
-        public int Limit { get; set; }
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
         public int MinVotes { get; set; } = 50;
