@@ -1056,23 +1056,16 @@ stages:
             -o tsv 2>/dev/null || echo "")
           
           if [ -n "$EXISTING" ]; then
-            echo "✅ Autoscale setting already exists, updating..."
-            az monitor autoscale update \
-              --name gamer-uncle-prod-autoscale \
-              --resource-group gamer-uncle-prod-rg \
-              --min-count 2 \
-              --max-count 4 \
-              --count 2 \
-              --output none 2>/dev/null || true
+            echo "✅ Autoscale setting already exists, skipping update to preserve current min/default settings."
           else
-            echo "Creating autoscale setting (min=2, max=4, default=2)..."
+            echo "Creating autoscale setting (min=1, max=4, default=1)..."
             az monitor autoscale create \
               --name gamer-uncle-prod-autoscale \
               --resource-group gamer-uncle-prod-rg \
               --resource "$PLAN_ID" \
-              --min-count 2 \
+              --min-count 1 \
               --max-count 4 \
-              --count 2 \
+              --count 1 \
               --output none
             
             echo "Adding scale-out rule (CPU > 70% avg 5m -> +1 instance)..."
@@ -1100,7 +1093,7 @@ stages:
             --resource-group gamer-uncle-prod-rg \
             --query "length(profiles[0].rules)" -o tsv 2>/dev/null)
           
-          echo "✅ Autoscale configured: min=2, max=4, rules=$RULE_COUNT"
+          echo "✅ Autoscale configured: min=1, max=4, rules=$RULE_COUNT"
 
 - stage: ProdDeployFunctions
   displayName: 'Prod Deploy Functions'
