@@ -309,9 +309,20 @@ namespace GamerUncle.Functions
         {
             var request = context.GetInput<HighSignalSyncRequest>() ?? new HighSignalSyncRequest();
             int chunkSize = request.ChunkSize > 0 ? request.ChunkSize : 1000;
+            int maxChunks = request.MaxChunksPerCycle > 0 ? request.MaxChunksPerCycle : 15;
+
+            int chunksProcessed = 0;
 
             for (int chunkStart = request.StartId; chunkStart <= request.EndId; chunkStart += chunkSize)
             {
+                if (chunksProcessed >= maxChunks)
+                {
+                    // Reset replay history by restarting with updated position
+                    request.StartId = chunkStart;
+                    context.ContinueAsNew(request);
+                    return;
+                }
+
                 int chunkEnd = Math.Min(chunkStart + chunkSize - 1, request.EndId);
 
                 var chunkRequest = new HighSignalChunkRequest
@@ -325,6 +336,8 @@ namespace GamerUncle.Functions
 
                 await context.CallSubOrchestratorAsync<int>(
                     nameof(HighSignalChunkOrchestrator), chunkRequest);
+
+                chunksProcessed++;
             }
         }
 
@@ -535,6 +548,7 @@ namespace GamerUncle.Functions
         public int StartId { get; set; } = 1;
         public int EndId { get; set; } = 1_000_000; // widened scan window to capture more high-signal games
         public int ChunkSize { get; set; } = 1_000; // IDs per sub-orchestration to bound replay history
+        public int MaxChunksPerCycle { get; set; } = 15; // chunks before ContinueAsNew resets replay history
         public double MinAverage { get; set; } = 5.0;
         public double MinBayes { get; set; } = 5.0;
         public int MinVotes { get; set; } = 50;

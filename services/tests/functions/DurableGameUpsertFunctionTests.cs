@@ -640,6 +640,14 @@ namespace GamerUncle.Functions.Tests
 
             Assert.Equal(1_000, request.ChunkSize);
         }
+
+        [Fact]
+        public void DefaultMaxChunksPerCycle_Is15()
+        {
+            var request = new HighSignalSyncRequest();
+
+            Assert.Equal(15, request.MaxChunksPerCycle);
+        }
     }
 
     public class HighSignalChunkRequestTests
