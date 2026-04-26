@@ -393,6 +393,7 @@ On **Windows**, the local API server is started for local development.
 
 ## Pull Request Conventions
 - **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.
+- **GitHub account**: Always create PRs using the `thrustCoder` GitHub account. If `gh auth status` shows a different active account, run `gh auth switch --user thrustCoder` before creating the PR.
 
 ## General Guidelines
 
