@@ -6,6 +6,7 @@
 //   - 9 Platform Metric Alerts (#1, #9, #10, #13, #14, #18, #19, #20, #25)
 //   - 15 Log-Search (KQL) Alerts (#2-#8, #11, #12, #15, #16, #21-#24)
 //   - Dev-only suppression rules for nightly scale-down window
+//   - Prod-only deployment suppression rule (toggled by CI/CD pipeline)
 //
 // Usage:
 //   az deployment group create \
@@ -97,5 +98,18 @@ module suppressionRules 'suppression-rules.bicep' = if (environment == 'dev') {
   params: {
     appServiceId: appServiceId
     appServicePlanId: appServicePlanId
+  }
+}
+
+// ============================================================================
+// Module: Prod Deployment Suppression (prod environment only)
+// Toggled on/off by CI/CD pipeline during deployments to suppress
+// cold-start latency alerts.
+// ============================================================================
+module deploymentSuppression 'deployment-suppression.bicep' = if (environment == 'prod') {
+  name: 'deploy-deployment-suppression-${environment}'
+  params: {
+    environment: environment
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }

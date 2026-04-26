@@ -993,6 +993,29 @@ stages:
       artifact: dropApi
 
     - task: AzureCLI@2
+      displayName: 'Enable Deployment Alert Suppression'
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Enabling deployment suppression rule to prevent cold-start latency alerts..."
+          RULE_ID=$(az monitor alert-processing-rule show \
+            --name gamer-uncle-prod-deploy-suppression \
+            --resource-group gamer-uncle-prod-rg \
+            --query id -o tsv 2>/dev/null || echo "")
+          if [ -n "$RULE_ID" ]; then
+            az monitor alert-processing-rule update \
+              --name gamer-uncle-prod-deploy-suppression \
+              --resource-group gamer-uncle-prod-rg \
+              --enabled true \
+              --output none
+            echo "✅ Deployment suppression rule enabled"
+          else
+            echo "⚠️ Deployment suppression rule not found — skipping (alerts may fire during cold start)"
+          fi
+
+    - task: AzureCLI@2
       displayName: 'Configure Prod API App Settings'
       inputs:
         azureSubscription: 'gamer-uncle-prod-sc'
@@ -1396,6 +1419,30 @@ stages:
         testResultsFiles: '$(Agent.TempDirectory)/*.trx'
         failTaskOnFailedTests: true
       displayName: 'Publish Prod Functional Test Results'
+
+    - task: AzureCLI@2
+      displayName: 'Disable Deployment Alert Suppression'
+      condition: always()
+      inputs:
+        azureSubscription: 'gamer-uncle-prod-sc'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          echo "Disabling deployment suppression rule (post-deployment cooldown complete)..."
+          RULE_ID=$(az monitor alert-processing-rule show \
+            --name gamer-uncle-prod-deploy-suppression \
+            --resource-group gamer-uncle-prod-rg \
+            --query id -o tsv 2>/dev/null || echo "")
+          if [ -n "$RULE_ID" ]; then
+            az monitor alert-processing-rule update \
+              --name gamer-uncle-prod-deploy-suppression \
+              --resource-group gamer-uncle-prod-rg \
+              --enabled false \
+              --output none
+            echo "✅ Deployment suppression rule disabled"
+          else
+            echo "⚠️ Deployment suppression rule not found — nothing to disable"
+          fi
 
 # E2E Tests removed due to reliability issues - mobile app loading problems
 
