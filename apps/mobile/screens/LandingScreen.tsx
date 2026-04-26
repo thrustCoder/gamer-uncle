@@ -48,13 +48,13 @@ const getIconPosition = (index: number, total: number, featureKey: string) => {
   } else if (featureKey === 'turn') {
     radiusAdjustment = isTablet ? -65 : -30; // Move Turn Selector closer to center (extra on tablets)
   } else if (featureKey === 'timer') {
-    radiusAdjustment = isTablet ? -70 : -35; // Move Timer closer to center (extra on tablets)
+    radiusAdjustment = isTablet ? -55 : -28; // Move Timer closer to center (extra on tablets)
   } else if (featureKey === 'chat') {
     radiusAdjustment = isTablet ? -25 : -15; // Move Talk to Uncle closer to center (extra on tablets)
   } else if (featureKey === 'team') {
-    radiusAdjustment = isTablet ? -85 : -45; // Move Shuffle Teams closer to center (extra on tablets)
+    radiusAdjustment = isTablet ? -70 : -38; // Move Shuffle Teams closer to center (extra on tablets)
   } else if (featureKey === 'search') {
-    radiusAdjustment = isTablet ? -90 : -50; // Move Game Search closer to center (extra on tablets)
+    radiusAdjustment = isTablet ? -70 : -45; // Move Game Search closer to center (extra on tablets)
   } else if (featureKey === 'dice') {
     radiusAdjustment = isTablet ? -60 : -20; // Move Dice Roller closer to center (extra on tablets)
   } else if (featureKey === 'setup') {
