@@ -291,6 +291,17 @@ export const scoreTrackerStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  closeGameButton: {
+    backgroundColor: Colors.wheelOrange,
+  },
   addRowIcon: {
     marginRight: 8,
   },

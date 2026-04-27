@@ -20,11 +20,12 @@ interface GameScoreSectionProps {
 
 export default function GameScoreSection({ playerNames }: GameScoreSectionProps) {
   const navigation = useNavigation<any>();
-  const { gameScore, clearGameScore, getGameScoreRanking, deleteRound } = useScoreTracker();
+  const { gameScore, clearGameScore, getGameScoreRanking, deleteRound, addLeaderboardEntry } = useScoreTracker();
 
   if (!gameScore) return null;
 
   const ranking = getGameScoreRanking();
+  const hasRounds = gameScore.rounds.length > 0;
 
   const handleClose = () => {
     Alert.alert(
@@ -36,6 +37,30 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
           text: 'Clear',
           style: 'destructive',
           onPress: clearGameScore,
+        },
+      ]
+    );
+  };
+
+  const handleCloseGame = () => {
+    Alert.alert(
+      'Close Game',
+      'Close this game and add the total scores to the Leaderboard? This will clear the current game score.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Close & Save',
+          onPress: () => {
+            // Sum each player's scores across all rounds
+            const totals: Record<string, number> = {};
+            gameScore.rounds.forEach((round) => {
+              Object.entries(round.scores).forEach(([player, score]) => {
+                totals[player] = (totals[player] ?? 0) + score;
+              });
+            });
+            addLeaderboardEntry(gameScore.game, totals, gameScore.lowestScoreWins);
+            clearGameScore();
+          },
         },
       ]
     );
@@ -126,10 +151,21 @@ export default function GameScoreSection({ playerNames }: GameScoreSectionProps)
         onEdit={(roundNumber) => roundNumber !== undefined && handleEditRound(roundNumber)}
       />
 
-      {/* Add Round Button */}
-      <TouchableOpacity style={styles.addRowButton} onPress={handleAddRound}>
-        <Text style={styles.addRowButtonText}>+ Add Round</Text>
-      </TouchableOpacity>
+      {/* Add Round + Close Game Buttons */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.addRowButton} onPress={handleAddRound}>
+          <Text style={styles.addRowButtonText}>+ Add Round</Text>
+        </TouchableOpacity>
+        {hasRounds && (
+          <TouchableOpacity
+            style={[styles.addRowButton, styles.closeGameButton]}
+            onPress={handleCloseGame}
+            testID="close-game-button"
+          >
+            <Text style={styles.addRowButtonText}>✓ Close Game</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
