@@ -72,12 +72,12 @@ describe('LandingScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ScoreTracker');
   });
 
-  it('navigates to Turn when turn button is pressed', () => {
+  it('navigates to TurnTracker when turn button is pressed', () => {
     const { getByTestId } = render(<LandingScreen />);
     
     fireEvent.press(getByTestId('turn-button'));
     
-    expect(mockNavigate).toHaveBeenCalledWith('Turn');
+    expect(mockNavigate).toHaveBeenCalledWith('TurnTracker');
   });
 
   it('navigates to GameSearch when search button is pressed', () => {

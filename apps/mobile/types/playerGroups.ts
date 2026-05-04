@@ -1,4 +1,5 @@
 import type { GameScoreSession, LeaderboardEntry } from './scoreTracker';
+import type { TurnTrackerSession } from './turnTracker';
 
 /** A single player group */
 export interface PlayerGroup {
@@ -22,6 +23,8 @@ export interface PlayerGroup {
   gameSetupPlayerCount: number;
   /** Game Setup: cached AI response */
   gameSetupResponse: string | null;
+  /** Turn Tracker: active turn-tracker session for this group, or null if no game in progress. */
+  turnTracker?: TurnTrackerSession | null;
 }
 
 /** Top-level player groups state persisted in AsyncStorage */

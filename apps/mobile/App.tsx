@@ -6,11 +6,13 @@ import { ChatProvider } from './store/ChatContext';
 import { TimerProvider } from './store/TimerContext';
 import { ScoreTrackerProvider } from './store/ScoreTrackerContext';
 import { PlayerGroupsProvider } from './store/PlayerGroupsContext';
+import { TurnTrackerProvider } from './store/TurnTrackerContext';
 import LandingScreen from './screens/LandingScreen';
 import ChatScreen from './screens/ChatScreen';
 import DiceRollerScreen from './screens/DiceRollerScreen';
 import TimerScreen from './screens/TimerScreen';
 import TurnSelectorScreen from './screens/TurnSelectorScreen';
+import TurnTrackerScreen from './screens/TurnTrackerScreen';
 import TeamRandomizerScreen from './screens/TeamRandomizerScreen';
 import GameSetupScreen from './screens/GameSetupScreen';
 import GameSearchScreen from './screens/GameSearchScreen';
@@ -48,6 +50,7 @@ export default function App() {
         <TimerProvider>
           <ScoreTrackerProvider>
             <PlayerGroupsProvider>
+            <TurnTrackerProvider>
             <NavigationContainer onStateChange={onNavigationStateChange}>
               <Stack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="Landing" component={LandingScreen} />
@@ -70,6 +73,13 @@ export default function App() {
                   {() => (
                     <TelemetryErrorBoundary errorEventName={AnalyticsEvents.ERROR_TURN_SELECTOR} screenName="Turn Selector">
                       <TurnSelectorScreen />
+                    </TelemetryErrorBoundary>
+                  )}
+                </Stack.Screen>
+                <Stack.Screen name="TurnTracker">
+                  {() => (
+                    <TelemetryErrorBoundary errorEventName={AnalyticsEvents.ERROR_TURN_TRACKER} screenName="Turn Tracker">
+                      <TurnTrackerScreen />
                     </TelemetryErrorBoundary>
                   )}
                 </Stack.Screen>
@@ -118,6 +128,7 @@ export default function App() {
                 </Stack.Screen>
               </Stack.Navigator>
             </NavigationContainer>
+            </TurnTrackerProvider>
             </PlayerGroupsProvider>
             <ForceUpgradeModal
               visible={showUpgradeModal}
