@@ -132,16 +132,26 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         Inner
       )}
 
-      <Text
-        style={[
-          styles.seatLabel,
-          { top: size + 4, width: Math.max(size + 30, 80), left: -((Math.max(size + 30, 80) - size) / 2) },
-        ]}
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {state === 'empty' ? `Seat ${seatNumber}` : name}
-      </Text>
+      {/*
+       * Sub-label rules:
+       *   - Empty (setup): show "Seat N" so the user knows which seat to fill.
+       *   - Filled (setup): show the player's name to confirm the assignment.
+       *   - In-game (active / idle / tap): hide. The initial inside the circle
+       *     already conveys the player; an extra label below clutters the
+       *     circle, especially when default names like "P1" are used.
+       */}
+      {(state === 'empty' || state === 'filled') && (
+        <Text
+          style={[
+            styles.seatLabel,
+            { top: size + 4, width: Math.max(size + 30, 80), left: -((Math.max(size + 30, 80) - size) / 2) },
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {state === 'empty' ? `Seat ${seatNumber}` : name}
+        </Text>
+      )}
     </View>
   );
 };

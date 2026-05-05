@@ -69,6 +69,15 @@ export const TurnTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const hydratedKeyRef = useRef<string | null>(null);
 
   /**
+   * The session value most recently written to (or read from) the persistence
+   * source. Used to short-circuit the persistence effect when the source already
+   * holds the current session — prevents the hydration ↔ persistence ping-pong
+   * that triggers when a different screen mutates the active group via
+   * `updateActiveGroupData(...)` (which changes `activeGroup`'s object identity).
+   */
+  const lastSyncedSessionRef = useRef<TurnTrackerSession | null>(null);
+
+  /**
    * Mirror of `session` kept in a ref so callbacks (e.g. `endGame`) can read
    * the latest value synchronously without depending on closure scope.
    */
@@ -77,10 +86,33 @@ export const TurnTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     sessionRef.current = session;
   }, [session]);
 
+  /**
+   * Refs for `activeGroup`, `groupsState`, and `updateActiveGroupData` so the
+   * hydration / persistence effects can read the latest values WITHOUT taking
+   * a dependency on their object identities. PlayerGroupsContext recreates
+   * `activeGroup` and other refs on every state mutation; depending on them
+   * directly causes feedback loops (Maximum update depth exceeded).
+   */
+  const activeGroupRef = useRef(activeGroup);
+  const groupsStateRef = useRef(groupsState);
+  const updateActiveGroupDataRef = useRef(updateActiveGroupData);
+  useEffect(() => {
+    activeGroupRef.current = activeGroup;
+    groupsStateRef.current = groupsState;
+    updateActiveGroupDataRef.current = updateActiveGroupData;
+  });
+
   const sourceKey = sourceKeyFor(groupsState.enabled, groupsState.activeGroupId);
 
   // ── Hydration ──────────────────────────────────────────────
-  // Re-hydrate whenever the source changes (groups enabled/disabled, or active group switched).
+  // Re-hydrate ONLY when the source identity changes:
+  //   - groups feature toggled on/off
+  //   - active group switched
+  //   - initial mount (after PlayerGroupsContext finishes loading)
+  // We deliberately do NOT depend on `activeGroup` (object ref). Within a
+  // single source, the only writer to the group's `turnTracker` field is this
+  // context itself, so re-hydrating on every group object change would be both
+  // wasteful AND cause an infinite loop with the persistence effect below.
   useEffect(() => {
     if (groupsLoading) return;
 
@@ -91,9 +123,9 @@ export const TurnTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let next: TurnTrackerSession | null = null;
       let currentPC = 0;
 
-      if (groupsState.enabled) {
-        next = activeGroup?.turnTracker ?? null;
-        currentPC = activeGroup?.playerCount ?? 0;
+      if (groupsStateRef.current.enabled) {
+        next = activeGroupRef.current?.turnTracker ?? null;
+        currentPC = activeGroupRef.current?.playerCount ?? 0;
       } else {
         next = await appCache.getTurnTracker();
         currentPC = await appCache.getPlayerCount(0);
@@ -106,6 +138,9 @@ export const TurnTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if (cancelled) return;
       hydratedKeyRef.current = sourceKey;
+      // Mark this value as already in sync with the source so the persistence
+      // effect doesn't immediately write it back (which would create churn).
+      lastSyncedSessionRef.current = next;
       setSession(next);
       setIsLoading(false);
     })();
@@ -113,29 +148,25 @@ export const TurnTrackerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return () => {
       cancelled = true;
     };
-    // We intentionally key on sourceKey + activeGroup reference so we re-hydrate
-    // on group switches and on external mutations to the active group's session.
-  }, [groupsLoading, sourceKey, activeGroup, groupsState.enabled]);
+  }, [groupsLoading, sourceKey]);
 
   // ── Persistence ────────────────────────────────────────────
-  // When `session` changes via internal actions, write back to the active source.
+  // When `session` changes via internal user actions (advance/retract/etc.),
+  // write back to the active source. Skipped if the source already holds the
+  // same value (e.g. immediately after hydration).
   useEffect(() => {
     if (isLoading) return;
     if (hydratedKeyRef.current !== sourceKey) return;
+    if (lastSyncedSessionRef.current === session) return;
 
-    if (groupsState.enabled) {
-      // Push only when the active group's snapshot differs (avoids re-render loops).
-      const currentOnGroup = activeGroup?.turnTracker ?? null;
-      if (currentOnGroup !== session) {
-        updateActiveGroupData({ turnTracker: session });
-      }
+    lastSyncedSessionRef.current = session;
+
+    if (groupsStateRef.current.enabled) {
+      updateActiveGroupDataRef.current({ turnTracker: session });
     } else {
-      // Fire-and-forget; appCache is async but we don't need to await for UI.
+      // Fire-and-forget; appCache is async but UI doesn't need to await.
       appCache.setTurnTracker(session);
     }
-    // We deliberately depend on `session` only — `activeGroup` mutates after
-    // updateActiveGroupData and would re-trigger this effect harmlessly otherwise.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, isLoading, sourceKey]);
 
   // ── Lifecycle ──────────────────────────────────────────────

@@ -56,13 +56,24 @@ describe('TurnTrackerScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('Turn');
   });
 
-  it('Begin Game button is hidden until all seats are filled', async () => {
-    const { queryByTestId } = renderScreen();
+  it('Begin Game button is rendered but disabled until all seats are filled', async () => {
+    const { getByTestId, queryByTestId } = renderScreen();
 
-    // After hydration, with no seats assigned, the Begin Game CTA should not render at all.
+    // After hydration, with no seats assigned, the Begin Game CTA renders but is disabled.
     await waitFor(() => {
       expect(queryByTestId('cta-pick-turn')).toBeTruthy();
     });
-    expect(queryByTestId('begin-game-button')).toBeNull();
+    const beginBtn = getByTestId('begin-game-button');
+    expect(beginBtn).toBeTruthy();
+    const isDisabled =
+      beginBtn.props.accessibilityState?.disabled ?? beginBtn.props.disabled;
+    expect(isDisabled).toBeTruthy();
+  });
+
+  it('Pick First Turn CTA is shown only while every seat is empty', async () => {
+    const { queryByTestId } = renderScreen();
+    await waitFor(() => {
+      expect(queryByTestId('cta-pick-turn')).toBeTruthy();
+    });
   });
 });

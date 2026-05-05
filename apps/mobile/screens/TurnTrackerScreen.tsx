@@ -19,6 +19,7 @@ import PlayerPickerModal from '../components/turnTracker/PlayerPickerModal';
 import SeatingCircle from '../components/turnTracker/SeatingCircle';
 import { appCache } from '../services/storage/appCache';
 import { AnalyticsEvents, trackEvent } from '../services/Telemetry';
+import { playTurnTickSound } from '../services/turnTrackerSound';
 import { Colors } from '../styles/colors';
 import { turnTrackerStyles as styles } from '../styles/turnTrackerStyles';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
@@ -34,9 +35,10 @@ const MARKER_SIZE = isTablet ? 96 : 72;
 
 /**
  * Top padding for the scrollable content. Must clear the absolute-positioned
- * page header (which sits at top: 57). 100 px gives a comfortable gap.
+ * page header (which sits at top: 57). 140 px gives the GroupPicker / subtitle
+ * plenty of breathing room below the header.
  */
-const CONTENT_TOP_PADDING = 100;
+const CONTENT_TOP_PADDING = 140;
 
 export default function TurnTrackerScreen() {
   const navigation = useNavigation<any>();
@@ -135,6 +137,10 @@ export default function TurnTrackerScreen() {
   const allSeatsFilled =
     playerCount > 0 && seats.length === playerCount && seats.every((s) => s != null);
 
+  /** True when no seat has been assigned yet (used to show the "Pick First Turn" CTA). */
+  const noSeatsFilled =
+    seats.length === 0 || seats.every((s) => s == null);
+
   // ── Setup actions ──────────────────────────────────────────
   const handleSeatPress = useCallback((seatIdx: number) => {
     setPickerSeatIndex(seatIdx);
@@ -175,6 +181,7 @@ export default function TurnTrackerScreen() {
   // ── In-game actions ────────────────────────────────────────
   const handleMarkerPress = useCallback(() => {
     advanceTurn();
+    playTurnTickSound();
     trackEvent(AnalyticsEvents.TURN_TRACKER_TURN_ADVANCED, {
       via: 'marker',
       direction: session?.direction ?? 'cw',
@@ -185,6 +192,7 @@ export default function TurnTrackerScreen() {
 
   const handleAdvancePress = useCallback(() => {
     advanceTurn();
+    playTurnTickSound();
     trackEvent(AnalyticsEvents.TURN_TRACKER_TURN_ADVANCED, {
       via: 'seatTap',
       direction: session?.direction ?? 'cw',
@@ -195,6 +203,7 @@ export default function TurnTrackerScreen() {
 
   const handleRetractPress = useCallback(() => {
     retractTurn();
+    playTurnTickSound();
     trackEvent(AnalyticsEvents.TURN_TRACKER_TURN_RETRACTED, {
       via: 'seatTap',
       direction: session?.direction ?? 'cw',
@@ -300,11 +309,31 @@ export default function TurnTrackerScreen() {
         />
       )}
 
-      {/* Begin Game CTA: only visible after every seat is filled. */}
-      {allSeatsFilled && validPlayerCount && (
-        <View style={{ alignItems: 'center', marginTop: 12 }}>
+      {/*
+       * Setup-mode action stack (full-width buttons):
+       *   - Pick First Turn (only while every seat is empty) sits ABOVE the
+       *     Begin Game button so the user can pick a starter before sitting
+       *     anyone down.
+       *   - Begin Game is always present once the player count is valid, but
+       *     stays disabled until every seat is filled.
+       */}
+      {validPlayerCount && (
+        <View style={styles.setupCtaStack}>
+          {noSeatsFilled && (
+            <TouchableOpacity
+              style={[styles.primaryButton, styles.primaryButtonWide, styles.primaryButtonSecondary]}
+              onPress={goToPickTurn}
+              testID="cta-pick-turn"
+              accessibilityRole="button"
+              accessibilityLabel="Open random Pick Turns spinner to pick the first turn"
+            >
+              <Text style={styles.primaryButtonText}>Pick First Turn</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, styles.primaryButtonWide, !allSeatsFilled && styles.primaryButtonDisabled]}
+            disabled={!allSeatsFilled}
             onPress={handleBeginGame}
             testID="begin-game-button"
             {...(Platform.OS === 'web' && { 'data-testid': 'begin-game-button' })}
@@ -313,20 +342,6 @@ export default function TurnTrackerScreen() {
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Setup-mode CTA row: just Pick Turn (random spinner). */}
-      <View style={styles.ctaRow}>
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={goToPickTurn}
-          testID="cta-pick-turn"
-          accessibilityRole="button"
-          accessibilityLabel="Open random Pick Turns spinner"
-        >
-          <Ionicons name="refresh-circle" size={20} color={Colors.white} />
-          <Text style={styles.ctaButtonText}>Pick Turn</Text>
-        </TouchableOpacity>
-      </View>
     </ScrollView>
   );
 
@@ -369,32 +384,37 @@ export default function TurnTrackerScreen() {
           <DirectionToggle value={session.direction} onChange={handleDirectionChange} />
         </View>
 
-        {/* In-game CTA row: Add Game Score + Timer (matching ScoreTracker bold pill style). */}
-        <View style={styles.ctaRow}>
-          <TouchableOpacity
-            style={styles.ctaButton}
-            onPress={goToScoreTracker}
-            testID="cta-add-game-score"
-            accessibilityRole="button"
-            accessibilityLabel="Add game score"
-          >
-            <MaterialCommunityIcons name="scoreboard" size={20} color={Colors.white} />
-            <Text style={styles.ctaButtonText}>Add Game Score</Text>
-          </TouchableOpacity>
+        {/*
+         * Bottom action block. The CTA row is wrapped together with the End
+         * Game button so they share the same horizontal padding, which lets
+         * the End Game button visually span the combined width of the two
+         * pills above it (Add Game Score + Timer) for a symmetric look.
+         */}
+        <View style={styles.endGameWrap}>
+          <View style={styles.ctaRow}>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={goToScoreTracker}
+              testID="cta-add-game-score"
+              accessibilityRole="button"
+              accessibilityLabel="Add game score"
+            >
+              <MaterialCommunityIcons name="scoreboard" size={20} color={Colors.white} />
+              <Text style={styles.ctaButtonText}>Add Game Score</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.ctaButton, styles.ctaButtonAlt]}
-            onPress={goToTimer}
-            testID="cta-timer"
-            accessibilityRole="button"
-            accessibilityLabel="Open timer"
-          >
-            <Ionicons name="timer" size={20} color={Colors.white} />
-            <Text style={styles.ctaButtonText}>Timer</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[styles.ctaButton, styles.ctaButtonAlt]}
+              onPress={goToTimer}
+              testID="cta-timer"
+              accessibilityRole="button"
+              accessibilityLabel="Open timer"
+            >
+              <Ionicons name="timer" size={20} color={Colors.white} />
+              <Text style={styles.ctaButtonText}>Timer</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={{ alignItems: 'center' }}>
           <TouchableOpacity
             style={styles.endGameButton}
             onPress={handleEndGame}

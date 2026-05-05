@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, TouchableOpacity, View } from 'react-native';
-import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import { Colors } from '../../styles/colors';
 import { turnTrackerStyles as styles } from '../../styles/turnTrackerStyles';
@@ -34,50 +34,110 @@ export const shortestAngleDelta = (from: number, to: number): number => {
 };
 
 /**
- * Renders a compass-needle SVG inside a square viewBox. The needle is a long
- * thin shaft topped by a sharp arrowhead so it's visually obvious which seat
- * the marker is pointing at.
+ * Renders a vintage arrow inside a square viewBox. The shape is asymmetric so
+ * the pointing tip is unmistakable:
+ *   - Top: a filled triangular arrowhead (A-shape) — sharp tip, flat base.
+ *   - Middle: a slim dark shaft running down the centre.
+ *   - Bottom: angled fletching (feathers) — drawn as wedges on each side.
+ * 0° points up (12 o'clock); rotation goes clockwise.
  */
-const CompassNeedle: React.FC<{ size: number }> = ({ size }) => {
-  const v = 100;       // viewBox unit
-  const cx = v / 2;    // 50
-  const cy = v / 2;    // 50
-  const tipY = 8;      // 0=top edge; tip of arrowhead just inside the viewBox
-  const headBaseY = 30;
-  const tailY = 80;
-  const shaftHalfWidth = 5;
-  const headHalfWidth = 16;
-  const hubRadius = 8;
+const VintageArrow: React.FC<{ size: number }> = ({ size }) => {
+  const v = 100;        // viewBox unit
+  const cx = v / 2;     // horizontal centre
 
-  // Arrow path: tip → head right → shaft right → tail right → tail left → shaft left → head left → close
-  const path = [
+  // Arrowhead geometry — a filled triangle (A-shape): sharp tip at the top,
+  // flat base at the bottom where it meets the shaft. Lean and slightly
+  // elongated so the tip reads as a precise pointer rather than a wedge.
+  const tipY = 12;
+  const baseY = 36;
+  const baseHalfWidth = 9;
+  const trianglePath = [
     `M ${cx} ${tipY}`,
-    `L ${cx + headHalfWidth} ${headBaseY}`,
-    `L ${cx + shaftHalfWidth} ${headBaseY}`,
-    `L ${cx + shaftHalfWidth} ${tailY}`,
-    `L ${cx - shaftHalfWidth} ${tailY}`,
-    `L ${cx - shaftHalfWidth} ${headBaseY}`,
-    `L ${cx - headHalfWidth} ${headBaseY}`,
+    `L ${cx + baseHalfWidth} ${baseY}`,
+    `L ${cx - baseHalfWidth} ${baseY}`,
+    'Z',
+  ].join(' ');
+
+  // Midrib — a thin dark vertical line down the centre of the arrowhead.
+  // Adds the forged-metal detail without changing the silhouette.
+  const midribPath = `M ${cx} ${tipY + 4} L ${cx} ${baseY - 2}`;
+
+  // Shaft geometry
+  const shaftHalfWidth = 2.4;
+  const shaftTopY = baseY;
+  const shaftBottomY = 64;
+  const shaft = [
+    `M ${cx - shaftHalfWidth} ${shaftTopY}`,
+    `L ${cx + shaftHalfWidth} ${shaftTopY}`,
+    `L ${cx + shaftHalfWidth} ${shaftBottomY}`,
+    `L ${cx - shaftHalfWidth} ${shaftBottomY}`,
+    'Z',
+  ].join(' ');
+
+  // Fletching geometry (bottom)
+  const fletchTopY = 52;
+  const fletchTipY = 84;
+  const fletchHalfWidth = 11;
+  const fletchRight = [
+    `M ${cx} ${fletchTopY}`,
+    `L ${cx + fletchHalfWidth} ${fletchTipY - 4}`,
+    `L ${cx + 2} ${fletchTipY}`,
+    `L ${cx} ${shaftBottomY}`,
+    'Z',
+  ].join(' ');
+  const fletchLeft = [
+    `M ${cx} ${fletchTopY}`,
+    `L ${cx - fletchHalfWidth} ${fletchTipY - 4}`,
+    `L ${cx - 2} ${fletchTipY}`,
+    `L ${cx} ${shaftBottomY}`,
     'Z',
   ].join(' ');
 
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${v} ${v}`}>
-      {/* Hub circle behind the needle for a nicer pivot look */}
-      <SvgCircle
-        cx={cx}
-        cy={cy}
-        r={hubRadius}
+      {/* Fletching (drawn first so the shaft overlaps it at the centre). */}
+      <Path
+        d={fletchLeft}
         fill={Colors.themeBrownDark}
         stroke={Colors.themeYellow}
-        strokeWidth={2}
+        strokeWidth={1.4}
+        strokeLinejoin="round"
       />
       <Path
-        d={path}
+        d={fletchRight}
+        fill={Colors.themeBrownDark}
+        stroke={Colors.themeYellow}
+        strokeWidth={1.4}
+        strokeLinejoin="round"
+      />
+
+      {/* Shaft */}
+      <Path
+        d={shaft}
+        fill={Colors.themeBrownDark}
+        stroke={Colors.themeYellow}
+        strokeWidth={1.2}
+        strokeLinejoin="miter"
+      />
+
+      {/*
+       * Filled triangular arrowhead (A-shape): yellow fill with a dark
+       * outline, matching the two-tone treatment used elsewhere on the arrow.
+       */}
+      <Path
+        d={trianglePath}
         fill={Colors.themeYellow}
         stroke={Colors.themeBrownDark}
         strokeWidth={2}
         strokeLinejoin="miter"
+      />
+
+      {/* Midrib — thin dark line down the centre of the arrowhead. */}
+      <Path
+        d={midribPath}
+        stroke={Colors.themeBrownDark}
+        strokeWidth={1.4}
+        strokeLinecap="round"
       />
     </Svg>
   );
@@ -124,7 +184,7 @@ const TurnMarker: React.FC<TurnMarkerProps> = ({
         transform: [{ rotate: interpolatedRotation }],
       }}
     >
-      <CompassNeedle size={size} />
+      <VintageArrow size={size} />
     </Animated.View>
   );
 

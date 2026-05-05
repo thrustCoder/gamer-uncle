@@ -42,13 +42,17 @@ export const turnTrackerStyles = StyleSheet.create({
   groupPickerWrap: {
     width: '100%',
     paddingHorizontal: 8,
+    marginBottom: 12,
   },
   // ── Seating circle ──────────────────────────────────────────
   circleWrap: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 8,
+    // Push the seating circle further below the GroupPicker / subtitle so
+    // they don't visually crowd each other.
+    marginTop: 28,
+    marginBottom: 8,
   },
   circleStage: {
     position: 'relative',
@@ -157,6 +161,13 @@ export const turnTrackerStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.themeYellow,
   },
+  // Full-width variant of `primaryButton`. Used for the Begin Game and Pick
+  // First Turn CTAs so they read as the dominant actions on the setup view.
+  primaryButtonWide: {
+    alignSelf: 'stretch',
+    width: '100%',
+    minWidth: 0,
+  },
   primaryButtonDisabled: {
     backgroundColor: Colors.grayDisabled,
     borderColor: Colors.grayLight,
@@ -166,6 +177,17 @@ export const turnTrackerStyles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.themeYellow,
   },
+  // Container for the stacked full-width CTAs on the setup view.
+  setupCtaStack: {
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 28,
+    gap: 12,
+  },
+  // Variant used to pick a different background on the secondary action.
+  primaryButtonSecondary: {
+    backgroundColor: Colors.wheelGreen,
+  },
   // ── In-game CTA row (Add Game Score / Timer) ───────────────
   ctaRow: {
     flexDirection: 'row',
@@ -173,7 +195,7 @@ export const turnTrackerStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginTop: 14,
+    marginTop: 32,
     paddingHorizontal: 8,
   },
   ctaButton: {
@@ -199,20 +221,29 @@ export const turnTrackerStyles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 6,
   },
+  // Wrapper for the End Game CTA so it can match the visual width of the two
+  // CTAs above it (Add Game Score + Timer) and feel symmetric.
+  endGameWrap: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingHorizontal: 8,
+  },
   endGameButton: {
     backgroundColor: 'transparent',
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 22,
-    marginTop: 14,
     borderWidth: 2,
     borderColor: Colors.timerRed,
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
   },
   endGameText: {
     color: Colors.timerRed,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   // ── Bottom toolbar ─────────────────────────────────────────
   // (The toolbar component was removed in favour of in-flow CTA buttons.)
