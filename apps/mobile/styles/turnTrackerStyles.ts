@@ -16,7 +16,10 @@ export const turnTrackerStyles = StyleSheet.create({
   },
   pageHeader: {
     position: 'absolute',
-    top: 57,
+    // Aligned to the back button's vertical centre. BackButton sits at top: 60
+    // with height 40 (centre y ≈ 80); a 32 px font with this top value lands
+    // the text's optical centre at the same line.
+    top: 65,
     left: 0,
     right: 0,
     zIndex: 9,
@@ -49,9 +52,8 @@ export const turnTrackerStyles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    // Push the seating circle further below the GroupPicker / subtitle so
-    // they don't visually crowd each other.
-    marginTop: 28,
+    // Sit close to the heading above so heading + circle read as one block.
+    marginTop: 4,
     marginBottom: 8,
   },
   circleStage: {
@@ -177,12 +179,26 @@ export const turnTrackerStyles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.themeYellow,
   },
-  // Container for the stacked full-width CTAs on the setup view.
-  setupCtaStack: {
+  // Container for the side-by-side full-width CTAs on the setup view
+  // ([Pick First Turn] [Begin Game]). When Pick First Turn is hidden the
+  // remaining Begin Game button stretches to fill the row.
+  setupCtaRow: {
     width: '100%',
+    flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: 28,
+    // Sit a comfortable distance below the seating circle so the CTAs feel
+    // like a separate action zone rather than crowding the visual.
+    marginTop: 56,
     gap: 12,
+  },
+  // Flex variant of `primaryButton` for use inside `setupCtaRow`. Each button
+  // takes an equal share of the row; if there's only one, it spans the full
+  // width.
+  primaryButtonFlex: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 12,
+    marginTop: 0,
   },
   // Variant used to pick a different background on the secondary action.
   primaryButtonSecondary: {
@@ -222,40 +238,42 @@ export const turnTrackerStyles = StyleSheet.create({
     marginLeft: 6,
   },
   // Wrapper for the End Game CTA so it can match the visual width of the two
-  // CTAs above it (Add Game Score + Timer) and feel symmetric.
+  // CTAs above it (Add Score + Timer) and feel symmetric.
   endGameWrap: {
     alignItems: 'center',
     marginTop: 16,
     paddingHorizontal: 8,
   },
   endGameButton: {
-    backgroundColor: 'transparent',
+    // Match the canonical "dark brown secondary button" pattern used
+    // elsewhere (see scoreTrackerStyles.secondaryButton): solid dark-brown
+    // fill, rounded corners, soft drop shadow, no border. Yellow label sits
+    // on top for contrast.
+    backgroundColor: Colors.themeBrownDark,
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderWidth: 2,
-    borderColor: Colors.timerRed,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    // Sit a little lower below the CTA row.
+    marginTop: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'stretch',
+    elevation: 4,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    // No `alignSelf: 'stretch'` — the screen sets an explicit width based on
+    // the measured CTA row width so the button visually matches the combined
+    // span of the two pills above it.
   },
   endGameText: {
-    color: Colors.timerRed,
+    color: Colors.themeYellow,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   // ── Bottom toolbar ─────────────────────────────────────────
   // (The toolbar component was removed in favour of in-flow CTA buttons.)
-  // ── Lock helper text on in-game GroupPicker row ────────────
-  lockHelper: {
-    color: Colors.themeYellow,
-    fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 4,
-    opacity: 0.85,
-  },
   // ── Player picker modal ────────────────────────────────────
   modalBackdrop: {
     flex: 1,

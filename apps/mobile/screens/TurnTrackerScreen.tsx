@@ -129,6 +129,13 @@ export default function TurnTrackerScreen() {
   // ── Player picker modal ───────────────────────────────────
   const [pickerSeatIndex, setPickerSeatIndex] = useState<number | null>(null);
 
+  /**
+   * Measured inner width of the in-game CTA row (Add Score + Timer). Used to
+   * size the End Game button so it spans exactly the combined width of the
+   * two pills above it. Stays at 0 until the row has been laid out.
+   */
+  const [ctaRowWidth, setCtaRowWidth] = useState<number>(0);
+
   const seatedPlayerIndices = useMemo(
     () => seats.filter((s): s is number => s != null),
     [seats]
@@ -292,7 +299,7 @@ export default function TurnTrackerScreen() {
 
       <Text style={styles.subtitle}>
         {validPlayerCount
-          ? 'Tap each seat to seat your players'
+          ? 'Tap to seat players in turn order'
           : `Add 2–20 players in your ${groupsState.enabled ? 'group' : 'player list'} first.`}
       </Text>
 
@@ -310,18 +317,18 @@ export default function TurnTrackerScreen() {
       )}
 
       {/*
-       * Setup-mode action stack (full-width buttons):
-       *   - Pick First Turn (only while every seat is empty) sits ABOVE the
-       *     Begin Game button so the user can pick a starter before sitting
-       *     anyone down.
-       *   - Begin Game is always present once the player count is valid, but
-       *     stays disabled until every seat is filled.
+       * Setup-mode action row:
+       *   - When every seat is empty: [Pick First Turn] [Begin Game] sit
+       *     side-by-side, splitting the available width evenly.
+       *   - Once any seat is assigned (Pick First Turn vanishes): Begin Game
+       *     stretches to span the full row width.
+       *   - Begin Game stays disabled until every seat is filled.
        */}
       {validPlayerCount && (
-        <View style={styles.setupCtaStack}>
+        <View style={styles.setupCtaRow}>
           {noSeatsFilled && (
             <TouchableOpacity
-              style={[styles.primaryButton, styles.primaryButtonWide, styles.primaryButtonSecondary]}
+              style={[styles.primaryButton, styles.primaryButtonFlex, styles.primaryButtonSecondary]}
               onPress={goToPickTurn}
               testID="cta-pick-turn"
               accessibilityRole="button"
@@ -332,7 +339,11 @@ export default function TurnTrackerScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.primaryButton, styles.primaryButtonWide, !allSeatsFilled && styles.primaryButtonDisabled]}
+            style={[
+              styles.primaryButton,
+              styles.primaryButtonFlex,
+              !allSeatsFilled && styles.primaryButtonDisabled,
+            ]}
             disabled={!allSeatsFilled}
             onPress={handleBeginGame}
             testID="begin-game-button"
@@ -360,8 +371,11 @@ export default function TurnTrackerScreen() {
       >
         {groupsState.enabled && (
           <View style={[styles.groupPickerWrap, { opacity: 0.55 }]} pointerEvents="none">
-            <GroupPicker onManageGroups={goToManageGroups} rowJustify="center" />
-            <Text style={styles.lockHelper}>End the current game to switch groups.</Text>
+            <GroupPicker
+              onManageGroups={goToManageGroups}
+              rowJustify="center"
+              containerMarginBottom={0}
+            />
           </View>
         )}
 
@@ -386,21 +400,34 @@ export default function TurnTrackerScreen() {
 
         {/*
          * Bottom action block. The CTA row is wrapped together with the End
-         * Game button so they share the same horizontal padding, which lets
-         * the End Game button visually span the combined width of the two
-         * pills above it (Add Game Score + Timer) for a symmetric look.
+         * Game button so they share the same horizontal padding. We measure
+         * the CTA row's rendered width via `onLayout` and apply it to the End
+         * Game button so its width visually matches the combined span of the
+         * two pills above it (Add Score + Timer) for a symmetric look.
          */}
         <View style={styles.endGameWrap}>
-          <View style={styles.ctaRow}>
+          <View
+            style={styles.ctaRow}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              // Subtract the row's horizontal padding so the End Game button
+              // matches the inner pills exactly. `paddingHorizontal: 8` on
+              // ctaRow contributes 16 px of inset.
+              const innerWidth = Math.max(0, w - 16);
+              if (innerWidth !== ctaRowWidth) {
+                setCtaRowWidth(innerWidth);
+              }
+            }}
+          >
             <TouchableOpacity
               style={styles.ctaButton}
               onPress={goToScoreTracker}
               testID="cta-add-game-score"
               accessibilityRole="button"
-              accessibilityLabel="Add game score"
+              accessibilityLabel="Add score"
             >
               <MaterialCommunityIcons name="scoreboard" size={20} color={Colors.white} />
-              <Text style={styles.ctaButtonText}>Add Game Score</Text>
+              <Text style={styles.ctaButtonText}>Add Score</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -416,7 +443,10 @@ export default function TurnTrackerScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.endGameButton}
+            style={[
+              styles.endGameButton,
+              ctaRowWidth > 0 && { width: ctaRowWidth },
+            ]}
             onPress={handleEndGame}
             testID="end-game-button"
           >
