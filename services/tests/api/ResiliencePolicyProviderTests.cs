@@ -359,6 +359,20 @@ namespace GamerUncle.Api.Tests
             Assert.Equal("Resilience", ResilienceSettings.SectionName);
         }
 
+        [Fact]
+        public void ResilienceSettings_AgentSdkNetworkTimeout_DefaultIs25SecondsAndExceedsPollyTimeout()
+        {
+            // The SDK transport timeout must be greater than the Polly per-call timeout so
+            // that Polly's pessimistic timeout fires first, and the SDK timeout then closes
+            // the underlying socket shortly after (instead of the SDK's 100s default).
+            var settings = new ResilienceSettings();
+
+            Assert.Equal(25, settings.AgentSdkNetworkTimeoutSeconds);
+            Assert.True(
+                settings.AgentSdkNetworkTimeoutSeconds > settings.AgentCallTimeoutSeconds,
+                $"AgentSdkNetworkTimeoutSeconds ({settings.AgentSdkNetworkTimeoutSeconds}s) must exceed AgentCallTimeoutSeconds ({settings.AgentCallTimeoutSeconds}s) so Polly times out before the SDK transport.");
+        }
+
         private ResiliencePolicyProvider CreateProvider()
         {
             return new ResiliencePolicyProvider(_defaultSettings, _mockLogger.Object);

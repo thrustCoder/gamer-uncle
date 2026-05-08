@@ -62,7 +62,21 @@ namespace GamerUncle.Api.Services.AgentService
             {
                 credentialOptions.TenantId = tenantId;
             }
-            _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential(credentialOptions));
+
+            // Configure the Azure SDK transport timeout so a hung Foundry HTTP call cannot
+            // outlive the Polly pessimistic timeout. Default = 25s (5s above Polly's 20s).
+            // This was added after observing a single Threads.GetThread call hang for ~101s
+            // (the SDK's default NetworkTimeout) which kept the user's request open for ~120s
+            // even though Polly had already abandoned the await at 20s.
+            var sdkTimeoutSecondsRaw = config["Resilience:AgentSdkNetworkTimeoutSeconds"];
+            if (!int.TryParse(sdkTimeoutSecondsRaw, out var sdkTimeoutSeconds) || sdkTimeoutSeconds <= 0)
+            {
+                sdkTimeoutSeconds = 25;
+            }
+            var projectClientOptions = new AIProjectClientOptions();
+            projectClientOptions.Retry.NetworkTimeout = TimeSpan.FromSeconds(sdkTimeoutSeconds);
+
+            _projectClient = new AIProjectClient(endpoint, new DefaultAzureCredential(credentialOptions), projectClientOptions);
             _agentsClient = _projectClient.GetPersistentAgentsClient();
             _cosmosDbService = cosmosDbService ?? throw new ArgumentNullException(nameof(cosmosDbService));
             _threadMappingStore = threadMappingStore ?? throw new ArgumentNullException(nameof(threadMappingStore));

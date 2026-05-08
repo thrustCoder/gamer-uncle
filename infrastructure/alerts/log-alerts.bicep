@@ -19,7 +19,11 @@ param logAnalyticsWorkspaceId string
 var isProd = environment == 'prod'
 
 // Threshold-embedded KQL queries (count-based approach to avoid no-data phantom alerts)
-var agentDurationQuery = 'AppMetrics | where Name == "AgentRequest.Duration" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '20000'}'
+// Agent duration: require a minimum sample size before evaluating P95. With sparse traffic,
+// a single 100s+ outlier (e.g. a one-off Foundry hiccup) would otherwise drive P95 of the
+// 15-min window to that outlier value and page Sev2. Prod requires >=5 samples; dev keeps
+// the relaxed guard so smoke tests can still surface regressions during development.
+var agentDurationQuery = 'AppMetrics | where Name == "AgentRequest.Duration" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints >= ${isProd ? '5' : '1'} and p95 > ${isProd ? '15000' : '20000'}'
 var voiceFailureQuery = 'AppMetrics | where Name == "voice.audio_failures_total" | summarize total = sum(Sum), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
 var voiceDurationQuery = 'AppMetrics | where Name == "voice.total_duration_ms" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '25000'}'
 var funcDurationQuery = 'AppRequests | where AppRoleName has "function" or SDKVersion has "azurefunctions" | summarize p95 = percentile(DurationMs, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '30000' : '60000'}'
