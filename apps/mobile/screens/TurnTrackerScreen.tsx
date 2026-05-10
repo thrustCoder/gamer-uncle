@@ -16,7 +16,7 @@ import BackButton from '../components/BackButton';
 import GroupPicker from '../components/GroupPicker';
 import DirectionToggle from '../components/turnTracker/DirectionToggle';
 import PlayerPickerModal from '../components/turnTracker/PlayerPickerModal';
-import SeatingCircle from '../components/turnTracker/SeatingCircle';
+import SeatingCircle, { computeSeatSize } from '../components/turnTracker/SeatingCircle';
 import { appCache } from '../services/storage/appCache';
 import { AnalyticsEvents, trackEvent } from '../services/Telemetry';
 import { playTurnTickSound } from '../services/turnTrackerSound';
@@ -25,13 +25,17 @@ import { turnTrackerStyles as styles } from '../styles/turnTrackerStyles';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
 import { useTurnTracker } from '../store/TurnTrackerContext';
 import type { TurnDirection } from '../types/turnTracker';
+import { generateUniqueInitials } from '../utils/initialsUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = Math.min(screenWidth, screenHeight) >= 768;
 
 const STAGE_SIZE = Math.min(screenWidth, screenHeight) * (isTablet ? 0.62 : 0.78);
-const SEAT_SIZE = isTablet ? 96 : 64;
+const DEFAULT_SEAT_SIZE = isTablet ? 96 : 64;
 const MARKER_SIZE = isTablet ? 96 : 72;
+// Seats become tap-friendly down to ~40 px; below that the touch target is too
+// small. Anything smaller than the marker also looks awkward visually.
+const MIN_SEAT_SIZE = 40;
 
 /**
  * Top padding for the scrollable content. Must clear the absolute-positioned
@@ -102,6 +106,23 @@ export default function TurnTrackerScreen() {
   const playerCount = groupsState.enabled
     ? activeGroup?.playerCount ?? 0
     : appCachePlayerCount;
+
+  // Shrink seats as the roster grows so they don't overlap on the circle.
+  // The default size is preserved for small groups; large groups (≥ ~10
+  // players, depending on screen size) get progressively smaller seats with
+  // a tap-friendly floor.
+  const seatSize = useMemo(
+    () => computeSeatSize(playerCount, STAGE_SIZE, DEFAULT_SEAT_SIZE, MIN_SEAT_SIZE),
+    [playerCount]
+  );
+
+  // Compute the shortest unique prefix for each player's name so seat circles
+  // can show "P1" vs "P18" instead of both collapsing to "P1". Mirrors the
+  // Track Score stack-ranking chart's labelling.
+  const playerLabels = useMemo<string[]>(() => {
+    const map = generateUniqueInitials(playerNames);
+    return playerNames.map((n) => map[n] ?? n);
+  }, [playerNames]);
 
   const getPlayerName = useCallback(
     (playerIndex: number): string =>
@@ -311,8 +332,9 @@ export default function TurnTrackerScreen() {
           getPlayerName={getPlayerName}
           onSeatPress={handleSeatPress}
           stageSize={STAGE_SIZE}
-          seatSize={SEAT_SIZE}
+          seatSize={seatSize}
           markerSize={MARKER_SIZE}
+          playerLabels={playerLabels}
         />
       )}
 
@@ -390,8 +412,9 @@ export default function TurnTrackerScreen() {
           onAdvancePress={handleAdvancePress}
           onRetractPress={handleRetractPress}
           stageSize={STAGE_SIZE}
-          seatSize={SEAT_SIZE}
+          seatSize={seatSize}
           markerSize={MARKER_SIZE}
+          playerLabels={playerLabels}
         />
 
         <View style={{ alignItems: 'center', marginTop: 12 }}>

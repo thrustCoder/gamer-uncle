@@ -92,4 +92,21 @@ describe('PlayerPickerModal', () => {
     fireEvent.press(getByTestId('player-picker-cancel'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('renders every player when the roster is large (16 players) so none are unreachable', () => {
+    const sixteen = Array.from({ length: 16 }, (_, i) => `P${i + 1}`);
+    const { getByTestId } = render(
+      <PlayerPickerModal
+        {...baseProps}
+        playerNames={sixteen}
+        seatedPlayerIndices={[]}
+        currentSelection={null}
+      />
+    );
+    // Every player row (including the last one) must be rendered so the
+    // FlatList has data to scroll through.
+    for (let i = 0; i < 16; i += 1) {
+      expect(getByTestId(`player-picker-row-${i}`)).toBeTruthy();
+    }
+  });
 });

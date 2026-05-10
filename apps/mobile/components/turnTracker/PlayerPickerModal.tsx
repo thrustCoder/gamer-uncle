@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { turnTrackerStyles as styles } from '../../styles/turnTrackerStyles';
 
@@ -40,38 +40,71 @@ const PlayerPickerModal: React.FC<PlayerPickerModalProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalBackdrop}
-        activeOpacity={1}
-        onPress={onClose}
-        testID="player-picker-backdrop"
-      >
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard}>
+      {/*
+       * Centering wrapper. The backdrop sits *behind* the card as an
+       * absolutely-positioned Pressable, so taps inside the card land on the
+       * card View (which does not claim the touch responder) and the inner
+       * FlatList can freely grab the pan responder to scroll — even when
+       * the swipe starts on a non-touchable row like an already-seated
+       * player. Taps outside the card hit the backdrop and dismiss.
+       */}
+      <View style={styles.modalRoot}>
+        <Pressable
+          style={[StyleSheet.absoluteFill, styles.modalBackdropDim]}
+          onPress={onClose}
+          testID="player-picker-backdrop"
+        />
+        <View style={styles.modalCard}>
           <Text style={styles.modalHeader}>{`Choose player for Seat ${seatNumber}`}</Text>
 
           <FlatList
             data={playerNames.map((name, index) => ({ index, name }))}
             keyExtractor={(item) => `pick-${item.index}`}
+            style={styles.modalList}
+            // Allow vertical scrolling once the list overflows the card's
+            // bounded height. Without this the FlatList would render all
+            // rows at full intrinsic height and get clipped by the card's
+            // `overflow: hidden`, leaving later players unreachable.
+            showsVerticalScrollIndicator
+            bounces
+            // Player rosters are bounded (≤20) and rows are cheap, so render
+            // them all up-front. This avoids virtualization hiccups while the
+            // user scrolls quickly to assign seats.
+            initialNumToRender={playerNames.length}
+            windowSize={Math.max(playerNames.length, 1)}
             renderItem={({ item }) => {
               const isSelected = item.index === currentSelection;
               const isDisabled = seatedSet.has(item.index) && !isSelected;
+              // Render disabled rows as a plain View so they don't capture
+              // the touch responder. A `disabled` TouchableOpacity still
+              // claims the gesture, which would prevent the FlatList from
+              // scrolling whenever the user's finger lands on an
+              // already-seated row.
+              if (isDisabled) {
+                return (
+                  <View
+                    style={[styles.modalRow, styles.modalRowDisabled]}
+                    testID={`player-picker-row-${item.index}`}
+                  >
+                    <Text style={styles.modalRowText}>
+                      {item.name || `P${item.index + 1}`}
+                    </Text>
+                    <Text style={styles.modalRowSubtext}>Already seated</Text>
+                  </View>
+                );
+              }
               return (
                 <TouchableOpacity
                   style={[
                     styles.modalRow,
-                    isDisabled && styles.modalRowDisabled,
                     isSelected && styles.modalRowSelected,
                   ]}
-                  disabled={isDisabled}
                   onPress={() => onPick(item.index)}
                   testID={`player-picker-row-${item.index}`}
                 >
                   <Text style={styles.modalRowText}>
                     {item.name || `P${item.index + 1}`}
                   </Text>
-                  {isDisabled && (
-                    <Text style={styles.modalRowSubtext}>Already seated</Text>
-                  )}
                   {isSelected && (
                     <Text style={styles.modalRowSubtext}>Currently in this seat</Text>
                   )}
@@ -92,8 +125,8 @@ const PlayerPickerModal: React.FC<PlayerPickerModalProps> = ({
               </TouchableOpacity>
             )}
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 };

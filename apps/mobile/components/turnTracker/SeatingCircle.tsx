@@ -46,6 +46,13 @@ type Props = (InGameProps | SetupProps) & {
   seatSize: number;
   /** Diameter of the central marker. */
   markerSize: number;
+  /**
+   * Optional pre-computed display labels indexed by player index. Each entry
+   * is the shortest unique prefix of that player's name within the active
+   * roster (e.g. "P1" vs "P18"). When omitted, seats fall back to the legacy
+   * two-initials behaviour from `getInitials`.
+   */
+  playerLabels?: string[];
 };
 
 /**
@@ -77,8 +84,41 @@ export const getSeatAngleDeg = (i: number, n: number): number => {
   return (i * 360) / n;
 };
 
+/**
+ * Returns a seat diameter that prevents adjacent seats from overlapping on the
+ * seating circle. The default seat size is used while it fits; once the
+ * player count gets large enough that two seats placed at adjacent positions
+ * on the inscribed circle would touch (or overlap), the seat size is shrunk
+ * down — clamped to a minimum tap-friendly size.
+ *
+ * Geometry: seats sit on a circle of radius `r = stageSize/2 - seatSize/2 - 6`.
+ * The chord between adjacent seat centres is `c = 2r·sin(π/n)`. For seats not
+ * to overlap with a small visual gap `g`, we need `c ≥ seatSize + g`, which
+ * yields the closed-form solution implemented below.
+ *
+ * @param playerCount number of seats on the circle (n)
+ * @param stageSize   diameter of the seating stage
+ * @param defaultSize preferred seat diameter when there's room
+ * @param minSize     lower bound to keep seats tap-friendly (default 40)
+ * @param gap         desired visual gap between adjacent seats (default 8)
+ */
+export const computeSeatSize = (
+  playerCount: number,
+  stageSize: number,
+  defaultSize: number,
+  minSize: number = 40,
+  gap: number = 8,
+): number => {
+  if (playerCount <= 1 || stageSize <= 0) return defaultSize;
+  const sinTerm = Math.sin(Math.PI / playerCount);
+  // seatSize ≤ (stageSize·sin - 12·sin - gap) / (1 + sin)
+  const maxBySpacing = (stageSize * sinTerm - 12 * sinTerm - gap) / (1 + sinTerm);
+  if (!Number.isFinite(maxBySpacing)) return defaultSize;
+  return Math.max(minSize, Math.min(defaultSize, Math.floor(maxBySpacing)));
+};
+
 const SeatingCircle: React.FC<Props> = (props) => {
-  const { stageSize, seatSize, markerSize } = props;
+  const { stageSize, seatSize, markerSize, playerLabels } = props;
   const stageStyle = { width: stageSize, height: stageSize };
 
   return (
@@ -111,6 +151,7 @@ const SeatingCircle: React.FC<Props> = (props) => {
                 <PlayerSeat
                   key={`seat-${seatIdx}`}
                   name={playerName}
+                  displayLabel={playerLabels?.[playerIndex]}
                   seatNumber={seatIdx + 1}
                   state={finalState}
                   size={seatSize}
@@ -140,6 +181,7 @@ const SeatingCircle: React.FC<Props> = (props) => {
                 <PlayerSeat
                   key={`setup-seat-${seatIdx}`}
                   name={filled ? props.getPlayerName(playerIdx as number) : ''}
+                  displayLabel={filled ? playerLabels?.[playerIdx as number] : undefined}
                   seatNumber={seatIdx + 1}
                   state={filled ? 'filled' : 'empty'}
                   size={seatSize}

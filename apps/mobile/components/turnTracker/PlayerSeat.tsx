@@ -33,6 +33,13 @@ interface PlayerSeatProps {
   tapAccessibilityLabel?: string;
   /** Optional testID prefix; default `seat`. */
   testIDPrefix?: string;
+  /**
+   * Optional pre-computed label to render inside the seat circle. When the
+   * caller knows the full roster it can supply a unique prefix (e.g. "P1"
+   * vs "P18") so identifiers don't collide. Falls back to `getInitials(name)`
+   * — the legacy two-letter behaviour — when omitted.
+   */
+  displayLabel?: string;
 }
 
 /**
@@ -49,6 +56,25 @@ export const getInitials = (name: string): string => {
   return (tokens[0][0] + tokens[1][0]).toUpperCase();
 };
 
+/**
+ * Picks an inner-label font size that keeps the entire `label` visible inside
+ * a circular seat of diameter `size` without ellipsis truncation. The chord
+ * across a circle at the text baseline is ~85% of the diameter, and a bold
+ * sans-serif glyph occupies roughly 0.6× its font size in width — so the
+ * widest font that fits is `(size * 0.85) / (label.length * 0.6)`. The
+ * result is clamped to a readable range.
+ */
+export const getSeatLabelFontSize = (
+  size: number,
+  label: string,
+  maxFont: number = 22,
+  minFont: number = 10,
+): number => {
+  const len = Math.max(label.length, 1);
+  const fitted = Math.floor((size * 0.85) / (len * 0.6));
+  return Math.max(minFont, Math.min(maxFont, fitted));
+};
+
 const PlayerSeat: React.FC<PlayerSeatProps> = ({
   name,
   seatNumber,
@@ -59,6 +85,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
   onPress,
   tapAccessibilityLabel,
   testIDPrefix = 'seat',
+  displayLabel,
 }) => {
   const isInteractive = state === 'empty' || state === 'filled' || state === 'tap';
   const isActive = state === 'active';
@@ -86,6 +113,8 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
     },
   ];
 
+  const innerLabel = displayLabel ?? getInitials(name);
+
   const Inner = (
     <Animated.View
       style={[seatStyle, { transform: [{ scale: scaleAnim }] }]}
@@ -94,8 +123,16 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
       {state === 'empty' ? (
         <Text style={styles.seatPlaceholderText}>+</Text>
       ) : (
-        <Text style={styles.seatInitials} numberOfLines={1}>
-          {getInitials(name)}
+        <Text
+          // Shrink the font so the full label (e.g. "P18") fits inside small
+          // seats — otherwise React Native truncates with an ellipsis at
+          // numberOfLines=1.
+          style={[styles.seatInitials, { fontSize: getSeatLabelFontSize(size, innerLabel) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+        >
+          {innerLabel}
         </Text>
       )}
     </Animated.View>

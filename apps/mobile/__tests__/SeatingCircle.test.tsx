@@ -1,4 +1,4 @@
-import { getSeatPosition, getSeatAngleDeg } from '../components/turnTracker/SeatingCircle';
+import { getSeatPosition, getSeatAngleDeg, computeSeatSize } from '../components/turnTracker/SeatingCircle';
 
 describe('getSeatAngleDeg', () => {
   it('returns 0 for the first seat (12 o\'clock)', () => {
@@ -56,3 +56,60 @@ describe('getSeatPosition', () => {
     }
   });
 });
+
+describe('computeSeatSize', () => {
+  const stage = 304; // approximate phone STAGE_SIZE (390 * 0.78)
+  const defaultSize = 64;
+  const minSize = 40;
+
+  it('uses the default size for small rosters that easily fit', () => {
+    expect(computeSeatSize(2, stage, defaultSize, minSize)).toBe(defaultSize);
+    expect(computeSeatSize(4, stage, defaultSize, minSize)).toBe(defaultSize);
+    expect(computeSeatSize(8, stage, defaultSize, minSize)).toBe(defaultSize);
+  });
+
+  it('shrinks seats once the roster grows past ~10 players', () => {
+    const size12 = computeSeatSize(12, stage, defaultSize, minSize);
+    const size16 = computeSeatSize(16, stage, defaultSize, minSize);
+    const size20 = computeSeatSize(20, stage, defaultSize, minSize);
+    // Each step up in player count must not produce a larger seat.
+    expect(size12).toBeLessThanOrEqual(defaultSize);
+    expect(size16).toBeLessThan(size12);
+    expect(size20).toBeLessThanOrEqual(size16);
+  });
+
+  it('never returns a seat smaller than the minimum tap target', () => {
+    for (let n = 2; n <= 20; n += 1) {
+      const size = computeSeatSize(n, stage, defaultSize, minSize);
+      expect(size).toBeGreaterThanOrEqual(minSize);
+    }
+  });
+
+  it('keeps adjacent seats from overlapping for typical phone/tablet stage sizes', () => {
+    const stages = [240, 304, 380, 476]; // phone narrow, phone, large phone, tablet
+    const gap = 8;
+    for (const D of stages) {
+      for (let n = 2; n <= 20; n += 1) {
+        const seat = computeSeatSize(n, D, defaultSize, minSize, gap);
+        // Chord between adjacent seat centres on the inscribed circle.
+        const r = D / 2 - seat / 2 - 6;
+        const chord = 2 * r * Math.sin(Math.PI / n);
+        // Allow a small tolerance — when the spacing falls below the minimum
+        // tap target, the floor (`minSize`) takes over and overlap is
+        // unavoidable on very small stages. In that case the chord may be
+        // less than `seat + gap`, which is acceptable since we'd otherwise
+        // produce un-tappable seats.
+        if (seat > minSize + 1) {
+          expect(chord + 1).toBeGreaterThanOrEqual(seat + gap);
+        }
+      }
+    }
+  });
+
+  it('returns the default size for degenerate inputs', () => {
+    expect(computeSeatSize(1, stage, defaultSize)).toBe(defaultSize);
+    expect(computeSeatSize(0, stage, defaultSize)).toBe(defaultSize);
+    expect(computeSeatSize(4, 0, defaultSize)).toBe(defaultSize);
+  });
+});
+

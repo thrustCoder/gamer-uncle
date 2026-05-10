@@ -275,11 +275,19 @@ export const turnTrackerStyles = StyleSheet.create({
   // ── Bottom toolbar ─────────────────────────────────────────
   // (The toolbar component was removed in favour of in-flow CTA buttons.)
   // ── Player picker modal ────────────────────────────────────
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalBackdropDim: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalCard: {
     backgroundColor: '#2a1a0a',
@@ -289,6 +297,10 @@ export const turnTrackerStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.themeYellow,
     overflow: 'hidden',
+    // Explicit column layout so the FlatList inside can `flexShrink` to fit
+    // within `maxHeight` and become scrollable when the player list is long
+    // (e.g. 16+ players in a group).
+    flexDirection: 'column',
   },
   modalHeader: {
     color: Colors.themeYellow,
@@ -296,6 +308,13 @@ export const turnTrackerStyles = StyleSheet.create({
     fontWeight: 'bold',
     padding: 16,
     textAlign: 'center',
+  },
+  modalList: {
+    // Allow the list to shrink within the card's bounded height so it can
+    // scroll instead of overflowing/being clipped. flexGrow:0 keeps it from
+    // pushing the action row off-screen when there are only a few players.
+    flexGrow: 0,
+    flexShrink: 1,
   },
   modalRow: {
     paddingHorizontal: 16,

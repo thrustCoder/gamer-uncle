@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
-import PlayerSeat, { getInitials } from '../components/turnTracker/PlayerSeat';
+import PlayerSeat, { getInitials, getSeatLabelFontSize } from '../components/turnTracker/PlayerSeat';
 
 describe('getInitials', () => {
   it('returns ? for empty', () => {
@@ -18,6 +18,26 @@ describe('getInitials', () => {
   it('returns first letter of first two tokens for multi-word names', () => {
     expect(getInitials('Alice Wonderland')).toBe('AW');
     expect(getInitials('john   doe   smith')).toBe('JD');
+  });
+});
+
+describe('getSeatLabelFontSize', () => {
+  it('uses the max font for short labels in large seats', () => {
+    expect(getSeatLabelFontSize(64, 'AL')).toBe(22);
+    expect(getSeatLabelFontSize(96, 'P1')).toBe(22);
+  });
+
+  it('shrinks the font so longer labels fit in small seats without ellipsis', () => {
+    // A 3-char label in a 40px seat must use a smaller font than the default.
+    const small = getSeatLabelFontSize(40, 'P18');
+    expect(small).toBeLessThan(22);
+    expect(small).toBeGreaterThanOrEqual(10);
+    // A 4-char label is shrunk further than a 3-char label at the same size.
+    expect(getSeatLabelFontSize(40, 'P100')).toBeLessThanOrEqual(small);
+  });
+
+  it('never returns a font smaller than the readable minimum', () => {
+    expect(getSeatLabelFontSize(20, 'PLAYER')).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -73,5 +93,26 @@ describe('PlayerSeat', () => {
     // Idle (other in-game seats) is not tappable either
     rerender(<PlayerSeat {...baseProps} state="idle" onPress={onPress} />);
     expect(queryByTestId('seat-0-touch')).toBeNull();
+  });
+
+  it('prefers displayLabel over getInitials when provided', () => {
+    const { getByTestId, queryByText } = render(
+      <PlayerSeat {...baseProps} name="P18" state="filled" displayLabel="P18" />
+    );
+    // The full unique prefix should be used inside the seat circle…
+    const seat = getByTestId('seat-0');
+    const innerText = (seat.props.children as any)?.props?.children;
+    expect(innerText).toBe('P18');
+    // …instead of the legacy two-letter "P1" initials.
+    expect(queryByText('P1')).toBeNull();
+  });
+
+  it('falls back to getInitials when displayLabel is omitted', () => {
+    const { getByTestId } = render(
+      <PlayerSeat {...baseProps} name="Alice" state="filled" />
+    );
+    const seat = getByTestId('seat-0');
+    const innerText = (seat.props.children as any)?.props?.children;
+    expect(innerText).toBe('AL');
   });
 });
