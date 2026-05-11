@@ -67,8 +67,11 @@ resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview
 
 // ============================================================================
 // Alert #3 — HTTP 429 Rate-Limit Rejections (Sev3)
+// Prod-only: dev has no real concurrent traffic to trigger rate limits, the
+// 50/15-min dev threshold is unreachable, and the rule never fires usefully.
+// Cost-optimized May 2026.
 // ============================================================================
-resource http429Alert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource http429Alert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-http-429-rejections'
   location: resourceGroup().location
   properties: {
@@ -104,8 +107,10 @@ resource http429Alert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview
 
 // ============================================================================
 // Alert #4 — Agent Request Duration P95 (Sev2)
+// Prod-only: dev sample size is too small (one cold-start outlier fires Sev2)
+// and perf P95 is a prod concern, not a merge-gate signal. Cost-optimized May 2026.
 // ============================================================================
-resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource agentDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-agent-duration-p95'
   location: resourceGroup().location
   properties: {
@@ -174,8 +179,10 @@ resource agentFallbackAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
 
 // ============================================================================
 // Alert #6 — Agent Transient Retry Spike (Sev3)
+// Prod-only: signals upstream Foundry health (429/502/503/504), not a code
+// regression. Foundry hiccups don't mean main is broken. Cost-optimized May 2026.
 // ============================================================================
-resource agentRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource agentRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-agent-transient-retries'
   location: resourceGroup().location
   properties: {
@@ -211,8 +218,9 @@ resource agentRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-prev
 
 // ============================================================================
 // Alert #7 — Low-Quality Response Retry Rate (Sev3)
+// Prod-only: subjective quality metric, not a regression signal. Cost-optimized May 2026.
 // ============================================================================
-resource lowQualityRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource lowQualityRetryAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-low-quality-retries'
   location: resourceGroup().location
   properties: {
@@ -318,8 +326,10 @@ resource voiceFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pr
 
 // ============================================================================
 // Alert #12 — Voice Pipeline Duration P95 (Sev3)
+// Prod-only: same sample-size noise as #4. Sev3 perf doesn't gate merges.
+// Cost-optimized May 2026.
 // ============================================================================
-resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-voice-duration-p95'
   location: resourceGroup().location
   properties: {
@@ -388,8 +398,11 @@ resource clientApiErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
 
 // ============================================================================
 // Alert #16 — Client Voice Error Spike (Sev3)
+// Prod-only: server-side voice failures (#11) cover the regression case;
+// client-side noise (mic permission denied etc.) isn't a code regression.
+// Cost-optimized May 2026.
 // ============================================================================
-resource clientVoiceErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource clientVoiceErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-client-voice-errors'
   location: resourceGroup().location
   properties: {
@@ -522,7 +535,9 @@ AppEvents
 '''
 var navFailureQuery = replace(navFailureQueryTemplate, '__THRESHOLD__', navRatioThreshold)
 
-resource navigationFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+// Prod-only: query requires tapCount >= 3 per target screen in a 1h window;
+// dev traffic doesn't sustain this so the rule cannot fire usefully. Cost-optimized May 2026.
+resource navigationFailureAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-feature-nav-failure'
   location: resourceGroup().location
   properties: {
@@ -600,8 +615,10 @@ resource toolFeatureErrorAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-1
 // Alert #14 — Function Execution Duration (Sev3)
 // Moved from metric-alerts: FunctionExecutionUnits is MB-ms (not duration).
 // Log-search against App Insights requests gives actual duration in ms.
+// Prod-only: BGG sync is schedule-driven, not gated by main merges.
+// Cost-optimized May 2026.
 // ============================================================================
-resource functionDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+resource functionDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = if (environment == 'prod') {
   name: 'gamer-uncle-${environment}-function-duration'
   location: resourceGroup().location
   properties: {

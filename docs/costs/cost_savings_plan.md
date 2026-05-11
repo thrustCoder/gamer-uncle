@@ -1,7 +1,7 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: May 10, 2026 — Enabled adaptive sampling on prod App Insights (classic SDK ~3 items/sec + OTel 0.5 ratio); Deleted unused `PlayerSessions` Cosmos container from prod + dev (~$25/mo permanent saving)  
+> **Updated**: May 10, 2026 — Cut dev scheduled query rules 16→8 (kept 8 high-signal regression alerts, dropped 8 noisy/unactionable; ~$9/mo); Enabled adaptive sampling on prod App Insights (classic SDK ~3 items/sec + OTel 0.5 ratio); Deleted unused `PlayerSessions` Cosmos container from prod + dev (~$25/mo permanent saving)  
 > **Previous update**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
@@ -149,6 +149,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 10 | [Set Log Analytics daily cap on dev and prod](#10-set-log-analytics-daily-cap-on-dev) | Both | **2** | **1** | $1–5/mo | Safe at scale | ✅ (dev Mar 2026, prod Apr 2026) |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
 | 12 | [Delete unused `PlayerSessions` Cosmos container](#12-delete-unused-playersessions-cosmos-container) | Both | **5** | **1** | ~$25/mo | Safe at scale | ✅ (May 2026) |
+| 13 | [Reduce dev scheduled query alert rules 16→8](#13-reduce-dev-scheduled-query-alert-rules-16→8) | Dev | **5** | **2** | ~$9/mo | Safe at scale | ✅ (May 2026) |
 
 ### How to read this table
 
@@ -609,6 +610,93 @@ Verified post-deletion: both accounts now show only `Games` in the container lis
 
 ---
 
+### 13. Reduce Dev Scheduled Query Alert Rules 16→8
+
+| | |
+|---|---|
+| **Cost Contributor** | 5/10 |
+| **Risk** | 2/10 |
+| **Savings** | ~$9/mo (permanent) |
+| **Scale Impact** | **Safe at scale** — dropped rules are dev-noise alerts, not regression detectors |
+| **Implemented** | ✅ (May 10, 2026) |
+
+**What was done**: Reduced dev scheduled query alert rules from 16 → 8 by adding `if (environment == 'prod')` guards in [infrastructure/alerts/log-alerts.bicep](../../infrastructure/alerts/log-alerts.bicep) on 8 rules that don't help catch regressions in dev. Prod retains all 16 rules unchanged.
+
+**How it was identified**: While validating the April billing period, **Azure Monitor was the #1 line item in dev RG at $15.08/mo** — more than App Service or Log Analytics. Investigation showed all 16 dev scheduled query rules had **zero activations across 5 weeks** (since April 1), so they were producing no actionable signal at current dev traffic (~60 users, mostly E2E + manual `testit` traffic).
+
+**Decision framework**: Not "has it ever fired?" but "could a bad commit to `main` slip past this?". A rule was kept only if it covers a **distinct failure domain** that other kept rules don't cover. Rules were dropped if they (a) have sample-size issues at dev volume (P95 perf alerts that fire on a single cold-start outlier), (b) signal upstream provider health rather than code regressions, or (c) require sustained dev traffic the environment doesn't generate.
+
+**Kept (8) — distinct regression failure domains**:
+
+| Rule | Sev | Why it stays in dev |
+|------|:---:|---------------------|
+| `http-5xx-spike` | 2 | Most direct "you broke something" alert — any unhandled controller exception fires it. |
+| `agent-fallback-rate` | 2 | Catches broken AI agent config (bad agent ID, wrong endpoint, auth drift). |
+| `client-api-errors` | 2 | Catches mobile↔server contract drift; 5xx alert misses contract bugs that return 200s with unexpected shapes. |
+| `game-search-errors` | 2 | Separate code path / Cosmos query / indexing policy from `/api/recommendations`. |
+| `game-setup-errors` | 2 | Separate endpoint with its own Foundry agent path. |
+| `voice-failures` | 2 | Entire separate subsystem (STT → Agent → TTS); text-chat alerts cannot detect voice breakage. |
+| `redis-l2-failures` | 2 | Catches Upstash key rotation, connection string drift, StackExchange.Redis upgrade breakage. |
+| `tool-feature-errors` | 3 | Mobile Timer/Team/Dice/Score features — React Native regressions E2E may not exercise. |
+
+**Dropped (8) — prod-only**:
+
+| Rule | Sev | Why dev doesn't need it |
+|------|:---:|-------------------------|
+| `agent-duration-p95` | 2 | Sample size too small — one cold-start outlier fires Sev2. P95 perf is a prod concern, not a merge gate. |
+| `voice-duration-p95` | 3 | Same sample-size noise. Sev3 perf doesn't gate merges. |
+| `http-429-rejections` | 3 | Dev has no real concurrent traffic; the 50/15-min dev threshold is unreachable. |
+| `agent-transient-retries` | 3 | Signals upstream Foundry health (429/502/503/504), not a code regression. |
+| `low-quality-retries` | 3 | Subjective AI quality metric, not a regression signal. |
+| `client-voice-errors` | 3 | Server-side `voice-failures` covers the regression case; client-side noise (mic permission denied) isn't a code regression. |
+| `feature-nav-failure` | 2 | KQL requires `tapCount >= 3` per target screen in 1h — dev traffic doesn't sustain this. |
+| `function-duration` | 3 | BGG sync is schedule-driven, not gated by main merges. |
+
+**Implementation**:
+
+1. Each dropped rule's bicep `resource` declaration was changed from `= {` to `= if (environment == 'prod') {`. Comments were added explaining the prod-only rationale per rule.
+2. The 8 orphaned dev rules were deleted from Azure immediately so savings take effect this billing cycle:
+   ```powershell
+   $rg = 'gamer-uncle-dev-rg'
+   $drop = @(
+     'gamer-uncle-dev-http-429-rejections',
+     'gamer-uncle-dev-agent-duration-p95',
+     'gamer-uncle-dev-agent-transient-retries',
+     'gamer-uncle-dev-low-quality-retries',
+     'gamer-uncle-dev-voice-duration-p95',
+     'gamer-uncle-dev-client-voice-errors',
+     'gamer-uncle-dev-feature-nav-failure',
+     'gamer-uncle-dev-function-duration'
+   )
+   foreach ($r in $drop) {
+     az monitor scheduled-query delete --resource-group $rg --name $r --yes
+   }
+   ```
+3. Verified: dev now has 8 rules (matches keep-list), prod still has 16 (unchanged).
+
+**Coverage matrix — what regression scenarios the keep-8 still detects**:
+
+| Bad commit / regression scenario | Keep-8 detects? |
+|---|:---:|
+| Unhandled exception in API controller | ✅ (`http-5xx-spike`) |
+| Broken AI agent config (endpoint/ID/auth) | ✅ (`agent-fallback-rate`) |
+| Mobile/backend JSON contract drift | ✅ (`client-api-errors`) |
+| Game search query / Cosmos refactor breakage | ✅ (`game-search-errors`) |
+| Game setup endpoint regression | ✅ (`game-setup-errors`) |
+| Voice pipeline broken (Speech key, Foundry voice config, audio service) | ✅ (`voice-failures`) |
+| L2 cache integration broken (Redis dep upgrade, Upstash key) | ✅ (`redis-l2-failures`) |
+| Mobile Timer/Dice/Team tool regression | ✅ (`tool-feature-errors`) |
+| AI latency regression | ❌ (intentional — too noisy in dev; covered by prod alert) |
+| BGG function slowdown | ❌ (intentional — not a main-merge gate; covered by prod alert) |
+
+**Cost driver math**: Azure Monitor scheduled query rules are billed per rule per month. A 5-min eval rule runs 8,640 times/mo; a 15-min rule 2,880; a 30-min rule 1,440. Dev cost dropped from ~$15/mo (16 rules) to ~$6/mo (8 rules).
+
+**Risk**: Low. The 8 dropped rules collectively had **zero activations** in the prior 5 weeks. Even if a regression in one of those failure domains slipped past dev, the corresponding **prod** alert (still in place) would catch it during canary/initial prod traffic. Dev now functions as a focused "merge gate" rather than a duplicate of prod.
+
+**Reversal**: To restore any dropped rule, remove the `if (environment == 'prod')` guard in `log-alerts.bicep` and redeploy. The alert resource will be recreated with the same name on the next pipeline run.
+
+---
+
 ## Projected Monthly Savings
 
 ### Scenario 1 — Immediate Savings (~60 users, Months 0–3)
@@ -629,7 +717,8 @@ These savings apply **now** while traffic is low. Some are temporary and will be
 | #10 — Set dev Log Analytics cap | $1–2 | – | Permanent | |
 | #11 — Consolidate storage | <$1 | <$1 | Permanent | Low priority |
 | #12 — Delete unused `PlayerSessions` container | – | $25 | Permanent | ✅ Deleted from prod + dev May 2026 |
-| **Totals (Months 0–3)** | **$52–60/mo** | **$132–142/mo** | | |
+| #13 — Reduce dev scheduled query rules 16→8 | $9 | – | Permanent | ✅ Bicep guarded + Azure rules deleted May 2026 |
+| **Totals (Months 0–3)** | **$61–69/mo** | **$132–142/mo** | | |
 
 ### Scenario 2 — At Scale (~1,000 users, Month 3+)
 
@@ -649,7 +738,8 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 | #10 — Dev Log Analytics cap | $1–2 | – | Permanent |
 | #11 — Storage consolidation | <$1 | <$1 | |
 | #12 — Delete unused `PlayerSessions` container | – | $25 | Permanent ✅ |
-| **Totals (Month 3+)** | **$52–60/mo** | **$67–88/mo** | |
+| #13 — Reduce dev scheduled query rules 16→8 | $9 | – | Permanent ✅ |
+| **Totals (Month 3+)** | **$61–69/mo** | **$67–88/mo** | |
 
 ### Summary: Cost Trajectory Over Time
 
@@ -686,6 +776,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 ### Phase 3 — Optimization at Scale (Before Marketing Push)
 - [x] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale) — completed Feb 2026
 - [x] **#12**: Delete unused `PlayerSessions` Cosmos container → **~$25/mo saved** (permanent) — completed May 2026
+- [x] **#13**: Reduce dev scheduled query alert rules 16→8 → **~$9/mo saved** (permanent) — completed May 2026 (kept 8 high-signal regression alerts; bicep guarded prod-only; orphaned dev rules deleted)
 - [ ] **#7**: Evaluate mini model routing for simple queries → growing savings (permanent)
 
 ### Phase 4 — Scale-Up Actions (When Traffic Grows)
