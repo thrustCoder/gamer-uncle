@@ -1,7 +1,7 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: May 10, 2026 — Deleted unused `PlayerSessions` Cosmos container from prod + dev (~$25/mo permanent saving)  
+> **Updated**: May 10, 2026 — Enabled adaptive sampling on prod App Insights (classic SDK ~3 items/sec + OTel 0.5 ratio); Deleted unused `PlayerSessions` Cosmos container from prod + dev (~$25/mo permanent saving)  
 > **Previous update**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
@@ -145,7 +145,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | ✅ |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
-| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
+| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | ✅ (prod May 2026) |
 | 10 | [Set Log Analytics daily cap on dev and prod](#10-set-log-analytics-daily-cap-on-dev) | Both | **2** | **1** | $1–5/mo | Safe at scale | ✅ (dev Mar 2026, prod Apr 2026) |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
 | 12 | [Delete unused `PlayerSessions` Cosmos container](#12-delete-unused-playersessions-cosmos-container) | Both | **5** | **1** | ~$25/mo | Safe at scale | ✅ (May 2026) |
@@ -500,13 +500,46 @@ az cosmosdb sql container update --account-name gamer-uncle-prod-cosmos --databa
 | **Cost Contributor** | 3/10 |
 | **Risk** | 2/10 |
 | **Savings** | $1–5/mo (grows with scale) |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ (prod May 10, 2026) — dev intentionally left at defaults |
 
-**Current state**: Neither dev nor prod has Application Insights sampling enabled (`samplingPercentage: null`). Every request, dependency call, and trace is ingested at 100%.
+**What was done**: Enabled adaptive sampling on the classic Application Insights SDK and added fixed-ratio sampling on the OpenTelemetry pipeline in prod. The API uses *both* SDKs side-by-side (OTel via `UseAzureMonitor` for traces/metrics; classic via `AddApplicationInsightsTelemetry` so `TelemetryClient.TrackEvent()` calls in `TelemetryController` keep working), so both pipelines need their own sampling configuration.
 
-**Why it matters at scale**: At 1,000 users, 100% ingestion will generate significant Log Analytics data volume. Log Analytics charges $2.76/GB after the free 5 GB/mo.
+**Code changes** ([services/api/Program.cs](../../services/api/Program.cs)):
 
-**Recommendation**: Enable adaptive sampling in prod (default keeps ~5 events/sec). In dev, set fixed-rate sampling at 25% to minimize cost while keeping enough data for debugging.
+- Added `using Microsoft.ApplicationInsights.Extensibility;`.
+- `UseAzureMonitor` now reads `ApplicationInsights:OpenTelemetrySamplingRatio` (0.0–1.0) and sets `options.SamplingRatio` accordingly. The Azure Monitor OTel distro only supports **fixed-rate** sampling — adaptive sampling is not available on that pipeline.
+- `AddApplicationInsightsTelemetry` now sets `options.EnableAdaptiveSampling` from `ApplicationInsights:EnableAdaptiveSampling` (default `true`).
+- After registration, `TelemetryConfiguration` is updated to call `DefaultTelemetrySink.TelemetryProcessorChainBuilder.UseAdaptiveSampling(maxTelemetryItemsPerSecond, excludedTypes)` when `ApplicationInsights:AdaptiveSampling:MaxTelemetryItemsPerSecond` is set. This overrides the SDK's default 5 items/sec budget with a tuned value.
+
+**Prod configuration** ([services/api/appsettings.Production.json](../../services/api/appsettings.Production.json)):
+
+```json
+"ApplicationInsights": {
+  "ConnectionString": "@Microsoft.KeyVault(...)",
+  "EnableAdaptiveSampling": true,
+  "AdaptiveSampling": {
+    "MaxTelemetryItemsPerSecond": 3,
+    "ExcludedTypes": "Event;Exception"
+  },
+  "OpenTelemetrySamplingRatio": 0.5
+}
+```
+
+**Tuning rationale**:
+
+| Setting | Value | Why |
+|---------|:-----:|-----|
+| `MaxTelemetryItemsPerSecond` (classic SDK) | **3** | Tighter than the SDK default of 5. Caps requests/dependencies/traces ingestion. |
+| `ExcludedTypes` | `Event;Exception` | Keeps **all** custom events (`TelemetryController.TrackEvent` calls) and exceptions unsampled — these are low volume and high diagnostic value. |
+| `OpenTelemetrySamplingRatio` | **0.5** | Halves the traces and metrics emitted by the OTel pipeline (which doesn't support adaptive sampling). Conservative starting point — can drop to 0.25 if ingestion is still high. |
+
+**Dev intentionally unchanged**: `appsettings.json` and `appsettings.Development.json` do not set these keys, so dev keeps SDK defaults (adaptive sampling on at 5 items/sec, OTel ratio 1.0). Dev volume is low enough that 100% ingestion is fine, and full fidelity is more valuable for debugging.
+
+**Deployment**: Takes effect on next App Service deploy of `appsettings.Production.json`. No Azure-side config required.
+
+**Monitoring**: After rollout, watch the App Insights **Usage and estimated costs** blade for 5–7 days. If ingestion is still trending above the 0.5 GB/day Log Analytics cap (recommendation #10), drop `MaxTelemetryItemsPerSecond` to 2 and/or `OpenTelemetrySamplingRatio` to 0.25.
+
+**Risk**: Low. `Event` and `Exception` types are excluded from sampling so the high-signal custom telemetry used for product analytics is unaffected. Sampled-out items still have their `itemCount` preserved, so metric aggregations (request rates, exception rates) remain accurate.
 
 ---
 
@@ -648,7 +681,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
   - Manual toggle: `scripts/dev-appservice-toggle.ps1 start|stop|status`
   - testit integration: Auto-scales when `API_ENVIRONMENT=dev`
 - [x] **#10**: Set Log Analytics daily cap to 0.5 GB → **$1–5/mo saved** (permanent) — dev completed Mar 2026, prod completed Apr 2026
-- [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
+- [x] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent) — completed May 2026 (classic SDK 3 items/sec + OTel ratio 0.5; dev kept at defaults)
 
 ### Phase 3 — Optimization at Scale (Before Marketing Push)
 - [x] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale) — completed Feb 2026
