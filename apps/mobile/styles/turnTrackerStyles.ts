@@ -17,13 +17,20 @@ export const turnTrackerStyles = StyleSheet.create({
   pageHeader: {
     position: 'absolute',
     // Aligned to the back button's vertical centre. BackButton sits at top: 60
-    // with height 40 (centre y ≈ 80); a 32 px font with this top value lands
-    // the text's optical centre at the same line.
-    top: 65,
+    // with height 40 (centre y = 80). Setting `top: 60` and `lineHeight: 40`
+    // makes the header's text box span the same 60→100 range, so the optical
+    // centre lines up exactly with the back button rather than drifting down
+    // by the font's natural extra leading.
+    top: 60,
     left: 0,
     right: 0,
-    zIndex: 9,
+    // Must outrank the GroupPicker (zIndex 20) so the title always stays
+    // visible when the user scrolls a long content body upward on small
+    // phones (e.g. iPhone SE). Without this, the picker would slide in
+    // front of the title.
+    zIndex: 30,
     fontSize: 32,
+    lineHeight: 40,
     fontWeight: '700',
     color: Colors.themeYellow,
     textAlign: 'center',
@@ -175,7 +182,7 @@ export const turnTrackerStyles = StyleSheet.create({
     borderColor: Colors.grayLight,
   },
   primaryButtonText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
     color: Colors.themeYellow,
   },

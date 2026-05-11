@@ -60,7 +60,7 @@ describe('getSeatPosition', () => {
 describe('computeSeatSize', () => {
   const stage = 304; // approximate phone STAGE_SIZE (390 * 0.78)
   const defaultSize = 64;
-  const minSize = 40;
+  const minSize = 28;
 
   it('uses the default size for small rosters that easily fit', () => {
     expect(computeSeatSize(2, stage, defaultSize, minSize)).toBe(defaultSize);

@@ -57,12 +57,15 @@ describe('PlayerSeat', () => {
     expect(getByText('AL')).toBeTruthy();
   });
 
-  it('renders + placeholder for empty seats and uses Seat label', () => {
-    const { getByText } = render(
+  it('renders + placeholder for empty seats and omits the Seat sub-label', () => {
+    const { getByText, queryByText } = render(
       <PlayerSeat {...baseProps} name="" state="empty" />
     );
     expect(getByText('+')).toBeTruthy();
-    expect(getByText('Seat 1')).toBeTruthy();
+    // Empty seats no longer render a "Seat N" label below the circle —
+    // the dashed border + "+" already communicate "tap to assign", and
+    // the labels overlapped each other on large rosters.
+    expect(queryByText('Seat 1')).toBeNull();
   });
 
   it('invokes onPress for tap/empty/filled states', () => {
@@ -114,5 +117,24 @@ describe('PlayerSeat', () => {
     const seat = getByTestId('seat-0');
     const innerText = (seat.props.children as any)?.props?.children;
     expect(innerText).toBe('AL');
+  });
+
+  it('hides the sub-label when the inner label already shows the full name (e.g. P18)', () => {
+    // Default placeholder players ("P18") get a unique prefix label equal to
+    // their name. Showing the same text again below the circle would just
+    // duplicate the inner label.
+    const { queryAllByText } = render(
+      <PlayerSeat {...baseProps} name="P18" state="filled" displayLabel="P18" />
+    );
+    expect(queryAllByText('P18')).toHaveLength(1);
+  });
+
+  it('still renders the sub-label when the name carries info beyond the inner label', () => {
+    // Real names get truncated to initials inside the circle ("AL"), so the
+    // full name stays useful as a sub-label.
+    const { getByText } = render(
+      <PlayerSeat {...baseProps} name="Alice" state="filled" displayLabel="A" />
+    );
+    expect(getByText('Alice')).toBeTruthy();
   });
 });

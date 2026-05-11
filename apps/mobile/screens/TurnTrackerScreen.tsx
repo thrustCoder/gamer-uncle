@@ -29,20 +29,31 @@ import { generateUniqueInitials } from '../utils/initialsUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = Math.min(screenWidth, screenHeight) >= 768;
+// Compact phones (iPhone SE 3rd gen, 375×667) can't fit the default in-game
+// layout — the seating circle, group picker, direction toggle, and CTA stack
+// overflow the viewport, which forces the user to scroll and pushes the
+// (zIndex 20) GroupPicker over the page header. Tighten paddings and shrink
+// the stage on these screens so everything fits without scrolling.
+const isShortScreen = !isTablet && screenHeight < 700;
 
-const STAGE_SIZE = Math.min(screenWidth, screenHeight) * (isTablet ? 0.62 : 0.78);
+const STAGE_SIZE =
+  Math.min(screenWidth, screenHeight) * (isTablet ? 0.62 : isShortScreen ? 0.62 : 0.78);
 const DEFAULT_SEAT_SIZE = isTablet ? 96 : 64;
 const MARKER_SIZE = isTablet ? 96 : 72;
-// Seats become tap-friendly down to ~40 px; below that the touch target is too
-// small. Anything smaller than the marker also looks awkward visually.
-const MIN_SEAT_SIZE = 40;
+// Floor for the dynamic seat size. Set low enough that 20 players on a small
+// phone (e.g. iPhone SE) still fit on the seating circle without overlapping
+// each other. The inner-label font shrinks with the seat (see
+// `getSeatLabelFontSize`) so the label remains legible, and 28 px keeps the
+// tap target usable for seat assignment.
+const MIN_SEAT_SIZE = 28;
 
 /**
  * Top padding for the scrollable content. Must clear the absolute-positioned
  * page header (which sits at top: 57). 140 px gives the GroupPicker / subtitle
- * plenty of breathing room below the header.
+ * plenty of breathing room below the header. On short phones we trim it so
+ * the seating circle isn't pushed off-screen.
  */
-const CONTENT_TOP_PADDING = 140;
+const CONTENT_TOP_PADDING = isShortScreen ? 110 : 140;
 
 export default function TurnTrackerScreen() {
   const navigation = useNavigation<any>();
@@ -347,7 +358,7 @@ export default function TurnTrackerScreen() {
        *   - Begin Game stays disabled until every seat is filled.
        */}
       {validPlayerCount && (
-        <View style={styles.setupCtaRow}>
+        <View style={[styles.setupCtaRow, isShortScreen && { marginTop: 24 }]}>
           {noSeatsFilled && (
             <TouchableOpacity
               style={[styles.primaryButton, styles.primaryButtonFlex, styles.primaryButtonSecondary]}
@@ -356,7 +367,14 @@ export default function TurnTrackerScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open random Pick Turns spinner to pick the first turn"
             >
-              <Text style={styles.primaryButtonText}>Pick First Turn</Text>
+              <Text
+                style={styles.primaryButtonText}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
+                Pick First Turn
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -371,7 +389,14 @@ export default function TurnTrackerScreen() {
             testID="begin-game-button"
             {...(Platform.OS === 'web' && { 'data-testid': 'begin-game-button' })}
           >
-            <Text style={styles.primaryButtonText}>Begin Game</Text>
+            <Text
+              style={styles.primaryButtonText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              Begin Game
+            </Text>
           </TouchableOpacity>
         </View>
       )}

@@ -106,7 +106,7 @@ export const computeSeatSize = (
   playerCount: number,
   stageSize: number,
   defaultSize: number,
-  minSize: number = 40,
+  minSize: number = 28,
   gap: number = 8,
 ): number => {
   if (playerCount <= 1 || stageSize <= 0) return defaultSize;
