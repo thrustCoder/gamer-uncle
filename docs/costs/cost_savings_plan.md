@@ -1,7 +1,8 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
+> **Updated**: May 10, 2026 — Deleted unused `PlayerSessions` Cosmos container from prod + dev (~$25/mo permanent saving)  
+> **Previous update**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
 > **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
@@ -147,6 +148,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
 | 10 | [Set Log Analytics daily cap on dev and prod](#10-set-log-analytics-daily-cap-on-dev) | Both | **2** | **1** | $1–5/mo | Safe at scale | ✅ (dev Mar 2026, prod Apr 2026) |
 | 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
+| 12 | [Delete unused `PlayerSessions` Cosmos container](#12-delete-unused-playersessions-cosmos-container) | Both | **5** | **1** | ~$25/mo | Safe at scale | ✅ (May 2026) |
 
 ### How to read this table
 
@@ -523,6 +525,57 @@ az cosmosdb sql container update --account-name gamer-uncle-prod-cosmos --databa
 
 ---
 
+### 12. Delete Unused `PlayerSessions` Cosmos Container
+
+| | |
+|---|---|
+| **Cost Contributor** | 5/10 |
+| **Risk** | 1/10 |
+| **Savings** | ~$25/mo (permanent) |
+| **Scale Impact** | **Safe at scale** — container has no code references and was never used |
+| **Implemented** | ✅ (May 10, 2026) |
+
+**What was done**: Deleted the `PlayerSessions` container from both `gamer-uncle-prod-cosmos` and `gamer-uncle-dev-cosmos` (database `gamer-uncle-{env}-cosmos-container`).
+
+**How it was identified**: While validating the April 8 – May 7 billing period, prod Cosmos DB cost was $43.33 — higher than the ~$18/mo expected after lowering the `Games` container autoscale max to 1000 RU/s (recommendation #3). Resource-level cost drill-down showed `gamer-uncle-prod-cosmos` accounting for the difference. Listing containers revealed an unexpected `PlayerSessions` container with its own dedicated autoscale at max 4000 RU/s (400 RU/s floor billing ≈ $23–25/mo).
+
+**Verification before deletion**:
+
+| Check | Result |
+|-------|--------|
+| `grep` for `PlayerSessions`, `PlayerSession`, `playerSession`, `player_session` across `.cs`, `.ts`, `.tsx`, `.json`, `.yml`, `.yaml`, `.ps1`, `.bicep` | **Zero matches** workspace-wide |
+| API service (`services/api/`) | No reference |
+| Mobile app (`apps/mobile/`) | No reference |
+| Azure Functions (`services/functions/`) | No reference |
+| Shared models (`services/shared/models/`) | No reference |
+| Infrastructure / pipelines / scripts | No reference |
+| Partition key | `/gameId` (matched `Games` container shape — likely an early prototype container) |
+
+**Cost driver**: Only the prod container had dedicated throughput (autoscale max 4000 RU/s → 400 RU/s floor × 730 hrs × $0.008/100 RU/hr ≈ $23/mo). Dev shared database-level throughput and contributed $0 incremental.
+
+**Implementation**:
+```powershell
+az cosmosdb sql container delete `
+  --account-name gamer-uncle-prod-cosmos `
+  --resource-group gamer-uncle-prod-rg `
+  --database-name gamer-uncle-prod-cosmos-container `
+  --name PlayerSessions --yes
+
+az cosmosdb sql container delete `
+  --account-name gamer-uncle-dev-cosmos `
+  --resource-group gamer-uncle-dev-rg `
+  --database-name gamer-uncle-dev-cosmos-container `
+  --name PlayerSessions --yes
+```
+
+Verified post-deletion: both accounts now show only `Games` in the container list.
+
+**Expected impact**: Prod Cosmos DB billing should drop from ~$43/mo to ~$18/mo starting with the 5/8–6/7 cycle. Validate in the next monthly bill review.
+
+**Risk**: None. Zero code path touched this container.
+
+---
+
 ## Projected Monthly Savings
 
 ### Scenario 1 — Immediate Savings (~60 users, Months 0–3)
@@ -542,7 +595,8 @@ These savings apply **now** while traffic is low. Some are temporary and will be
 | #9 — Enable App Insights sampling | $1 | $2 | Permanent | Complementary to scaling |
 | #10 — Set dev Log Analytics cap | $1–2 | – | Permanent | |
 | #11 — Consolidate storage | <$1 | <$1 | Permanent | Low priority |
-| **Totals (Months 0–3)** | **$52–60/mo** | **$107–117/mo** | | |
+| #12 — Delete unused `PlayerSessions` container | – | $25 | Permanent | ✅ Deleted from prod + dev May 2026 |
+| **Totals (Months 0–3)** | **$52–60/mo** | **$132–142/mo** | | |
 
 ### Scenario 2 — At Scale (~1,000 users, Month 3+)
 
@@ -561,7 +615,8 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 | #9 — App Insights sampling | $1 | $2 | Permanent; more impactful at scale |
 | #10 — Dev Log Analytics cap | $1–2 | – | Permanent |
 | #11 — Storage consolidation | <$1 | <$1 | |
-| **Totals (Month 3+)** | **$52–60/mo** | **$42–63/mo** | |
+| #12 — Delete unused `PlayerSessions` container | – | $25 | Permanent ✅ |
+| **Totals (Month 3+)** | **$52–60/mo** | **$67–88/mo** | |
 
 ### Summary: Cost Trajectory Over Time
 
@@ -597,6 +652,7 @@ Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
 
 ### Phase 3 — Optimization at Scale (Before Marketing Push)
 - [x] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale) — completed Feb 2026
+- [x] **#12**: Delete unused `PlayerSessions` Cosmos container → **~$25/mo saved** (permanent) — completed May 2026
 - [ ] **#7**: Evaluate mini model routing for simple queries → growing savings (permanent)
 
 ### Phase 4 — Scale-Up Actions (When Traffic Grows)

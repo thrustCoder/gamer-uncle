@@ -1,7 +1,7 @@
 # BGG Game Sync Status
 
-**Total games in Cosmos DB:** ~13,450  
-**Last updated:** 2026-05-07 (Batch 6 in progress)
+**Total games in Cosmos DB:** ~14,238  
+**Last updated:** 2026-05-10 ✅ All batches complete
 
 ## Sync Batches
 
@@ -13,7 +13,7 @@
 | 3 | 500 – 100,000 | High-Signal | ✅ Complete | 2026-04-26 | 2,078 |
 | 4 | 100,000 – 200,000 | High-Signal | ✅ Complete | 2026-05-02 | 1,991 |
 | 5 | 300,000 – 400,000 | High-Signal | ✅ Complete | 2026-05-04 | 1,919 |
-| 6 | 400,000 – 500,000 | High-Signal | 🟠 In Progress | 2026-05-06 | 660 |
+| 6 | 400,000 – 500,000 | High-Signal | ✅ Complete | 2026-05-06 | 788 |
 
 ### Status Legend
 - ✅ Complete
@@ -27,6 +27,7 @@
 - **Limit per batch:** None (removed 2026-04-22)
 
 ### Notes
+- **Batch 6 completed** on 2026-05-08 at 19:58 UTC. 400,000→500,000, 788 games upserted across 100 chunks with no failures. Final batch — full BGG ID range 1–500,000 now synced.
 - **Batch 5 completed** on 2026-05-06 at 22:45 UTC. 300,000→400,000, 1,919 games upserted across 101 chunks with no failures.
 - **Batch 4 completed** on 2026-05-05 at 03:03 UTC. 100,000→200,000, 1,991 games upserted (1,466 before failure + 525 on resume). Failed at chunk 77 with transient NullRef; resumed from 177,000 and completed cleanly.
 - **Batch 4 failed at chunk 77** (2026-05-04 07:03 UTC) with a transient NullReferenceException in Durable Functions replay middleware. Resumed from ID 177,000 (instance `d968618f3a284625bfd84af239193e6a`). 1,466 games upserted before failure.
