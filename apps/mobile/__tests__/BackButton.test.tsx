@@ -5,10 +5,14 @@ import BackButton from '../components/BackButton';
 
 // Mock navigation
 const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+const mockCanGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: () => ({
     navigate: mockNavigate,
+    goBack: mockGoBack,
+    canGoBack: mockCanGoBack,
   }),
 }));
 
@@ -23,6 +27,7 @@ describe('BackButton Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCanGoBack.mockReturnValue(false);
   });
 
   it('should render correctly', () => {
@@ -37,14 +42,27 @@ describe('BackButton Component', () => {
     
     expect(mockOnPress).toHaveBeenCalledTimes(1);
     expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 
-  it('should navigate to Landing when no onPress provided', () => {
+  it('should pop the stack when canGoBack returns true', () => {
+    mockCanGoBack.mockReturnValue(true);
+    const { getByTestId } = render(<BackButtonWrapper />);
+
+    fireEvent.press(getByTestId('back-button'));
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('should navigate to Landing when canGoBack returns false', () => {
+    mockCanGoBack.mockReturnValue(false);
     const { getByTestId } = render(<BackButtonWrapper />);
     
     fireEvent.press(getByTestId('back-button'));
     
     expect(mockNavigate).toHaveBeenCalledWith('Landing');
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 
   it('should display back arrow text', () => {
@@ -58,3 +76,4 @@ describe('BackButton Component', () => {
     expect(backButton).toBeTruthy();
   });
 });
+

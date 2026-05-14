@@ -52,7 +52,9 @@ export default function GameSetupScreen() {
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
     useRatingPrompt('gameSetup');
 
-  // Restore persisted game setup state on mount (or from active group when groups enabled)
+  // Restore persisted game setup state on mount (or from active group when groups enabled).
+  // Re-runs when the active group's playerCount changes — e.g. after editing the
+  // active group via the Manage Groups screen — so the setup query uses the latest count.
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
       // Always use the group's canonical playerCount — gameSetupPlayerCount may
@@ -76,7 +78,7 @@ export default function GameSetupScreen() {
       if (savedResponse) setSetupResponse(savedResponse);
       setIsHydrated(true);
     })();
-  }, [groupsState.enabled, activeGroup?.id]);
+  }, [groupsState.enabled, activeGroup?.id, activeGroup?.playerCount]);
 
   // Persist game name when it changes (after hydration)
   useEffect(() => {

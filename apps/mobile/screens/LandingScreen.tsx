@@ -27,7 +27,7 @@ const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 
 const features = [
   { key: 'chat', label: 'Talk to Uncle', screen: 'Chat', icon: 'chatbubbles', iconType: 'ionicon' },
   { key: 'score', label: 'Scoreboard', screen: 'ScoreTracker', icon: 'scoreboard', iconType: 'material' },
-  { key: 'turn', label: 'Pick\nTurns', screen: 'Turn', icon: 'refresh-circle', iconType: 'ionicon' },
+  { key: 'turn', label: 'Track\nTurns', screen: 'TurnTracker', icon: 'refresh-circle', iconType: 'ionicon' },
   { key: 'search', label: 'Search Games', screen: 'GameSearch', icon: 'search-circle', iconType: 'ionicon' },
   { key: 'team', label: 'Shuffle Teams', screen: 'Team', icon: 'people', iconType: 'ionicon' },
   { key: 'timer', label: 'Timer', screen: 'Timer', icon: 'timer', iconType: 'ionicon' },
@@ -186,7 +186,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.6.3'}
+            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.7.0'}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>

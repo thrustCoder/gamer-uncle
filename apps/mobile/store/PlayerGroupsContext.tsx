@@ -29,7 +29,8 @@ interface PlayerGroupsContextType {
   // Per-group data mutations
   updateActiveGroupData: (patch: Partial<Pick<PlayerGroup,
     'playerCount' | 'playerNames' | 'teamCount' |
-    'gameScore' | 'leaderboard' | 'gameSetupGameName' | 'gameSetupPlayerCount' | 'gameSetupResponse'
+    'gameScore' | 'leaderboard' | 'gameSetupGameName' | 'gameSetupPlayerCount' | 'gameSetupResponse' |
+    'turnTracker'
   >>) => void;
 }
 
@@ -68,8 +69,9 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [state]);
 
   const enableGroups = useCallback(async () => {
-    // Read current ungrouped state from appCache
-    const [playerNames, playerCount, teamCount, gameScore, leaderboard, gameSetupGameName, gameSetupPlayerCount, gameSetupResponse] =
+    // Read current ungrouped state from appCache (includes any in-progress
+    // turn-tracker session, which migrates into the new first group).
+    const [playerNames, playerCount, teamCount, gameScore, leaderboard, gameSetupGameName, gameSetupPlayerCount, gameSetupResponse, turnTracker] =
       await Promise.all([
         appCache.getPlayers([]),
         appCache.getPlayerCount(4),
@@ -79,6 +81,7 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
         appCache.getGameSetupGameName(),
         appCache.getGameSetupPlayerCount(),
         appCache.getGameSetupResponse(),
+        appCache.getTurnTracker(),
       ]);
 
     const finalNames = playerNames.length > 0
@@ -97,7 +100,14 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
       gameSetupGameName,
       gameSetupPlayerCount,
       gameSetupResponse,
+      turnTracker,
     };
+
+    // Clear the ungrouped turn-tracker key so the session lives only on the
+    // group going forward (avoids double-resume after a future disableGroups).
+    if (turnTracker) {
+      await appCache.setTurnTracker(null);
+    }
 
     setState({
       enabled: true,
@@ -110,7 +120,9 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setState((prev) => {
       const active = prev.groups.find((g) => g.id === prev.activeGroupId);
       if (active) {
-        // Write active group data back to ungrouped keys (fire-and-forget)
+        // Write active group data back to ungrouped keys (fire-and-forget).
+        // The turn-tracker session migrates so an in-progress game survives
+        // the transition; sessions on other groups are discarded.
         Promise.all([
           appCache.setPlayers(active.playerNames),
           appCache.setPlayerCount(active.playerCount),
@@ -120,7 +132,11 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
           appCache.setGameSetupGameName(active.gameSetupGameName),
           appCache.setGameSetupPlayerCount(active.gameSetupPlayerCount),
           appCache.setGameSetupResponse(active.gameSetupResponse ?? ''),
+          appCache.setTurnTracker(active.turnTracker ?? null),
         ]);
+      } else {
+        // No active group => no session to migrate. Clear any stale value.
+        appCache.setTurnTracker(null);
       }
       return DEFAULT_PLAYER_GROUPS_STATE;
     });
@@ -140,6 +156,7 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
         gameSetupGameName: '',
         gameSetupPlayerCount: playerCount,
         gameSetupResponse: null,
+        turnTracker: null,
       };
       return {
         ...prev,
@@ -187,7 +204,8 @@ export const PlayerGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const updateActiveGroupData = useCallback((patch: Partial<Pick<PlayerGroup,
     'playerCount' | 'playerNames' | 'teamCount' |
-    'gameScore' | 'leaderboard' | 'gameSetupGameName' | 'gameSetupPlayerCount' | 'gameSetupResponse'
+    'gameScore' | 'leaderboard' | 'gameSetupGameName' | 'gameSetupPlayerCount' | 'gameSetupResponse' |
+    'turnTracker'
   >>) => {
     setState((prev) => {
       if (!prev.activeGroupId) return prev;

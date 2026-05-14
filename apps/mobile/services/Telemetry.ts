@@ -79,6 +79,7 @@ export const AnalyticsEvents = {
   ERROR_TIMER: 'Error.Timer',
   ERROR_TEAM_RANDOMIZER: 'Error.TeamRandomizer',
   ERROR_TURN_SELECTOR: 'Error.TurnSelector',
+  ERROR_TURN_TRACKER: 'Error.TurnTracker',
   ERROR_DICE_ROLLER: 'Error.DiceRoller',
   ERROR_SCORE_TRACKER: 'Error.ScoreTracker',
   ERROR_MANAGE_GROUPS: 'Error.ManageGroups',
@@ -90,6 +91,13 @@ export const AnalyticsEvents = {
   PLAYER_GROUP_CREATED: 'PlayerGroups.Created',
   PLAYER_GROUP_DELETED: 'PlayerGroups.Deleted',
   PLAYER_GROUP_SWITCHED: 'PlayerGroups.Switched',
+
+  // ── Turn Tracker ──────────────────────────────────────────────
+  TURN_TRACKER_GAME_STARTED: 'TurnTracker.GameStarted',
+  TURN_TRACKER_GAME_ENDED: 'TurnTracker.GameEnded',
+  TURN_TRACKER_TURN_ADVANCED: 'TurnTracker.TurnAdvanced',
+  TURN_TRACKER_TURN_RETRACTED: 'TurnTracker.TurnRetracted',
+  TURN_TRACKER_DIRECTION_FLIPPED: 'TurnTracker.DirectionFlipped',
 
   // ── Upgrade Funnel ────────────────────────────────────────────
   UPGRADE_PROMPTED: 'Upgrade.Prompted',

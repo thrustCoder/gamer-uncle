@@ -1,7 +1,8 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: April 8, 2026 — Fixed prod autoscale min→1 (verified), set prod Log Analytics daily cap to 0.5 GB  
+> **Updated**: May 11, 2026 — Removed historical cost snapshots, projected-savings tables, implementation roadmap, and traffic-milestone sections; doc now centered on recommendations + current status only  
+> **Previous update**: May 10, 2026 — Cut dev scheduled query rules 16→8, enabled adaptive sampling on prod App Insights, deleted unused `PlayerSessions` Cosmos container  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
 > **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
@@ -19,59 +20,10 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 
 ## Table of Contents
 
-1. [Current Monthly Spend](#current-monthly-spend)
-2. [Cost Breakdown by Service](#cost-breakdown-by-service)
-3. [Resource Inventory](#resource-inventory)
-4. [Optimization Recommendations](#optimization-recommendations)
-5. [Dev Environment — Keep It Lean](#dev-environment--keep-it-lean)
-6. [Prod Environment — Optimize for Value](#prod-environment--optimize-for-value)
-7. [Projected Monthly Savings](#projected-monthly-savings)
-8. [Implementation Roadmap](#implementation-roadmap)
-9. [Traffic Milestone Triggers](#traffic-milestone-triggers)
-
----
-
-## Current Monthly Spend
-
-Data from Azure Cost Management API. February is month-to-date (17 days); January is a full month.
-
-| Environment | January 2026 (full month) | February 2026 (17 days, projected full month) |
-|-------------|:-------------------------:|:---------------------------------------------:|
-| **Dev** (`gamer-uncle-dev-rg`) | **$70.12** | ~$76 |
-| **Prod** (`gamer-uncle-prod-rg`) | **$207.02** | ~$189 |
-| Other (defaultresourcegroup-wus) | $1.42 | ~$22 |
-| **Total** | **~$279** | **~$287/mo** |
-
----
-
-## Cost Breakdown by Service
-
-### Dev Environment — January 2026 ($70.12/mo)
-
-| Service | Jan 2026 Cost | % of Dev | Notes |
-|---------|:------------:|:--------:|-------|
-| Azure Front Door | $35.00 | 50% | Standard_AzureFrontDoor — base fee is **$35/mo** regardless of traffic |
-| Azure App Service | $32.74 | 47% | B1 plan (1 instance) — ~$54/mo list price, pro-rated |
-| Foundry Models (AI) | $2.12 | 3% | GPT-4.1 + GPT-4.1-mini usage |
-| Storage | $0.12 | <1% | 2× Standard_LRS accounts |
-| Log Analytics | $0.14 | <1% | Low ingestion |
-| Functions | $0.00 | 0% | Consumption plan (Y1) — within free grant |
-| Key Vault | $0.00 | 0% | Minimal operations |
-| Cosmos DB | $0.00 | 0% | **Free tier** enabled — 1000 RU/s + 25 GB free |
-
-### Prod Environment — January 2026 ($207.02/mo)
-
-| Service | Jan 2026 Cost | % of Prod | Notes |
-|---------|:------------:|:---------:|-------|
-| App Service | **$98.95** | 48% | **P1v3** plan (1 instance) — PremiumV3 tier |
-| Cosmos DB | **$71.60** | 35% | Autoscale 100–4000 RU/s, **free tier NOT enabled** |
-| Azure Front Door | **$35.01** | 17% | Standard_AzureFrontDoor — same $35/mo base |
-| Foundry Models (AI) | $0.79 | <1% | GPT-4.1 + GPT-4.1-mini + GPT-realtime |
-| Foundry Tools | $0.54 | <1% | Agent orchestration |
-| Storage | $0.10 | <1% | 2× Standard_LRS accounts |
-| Log Analytics | $0.03 | <1% | Low ingestion |
-| Functions | $0.00 | 0% | Consumption plan (Y1) — within free grant |
-| Key Vault | $0.00 | 0% | Minimal operations |
+1. [Resource Inventory](#resource-inventory)
+2. [Optimization Recommendations](#optimization-recommendations)
+3. [Dev Environment — Keep It Lean](#dev-environment--keep-it-lean)
+4. [Prod Environment — Optimize for Value](#prod-environment--optimize-for-value)
 
 ---
 
@@ -90,8 +42,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gamer-uncle-dev-vault | Key Vault | Standard | ~$0 |
 | gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0.14 |
 | gamer-uncle-dev-app-insights | Application Insights | (no sampling), **linked to dev workspace** | Included in Log Analytics |
-| gameruncledevstorage | Storage Account | Standard_LRS | ~$0.06 |
-| gameruncledevfuncstorage | Storage Account | Standard_LRS | ~$0.06 |
+| gameruncledevfuncstorage | Storage Account | Standard_LRS | ~$0.17 |
 | gamer-uncle-dev-function | Function App | Y1 (Consumption) | ~$0 |
 | Upstash Redis (external) | Redis Cache | Free/Pro | ~$0–10 |
 
@@ -115,8 +66,7 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | gamer-uncle-prod-vault | Key Vault | Standard | ~$0 |
 | gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0 |
 | gamer-uncle-prod-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
-| gameruncleprodstorage | Storage Account | Standard_LRS | ~$0.05 |
-| gameruncleprofuncstorage | Storage Account | Standard_LRS | ~$0.05 |
+| gameruncleprofuncstorage | Storage Account | Standard_LRS | ~$0.97 |
 | gamer-uncle-prod-function | Function App | Y1 (Consumption) | ~$0 |
 | Upstash Redis (external) | Redis Cache | Pro (estimated) | ~$0–10 |
 
@@ -144,9 +94,11 @@ Data from Azure Cost Management API. February is month-to-date (17 days); Januar
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | ✅ |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
-| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | 🟠 |
+| 9 | [Enable Application Insights sampling](#9-enable-application-insights-sampling) | Both | **3** | **2** | $1–5/mo (at scale) | Complementary | ✅ (prod May 2026) |
 | 10 | [Set Log Analytics daily cap on dev and prod](#10-set-log-analytics-daily-cap-on-dev) | Both | **2** | **1** | $1–5/mo | Safe at scale | ✅ (dev Mar 2026, prod Apr 2026) |
-| 11 | [Consolidate or delete extra storage accounts](#11-consolidate-or-delete-extra-storage-accounts) | Both | **1** | **1** | <$1/mo | Safe at scale | 🟠 |
+| 11 | [Delete orphaned legacy Functions storage accounts](#11-delete-orphaned-legacy-functions-storage-accounts) | Both | **1** | **1** | <$1/mo (operational hygiene) | Safe at scale | ✅ (May 2026) |
+| 12 | [Delete unused `PlayerSessions` Cosmos container](#12-delete-unused-playersessions-cosmos-container) | Both | **5** | **1** | ~$25/mo | Safe at scale | ✅ (May 2026) |
+| 13 | [Reduce dev scheduled query alert rules 16→8](#13-reduce-dev-scheduled-query-alert-rules-16→8) | Dev | **5** | **2** | ~$9/mo | Safe at scale | ✅ (May 2026) |
 
 ### How to read this table
 
@@ -498,134 +450,222 @@ az cosmosdb sql container update --account-name gamer-uncle-prod-cosmos --databa
 | **Cost Contributor** | 3/10 |
 | **Risk** | 2/10 |
 | **Savings** | $1–5/mo (grows with scale) |
-| **Implemented** | 🟠 |
+| **Implemented** | ✅ (prod May 10, 2026) — dev intentionally left at defaults |
 
-**Current state**: Neither dev nor prod has Application Insights sampling enabled (`samplingPercentage: null`). Every request, dependency call, and trace is ingested at 100%.
+**What was done**: Enabled adaptive sampling on the classic Application Insights SDK and added fixed-ratio sampling on the OpenTelemetry pipeline in prod. The API uses *both* SDKs side-by-side (OTel via `UseAzureMonitor` for traces/metrics; classic via `AddApplicationInsightsTelemetry` so `TelemetryClient.TrackEvent()` calls in `TelemetryController` keep working), so both pipelines need their own sampling configuration.
 
-**Why it matters at scale**: At 1,000 users, 100% ingestion will generate significant Log Analytics data volume. Log Analytics charges $2.76/GB after the free 5 GB/mo.
+**Code changes** ([services/api/Program.cs](../../services/api/Program.cs)):
 
-**Recommendation**: Enable adaptive sampling in prod (default keeps ~5 events/sec). In dev, set fixed-rate sampling at 25% to minimize cost while keeping enough data for debugging.
+- Added `using Microsoft.ApplicationInsights.Extensibility;`.
+- `UseAzureMonitor` now reads `ApplicationInsights:OpenTelemetrySamplingRatio` (0.0–1.0) and sets `options.SamplingRatio` accordingly. The Azure Monitor OTel distro only supports **fixed-rate** sampling — adaptive sampling is not available on that pipeline.
+- `AddApplicationInsightsTelemetry` now sets `options.EnableAdaptiveSampling` from `ApplicationInsights:EnableAdaptiveSampling` (default `true`).
+- After registration, `TelemetryConfiguration` is updated to call `DefaultTelemetrySink.TelemetryProcessorChainBuilder.UseAdaptiveSampling(maxTelemetryItemsPerSecond, excludedTypes)` when `ApplicationInsights:AdaptiveSampling:MaxTelemetryItemsPerSecond` is set. This overrides the SDK's default 5 items/sec budget with a tuned value.
+
+**Prod configuration** ([services/api/appsettings.Production.json](../../services/api/appsettings.Production.json)):
+
+```json
+"ApplicationInsights": {
+  "ConnectionString": "@Microsoft.KeyVault(...)",
+  "EnableAdaptiveSampling": true,
+  "AdaptiveSampling": {
+    "MaxTelemetryItemsPerSecond": 3,
+    "ExcludedTypes": "Event;Exception"
+  },
+  "OpenTelemetrySamplingRatio": 0.5
+}
+```
+
+**Tuning rationale**:
+
+| Setting | Value | Why |
+|---------|:-----:|-----|
+| `MaxTelemetryItemsPerSecond` (classic SDK) | **3** | Tighter than the SDK default of 5. Caps requests/dependencies/traces ingestion. |
+| `ExcludedTypes` | `Event;Exception` | Keeps **all** custom events (`TelemetryController.TrackEvent` calls) and exceptions unsampled — these are low volume and high diagnostic value. |
+| `OpenTelemetrySamplingRatio` | **0.5** | Halves the traces and metrics emitted by the OTel pipeline (which doesn't support adaptive sampling). Conservative starting point — can drop to 0.25 if ingestion is still high. |
+
+**Dev intentionally unchanged**: `appsettings.json` and `appsettings.Development.json` do not set these keys, so dev keeps SDK defaults (adaptive sampling on at 5 items/sec, OTel ratio 1.0). Dev volume is low enough that 100% ingestion is fine, and full fidelity is more valuable for debugging.
+
+**Deployment**: Takes effect on next App Service deploy of `appsettings.Production.json`. No Azure-side config required.
+
+**Monitoring**: After rollout, watch the App Insights **Usage and estimated costs** blade for 5–7 days. If ingestion is still trending above the 0.5 GB/day Log Analytics cap (recommendation #10), drop `MaxTelemetryItemsPerSecond` to 2 and/or `OpenTelemetrySamplingRatio` to 0.25.
+
+**Risk**: Low. `Event` and `Exception` types are excluded from sampling so the high-signal custom telemetry used for product analytics is unaffected. Sampled-out items still have their `itemCount` preserved, so metric aggregations (request rates, exception rates) remain accurate.
 
 ---
 
-### 11. Consolidate or Delete Extra Storage Accounts
+### 11. Delete Orphaned Legacy Functions Storage Accounts
 
 | | |
 |---|---|
 | **Cost Contributor** | 1/10 |
 | **Risk** | 1/10 |
-| **Savings** | <$1/mo |
-| **Implemented** | 🟠 |
+| **Savings** | <$1/mo (primary benefit is operational hygiene) |
+| **Implemented** | ✅ (May 11, 2026) |
 
-**Current state**: Each environment has 2 storage accounts — one for the app and one for Functions. Total cost is negligible (~$0.12/mo combined).
+**What was done**: Deleted two unused storage accounts — `gameruncledevstorage` and `gameruncleprodstorage` — that were left behind from the original Function App deployments (Jun & Jul 2025) and replaced by `gameruncle{dev,pro}funcstorage`.
 
-**Recommendation**: Low priority. Keep as-is unless you want to simplify resource count.
+**How it was identified**: Reviewing recommendation #11 against actual Azure state revealed both `gameruncle{dev,prod}storage` accounts were no longer wired to anything. Both Function Apps' `AzureWebJobsStorage`, `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING`, `WEBSITE_RUN_FROM_PACKAGE`, and managed-identity blob/queue/table URIs all pointed at the `*funcstorage` accounts instead.
 
----
+**Verification before deletion**:
 
-## Projected Monthly Savings
+| Check | `gameruncledevstorage` | `gameruncleprodstorage` |
+|---|---|---|
+| Workspace grep (code/scripts/IaC) | 0 refs | 0 refs |
+| App Service config | No reference | No reference |
+| Function App config | No reference | No reference |
+| Bicep IaC | 0 refs | 0 refs |
+| Pipelines / scripts | 0 refs | 0 refs |
+| Diagnostic settings | None | None |
+| Private endpoints / VNet rules | None | None |
+| Event Grid system topics | None | None |
+| Blob content | Stale: 35 MB `released-package.zip` + old webjobs secrets, last write 2025-06-05 | All 4 containers empty |
+| Role assignments | 1 stale (`gamer-uncle-dev-function-uami` → Blob Data Owner; MI active elsewhere on Cosmos & App Insights) | None |
+| Apr 8 – May 7 cost | $0.0008 | $0.0000 |
 
-### Scenario 1 — Immediate Savings (~60 users, Months 0–3)
+**Implementation**:
+```powershell
+az storage account delete --name gameruncledevstorage  --resource-group gamer-uncle-dev-rg  --yes
+az storage account delete --name gameruncleprodstorage --resource-group gamer-uncle-prod-rg --yes
+```
 
-These savings apply **now** while traffic is low. Some are temporary and will be reversed as users grow.
+The stale `Storage Blob Data Owner` role assignment on the dev UAMI was auto-removed by Azure when the scope disappeared. The UAMI itself remains in active use (Cosmos Contributor + App Insights Monitoring Metrics Publisher).
 
-| Recommendation | Dev Savings | Prod Savings | Duration | Notes |
-|----------------|:-----------:|:------------:|:--------:|-------|
-| #1 — Downgrade prod App Service to S1 | – | $45 | Temporary (3 mo) | Upgrade to S2/P1v3 at 500+ users |
-| #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ Dev endpoint on prod AFD profile |
-| #3 — Lower Cosmos DB autoscale to 1000 | – | $54 | Temporary (2–3 mo) | Raise back to 4000 at 500+ users |
-| #4 — Downgrade dev App Service (nightly F1 parking) | $25–31 | – | Permanent | ✅ Nightly scale-down + auto scale-up |
-| #5 — Reserved Instance | – | – | Deferred | Wait until tier stabilizes (Month 4+) |
-| #6 — Optimize Cosmos indexing | – | $5–15 | Permanent | Reduces RU consumption |
-| #7 — Route to mini model | $0.25 | $0.50 | Permanent | Complementary to scaling |
-| #8 — Delete unused dev AI Foundry eastus2 | $0–2 | – | Permanent | Unused resource |
-| #9 — Enable App Insights sampling | $1 | $2 | Permanent | Complementary to scaling |
-| #10 — Set dev Log Analytics cap | $1–2 | – | Permanent | |
-| #11 — Consolidate storage | <$1 | <$1 | Permanent | Low priority |
-| **Totals (Months 0–3)** | **$52–60/mo** | **$107–117/mo** | | |
-
-### Scenario 2 — At Scale (~1,000 users, Month 3+)
-
-Temporary savings from #1 and #3 are reversed. Permanent optimizations continue.
-
-| Recommendation | Dev Savings | Prod Savings | Notes |
-|----------------|:-----------:|:------------:|-------|
-| #1 — App Service tier | – | **$0** (back to S2/P1v3) | Upgraded for autoscaling at 1,000 users |
-| #2 — Consolidate dev AFD onto prod | $35 | – | Permanent | ✅ |
-| #3 — Cosmos DB autoscale | – | **$0** (back to 4000 max) | Restored for burst traffic capacity |
-| #4 — Dev App Service | $25–31 | – | Permanent ✅ |
-| #5 — Reserved Instance | – | $30 | Purchase RI once tier is stable (Month 4+) |
-| #6 — Cosmos indexing | – | $5–15 | Permanent; saves more RUs at higher traffic |
-| #7 — Mini model routing | $0.25 | $5–15 | Grows with scale; significant at 1,000 users |
-| #8 — Delete dev AI Foundry eastus2 | $0–2 | – | Permanent |
-| #9 — App Insights sampling | $1 | $2 | Permanent; more impactful at scale |
-| #10 — Dev Log Analytics cap | $1–2 | – | Permanent |
-| #11 — Storage consolidation | <$1 | <$1 | |
-| **Totals (Month 3+)** | **$52–60/mo** | **$42–63/mo** | |
-
-### Summary: Cost Trajectory Over Time
-
-| Period | Dev Spend | Prod Spend | Total | vs. Current ($277) |
-|--------|:---------:|:----------:|:-----:|:-------------------:|
-| **Current** | ~$70/mo | ~$207/mo | ~$277/mo | – |
-| **Months 0–3** (low traffic) | ~$15/mo | ~$95/mo | **~$110/mo** | **60% reduction** |
-| **Month 3+** (1,000 users) | ~$15/mo | ~$160–175/mo | **~$175–190/mo** | **31–37% reduction** |
-| **Month 4+** (with RI) | ~$15/mo | ~$135–150/mo | **~$150–165/mo** | **40–46% reduction** |
-
-> **Key insight**: You get the deepest savings (~60%) in the first 3 months when traffic is low. As you scale to 1,000 users, costs increase but are still **30–46% below today's spend** thanks to permanent optimizations (dev cleanup, indexing, sampling, mini model routing, reserved instances).
+**Risk**: None. Both accounts were unreferenced; deletion does not affect either Function App's runtime storage.
 
 ---
 
-## Implementation Roadmap
+### 12. Delete Unused `PlayerSessions` Cosmos Container
 
-### Phase 1 — Quick Wins (This Week, ~$134/mo immediate savings)
-- [x] **#2**: Consolidate dev AFD onto prod profile → **$35/mo saved** (permanent) — completed Feb 2026
-- [x] **#8**: Delete `gamer-uncle-dev-foundry-eastus2` resource → **$0–2/mo saved** (permanent) — completed Feb 2026
-- [ ] **#3**: Lower prod Cosmos DB autoscale max from 4000 to 1000 RU/s → **$54/mo saved** (temporary)
-  - ⚠️ **Prerequisite**: Fix CosmosClientOptions (scaling Finding #4) first
-- [ ] **#1**: Downgrade prod App Service from P1v3 to S1 → **$45/mo saved** (temporary)
-  - ✅ **Autoscale min→1**: Fixed Apr 2026 (was stuck at min=2, causing $196/mo App Service bill in March). Verified: min=1, default=1, capacity=1.
+| | |
+|---|---|
+| **Cost Contributor** | 5/10 |
+| **Risk** | 1/10 |
+| **Savings** | ~$25/mo (permanent) |
+| **Scale Impact** | **Safe at scale** — container has no code references and was never used |
+| **Implemented** | ✅ (May 10, 2026) |
 
-### Phase 2 — Moderate Effort (Next Sprint, $20/mo additional savings)
-- [x] **#4**: Nightly F1 parking + auto scale-up in pipeline/testit → **$25–31/mo saved** (permanent) — completed Feb 2026
-  - Nightly scale-down: `pipelines/dev-scaledown-schedule.yml` (11 PM PT daily)
-  - Pipeline scale-up: `DevDeployApi` stage auto-scales to B1 before deploying
-  - Manual toggle: `scripts/dev-appservice-toggle.ps1 start|stop|status`
-  - testit integration: Auto-scales when `API_ENVIRONMENT=dev`
-- [x] **#10**: Set Log Analytics daily cap to 0.5 GB → **$1–5/mo saved** (permanent) — dev completed Mar 2026, prod completed Apr 2026
-- [ ] **#9**: Enable App Insights adaptive sampling in prod → **$2/mo saved** (permanent)
+**What was done**: Deleted the `PlayerSessions` container from both `gamer-uncle-prod-cosmos` and `gamer-uncle-dev-cosmos` (database `gamer-uncle-{env}-cosmos-container`).
 
-### Phase 3 — Optimization at Scale (Before Marketing Push)
-- [x] **#6**: Optimize Cosmos DB indexing policy → **$5–15/mo saved** (permanent, grows with scale) — completed Feb 2026
-- [ ] **#7**: Evaluate mini model routing for simple queries → growing savings (permanent)
+**How it was identified**: While validating the April 8 – May 7 billing period, prod Cosmos DB cost was $43.33 — higher than the ~$18/mo expected after lowering the `Games` container autoscale max to 1000 RU/s (recommendation #3). Resource-level cost drill-down showed `gamer-uncle-prod-cosmos` accounting for the difference. Listing containers revealed an unexpected `PlayerSessions` container with its own dedicated autoscale at max 4000 RU/s (400 RU/s floor billing ≈ $23–25/mo).
 
-### Phase 4 — Scale-Up Actions (When Traffic Grows)
-These are **cost increases** that reverse temporary savings, triggered by traffic milestones.
+**Verification before deletion**:
 
-- [ ] **#3 reversal**: Raise Cosmos DB autoscale max back to **2000 RU/s** at 200+ users, **4000 RU/s** at 500+ users
-- [ ] **#1 reversal**: Upgrade App Service from S1 to **S2/P1v3** at 500+ users; enable autoscaling (min 2, max 4)
-- [ ] **#5**: Purchase reserved instance once prod tier stabilizes (Month 4+) → **$30/mo saved** (permanent)
+| Check | Result |
+|-------|--------|
+| `grep` for `PlayerSessions`, `PlayerSession`, `playerSession`, `player_session` across `.cs`, `.ts`, `.tsx`, `.json`, `.yml`, `.yaml`, `.ps1`, `.bicep` | **Zero matches** workspace-wide |
+| API service (`services/api/`) | No reference |
+| Mobile app (`apps/mobile/`) | No reference |
+| Azure Functions (`services/functions/`) | No reference |
+| Shared models (`services/shared/models/`) | No reference |
+| Infrastructure / pipelines / scripts | No reference |
+| Partition key | `/gameId` (matched `Games` container shape — likely an early prototype container) |
+
+**Cost driver**: Only the prod container had dedicated throughput (autoscale max 4000 RU/s → 400 RU/s floor × 730 hrs × $0.008/100 RU/hr ≈ $23/mo). Dev shared database-level throughput and contributed $0 incremental.
+
+**Implementation**:
+```powershell
+az cosmosdb sql container delete `
+  --account-name gamer-uncle-prod-cosmos `
+  --resource-group gamer-uncle-prod-rg `
+  --database-name gamer-uncle-prod-cosmos-container `
+  --name PlayerSessions --yes
+
+az cosmosdb sql container delete `
+  --account-name gamer-uncle-dev-cosmos `
+  --resource-group gamer-uncle-dev-rg `
+  --database-name gamer-uncle-dev-cosmos-container `
+  --name PlayerSessions --yes
+```
+
+Verified post-deletion: both accounts now show only `Games` in the container list.
+
+**Expected impact**: Prod Cosmos DB billing should drop from ~$43/mo to ~$18/mo starting with the 5/8–6/7 cycle. Validate in the next monthly bill review.
+
+**Risk**: None. Zero code path touched this container.
 
 ---
 
-## Traffic Milestone Triggers
+### 13. Reduce Dev Scheduled Query Alert Rules 16→8
 
-Use this table to decide when to reverse temporary cost savings and scale up resources.
+| | |
+|---|---|
+| **Cost Contributor** | 5/10 |
+| **Risk** | 2/10 |
+| **Savings** | ~$9/mo (permanent) |
+| **Scale Impact** | **Safe at scale** — dropped rules are dev-noise alerts, not regression detectors |
+| **Implemented** | ✅ (May 10, 2026) |
 
-| Milestone | Installs | DAU (est.) | Peak Concurrent | Actions |
-|-----------|:--------:|:----------:|:---------------:|---------|
-| **Current** | ~60 | ~9 | ~5 | Implement Phase 1 & 2 cost savings (save ~$154/mo) |
-| **200 users** | 200 | ~30 | ~10 | Raise Cosmos autoscale max to 2,000 RU/s; enable App Service autoscale (min 1, max 2) |
-| **500 users** | 500 | ~75 | ~25 | Raise Cosmos autoscale max to 4,000 RU/s; evaluate S1 → S2 upgrade; implement distributed rate limiting |
-| **1,000 users** | 1,000 | ~150 | ~50 | Upgrade to S2/P1v3 with 2–4 instances; verify AI Foundry TPM quotas; purchase reserved instance |
+**What was done**: Reduced dev scheduled query alert rules from 16 → 8 by adding `if (environment == 'prod')` guards in [infrastructure/alerts/log-alerts.bicep](../../infrastructure/alerts/log-alerts.bicep) on 8 rules that don't help catch regressions in dev. Prod retains all 16 rules unchanged.
 
-### How to Monitor These Triggers
+**How it was identified**: While validating the April billing period, **Azure Monitor was the #1 line item in dev RG at $15.08/mo** — more than App Service or Log Analytics. Investigation showed all 16 dev scheduled query rules had **zero activations across 5 weeks** (since April 1), so they were producing no actionable signal at current dev traffic (~60 users, mostly E2E + manual `testit` traffic).
 
-| Metric | Where to Check | Threshold |
-|--------|----------------|-----------|
-| User installs | App Store Connect / Google Play Console | Milestone numbers above |
-| Cosmos DB RU consumption | Azure Portal → Cosmos DB → Metrics → Normalized RU Consumption | >70% of max sustained |
-| Cosmos DB 429 errors | Azure Portal → Cosmos DB → Metrics → Total Requests (filter status=429) | Any sustained 429s |
-| App Service CPU | Azure Portal → App Service → Metrics → CPU Percentage | >70% sustained |
-| App Service response time | Application Insights → Performance | P95 > 3 seconds |
-| AI Foundry TPM | Azure Portal → AI Foundry → Deployments → Metrics | >80% of quota |
+**Decision framework**: Not "has it ever fired?" but "could a bad commit to `main` slip past this?". A rule was kept only if it covers a **distinct failure domain** that other kept rules don't cover. Rules were dropped if they (a) have sample-size issues at dev volume (P95 perf alerts that fire on a single cold-start outlier), (b) signal upstream provider health rather than code regressions, or (c) require sustained dev traffic the environment doesn't generate.
+
+**Kept (8) — distinct regression failure domains**:
+
+| Rule | Sev | Why it stays in dev |
+|------|:---:|---------------------|
+| `http-5xx-spike` | 2 | Most direct "you broke something" alert — any unhandled controller exception fires it. |
+| `agent-fallback-rate` | 2 | Catches broken AI agent config (bad agent ID, wrong endpoint, auth drift). |
+| `client-api-errors` | 2 | Catches mobile↔server contract drift; 5xx alert misses contract bugs that return 200s with unexpected shapes. |
+| `game-search-errors` | 2 | Separate code path / Cosmos query / indexing policy from `/api/recommendations`. |
+| `game-setup-errors` | 2 | Separate endpoint with its own Foundry agent path. |
+| `voice-failures` | 2 | Entire separate subsystem (STT → Agent → TTS); text-chat alerts cannot detect voice breakage. |
+| `redis-l2-failures` | 2 | Catches Upstash key rotation, connection string drift, StackExchange.Redis upgrade breakage. |
+| `tool-feature-errors` | 3 | Mobile Timer/Team/Dice/Score features — React Native regressions E2E may not exercise. |
+
+**Dropped (8) — prod-only**:
+
+| Rule | Sev | Why dev doesn't need it |
+|------|:---:|-------------------------|
+| `agent-duration-p95` | 2 | Sample size too small — one cold-start outlier fires Sev2. P95 perf is a prod concern, not a merge gate. |
+| `voice-duration-p95` | 3 | Same sample-size noise. Sev3 perf doesn't gate merges. |
+| `http-429-rejections` | 3 | Dev has no real concurrent traffic; the 50/15-min dev threshold is unreachable. |
+| `agent-transient-retries` | 3 | Signals upstream Foundry health (429/502/503/504), not a code regression. |
+| `low-quality-retries` | 3 | Subjective AI quality metric, not a regression signal. |
+| `client-voice-errors` | 3 | Server-side `voice-failures` covers the regression case; client-side noise (mic permission denied) isn't a code regression. |
+| `feature-nav-failure` | 2 | KQL requires `tapCount >= 3` per target screen in 1h — dev traffic doesn't sustain this. |
+| `function-duration` | 3 | BGG sync is schedule-driven, not gated by main merges. |
+
+**Implementation**:
+
+1. Each dropped rule's bicep `resource` declaration was changed from `= {` to `= if (environment == 'prod') {`. Comments were added explaining the prod-only rationale per rule.
+2. The 8 orphaned dev rules were deleted from Azure immediately so savings take effect this billing cycle:
+   ```powershell
+   $rg = 'gamer-uncle-dev-rg'
+   $drop = @(
+     'gamer-uncle-dev-http-429-rejections',
+     'gamer-uncle-dev-agent-duration-p95',
+     'gamer-uncle-dev-agent-transient-retries',
+     'gamer-uncle-dev-low-quality-retries',
+     'gamer-uncle-dev-voice-duration-p95',
+     'gamer-uncle-dev-client-voice-errors',
+     'gamer-uncle-dev-feature-nav-failure',
+     'gamer-uncle-dev-function-duration'
+   )
+   foreach ($r in $drop) {
+     az monitor scheduled-query delete --resource-group $rg --name $r --yes
+   }
+   ```
+3. Verified: dev now has 8 rules (matches keep-list), prod still has 16 (unchanged).
+
+**Coverage matrix — what regression scenarios the keep-8 still detects**:
+
+| Bad commit / regression scenario | Keep-8 detects? |
+|---|:---:|
+| Unhandled exception in API controller | ✅ (`http-5xx-spike`) |
+| Broken AI agent config (endpoint/ID/auth) | ✅ (`agent-fallback-rate`) |
+| Mobile/backend JSON contract drift | ✅ (`client-api-errors`) |
+| Game search query / Cosmos refactor breakage | ✅ (`game-search-errors`) |
+| Game setup endpoint regression | ✅ (`game-setup-errors`) |
+| Voice pipeline broken (Speech key, Foundry voice config, audio service) | ✅ (`voice-failures`) |
+| L2 cache integration broken (Redis dep upgrade, Upstash key) | ✅ (`redis-l2-failures`) |
+| Mobile Timer/Dice/Team tool regression | ✅ (`tool-feature-errors`) |
+| AI latency regression | ❌ (intentional — too noisy in dev; covered by prod alert) |
+| BGG function slowdown | ❌ (intentional — not a main-merge gate; covered by prod alert) |
+
+**Cost driver math**: Azure Monitor scheduled query rules are billed per rule per month. A 5-min eval rule runs 8,640 times/mo; a 15-min rule 2,880; a 30-min rule 1,440. Dev cost dropped from ~$15/mo (16 rules) to ~$6/mo (8 rules).
+
+**Risk**: Low. The 8 dropped rules collectively had **zero activations** in the prior 5 weeks. Even if a regression in one of those failure domains slipped past dev, the corresponding **prod** alert (still in place) would catch it during canary/initial prod traffic. Dev now functions as a focused "merge gate" rather than a duplicate of prod.
+
+**Reversal**: To restore any dropped rule, remove the `if (environment == 'prod')` guard in `log-alerts.bicep` and redeploy. The alert resource will be recreated with the same name on the next pipeline run.

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GameScoreSession, LeaderboardEntry } from '../../types/scoreTracker';
 import type { PlayerGroupsState } from '../../types/playerGroups';
 import { DEFAULT_PLAYER_GROUPS_STATE } from '../../types/playerGroups';
+import type { TurnTrackerSession } from '../../types/turnTracker';
 
 // Centralized keys for persisted game state
 const Keys = {
@@ -15,6 +16,7 @@ const Keys = {
   gameSetupPlayerCount: 'app.gameSetup.playerCount',
   gameSetupResponse: 'app.gameSetup.response',
   playerGroups: 'app.playerGroups',
+  turnTracker: 'app.turnTracker',
 } as const;
 
 async function getNumber(key: string, fallback: number): Promise<number> {
@@ -143,6 +145,12 @@ export const appCache = {
     getObject<PlayerGroupsState>(Keys.playerGroups, DEFAULT_PLAYER_GROUPS_STATE),
   setPlayerGroups: (state: PlayerGroupsState): Promise<void> =>
     setObject(Keys.playerGroups, state),
+
+  // turn tracker - active session (non-group mode)
+  getTurnTracker: (): Promise<TurnTrackerSession | null> =>
+    getObject<TurnTrackerSession | null>(Keys.turnTracker, null),
+  setTurnTracker: (session: TurnTrackerSession | null): Promise<void> =>
+    setObject(Keys.turnTracker, session),
 
   // utility for tests/debug
   __keys: Keys,

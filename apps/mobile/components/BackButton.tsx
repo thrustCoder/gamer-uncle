@@ -13,6 +13,13 @@ export default function BackButton({ onPress }: BackButtonProps) {
   const handlePress = () => {
     if (onPress) {
       onPress();
+      return;
+    }
+    // Prefer popping the navigation stack so users return to whichever screen
+    // launched this one (e.g. Track Turns -> Timer -> back goes to Track Turns).
+    // Fall back to Landing only when there's nothing on the stack.
+    if (typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
     } else {
       navigation.navigate('Landing');
     }

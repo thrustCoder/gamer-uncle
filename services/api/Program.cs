@@ -15,6 +15,7 @@ using GamerUncle.Shared.Models;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Cosmos;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -62,21 +63,46 @@ if (isValidAppInsightsConnectionString)
         {
             options.ConnectionString = appInsightsConnectionString;
             options.Credential = new DefaultAzureCredential();
+            // OpenTelemetry distro only supports fixed-rate sampling (no adaptive).
+            // Configurable via ApplicationInsights:OpenTelemetrySamplingRatio (0.0 - 1.0).
+            // Default 1.0 = keep everything; set lower in prod for cost control.
+            var otelSamplingRatio = builder.Configuration.GetValue<float?>("ApplicationInsights:OpenTelemetrySamplingRatio");
+            if (otelSamplingRatio.HasValue && otelSamplingRatio.Value > 0f && otelSamplingRatio.Value <= 1f)
+            {
+                options.SamplingRatio = otelSamplingRatio.Value;
+            }
         });
 
     // Add traditional Application Insights as well for compatibility
-    // (needed for TelemetryClient.TrackEvent() in TelemetryController)
+    // (needed for TelemetryClient.TrackEvent() in TelemetryController).
+    // Adaptive sampling is enabled by default on the classic SDK; we make the
+    // toggle and items/second budget explicit so it can be tuned per environment.
+    var enableAdaptiveSampling = builder.Configuration.GetValue<bool?>("ApplicationInsights:EnableAdaptiveSampling") ?? true;
     builder.Services.AddApplicationInsightsTelemetry(options =>
     {
         options.ConnectionString = appInsightsConnectionString;
         options.DeveloperMode = builder.Environment.IsDevelopment();
+        options.EnableAdaptiveSampling = enableAdaptiveSampling;
     });
 
     // Configure AAD/RBAC authentication on the classic SDK's telemetry channel
     // so that TelemetryClient.TrackEvent() calls can ingest via managed identity.
+    // Also (optionally) replace the default adaptive sampler with a tuned one that
+    // honors ApplicationInsights:AdaptiveSampling:MaxTelemetryItemsPerSecond.
+    var maxItemsPerSecond = builder.Configuration.GetValue<double?>("ApplicationInsights:AdaptiveSampling:MaxTelemetryItemsPerSecond");
+    var excludedTypes = builder.Configuration.GetValue<string?>("ApplicationInsights:AdaptiveSampling:ExcludedTypes");
     builder.Services.Configure<Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration>(config =>
     {
         config.SetAzureTokenCredential(new DefaultAzureCredential());
+
+        if (enableAdaptiveSampling && maxItemsPerSecond.HasValue && maxItemsPerSecond.Value > 0)
+        {
+            var processorChainBuilder = config.DefaultTelemetrySink.TelemetryProcessorChainBuilder;
+            processorChainBuilder.UseAdaptiveSampling(
+                maxTelemetryItemsPerSecond: maxItemsPerSecond.Value,
+                excludedTypes: excludedTypes);
+            processorChainBuilder.Build();
+        }
     });
 }
 

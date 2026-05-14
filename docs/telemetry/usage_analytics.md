@@ -15,6 +15,7 @@ Each row is a 14-day rolling window snapshot taken on the specified date.
 
 | Snapshot Date | Window | Devices | New Users | Sessions | Events | D1 Return Devices | D7 Return Devices |
 |---|---|---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 10 | 2 | 20 | 678 | 1 | 1 |
 | 2026-04-09 | Mar 27 – Apr 9 | 6 | 2 | 26 | 1,949 | 1 | 1 |
 | 2026-03-20 | Mar 7 – Mar 20 | 13 | 8 | 33 | 1,105 | 5 | 0 |
 | 2026-03-04 | Feb 19 – Mar 4 | 22 | 17 | 85 | 1,634 | 5 | 1 |
@@ -22,9 +23,9 @@ Each row is a 14-day rolling window snapshot taken on the specified date.
 ```mermaid
 xychart-beta
     title "Devices Trend (14-day windows)"
-    x-axis ["Feb 19–Mar 4", "Mar 7–Mar 20", "Mar 27–Apr 9"]
+    x-axis ["Feb 19–Mar 4", "Mar 7–Mar 20", "Mar 27–Apr 9", "Apr 27–May 10"]
     y-axis "Devices" 0 --> 25
-    bar [22, 13, 6]
+    bar [22, 13, 6, 10]
 ```
 
 **Key metrics:**
@@ -39,27 +40,33 @@ xychart-beta
 
 > **Note**: Geo data is derived from IP-based geolocation by Application Insights (`ClientCountryOrRegion`, `ClientStateOrProvince`, `ClientCity` fields). Accuracy may vary for VPN or carrier NAT users. This table is **replaced** each snapshot (not appended).
 
-**Snapshot: 2026-04-09 (Mar 27 – Apr 9) — by country:**
+**Snapshot: 2026-05-10 (Apr 27 – May 10) — by country:**
 
 | Country | Devices | Events | % of Events |
 |---|---|---|---|
-| United States | 6 | 1,949 | 100% |
+| United States | 8 | 504 | 74% |
+| Croatia | 2 | 125 | 18% |
+| France | 2 | 49 | 7% |
 
-**Top US states/cities:**
+**Top cities:**
 
-| State | City | Devices | Events |
-|---|---|---|---|
-| Washington | Bothell | 3 | 1,849 |
-| California | San Jose | 2 | 94 |
-| Washington | Bellevue | 1 | 3 |
-| Washington | Seattle | 1 | 3 |
+| Country | State/Region | City | Devices | Events |
+|---|---|---|---|---|
+| United States | Washington | Bothell | 6 | 382 |
+| Croatia | Grad Zagreb | Zagreb | 2 | 125 |
+| United States | Illinois | Chicago | 1 | 76 |
+| France | Oise | Ville | 2 | 49 |
+| United States | Washington | Seattle | 2 | 41 |
+| United States | Georgia | Atlanta | 1 | 5 |
 
 ```mermaid
-pie title "Events by City (Apr 9 Snapshot)"
-    "Bothell, WA" : 1849
-    "San Jose, CA" : 94
-    "Bellevue, WA" : 3
-    "Seattle, WA" : 3
+pie title "Events by City (May 10 Snapshot)"
+    "Bothell, WA" : 382
+    "Zagreb, Croatia" : 125
+    "Chicago, IL" : 76
+    "Ville, France" : 49
+    "Seattle, WA" : 41
+    "Atlanta, GA" : 5
 ```
 
 ---
@@ -72,6 +79,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 2 | 2 | 2 | 2 |
 | 2026-04-09 | Mar 27 – Apr 9 | 19 | 3 | 20 | 3 |
 | 2026-03-20 | Mar 7 – Mar 20 | 19 | 8 | 22 | 9 |
 | 2026-03-04 | Feb 19 – Mar 4 | 73 | 17 | 82 | 17 |
@@ -80,6 +88,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 4 | 3 | 4 | 3 |
 | 2026-04-09 | Mar 27 – Apr 9 | 50 | 2 | 52 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 21 | 7 | 21 | 7 |
 | 2026-03-04 | Feb 19 – Mar 4 | 51 | 15 | 52 | 15 |
@@ -88,6 +97,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 4 | 4 | 4 | 4 |
 | 2026-04-09 | Mar 27 – Apr 9 | 22 | 2 | 22 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 18 | 10 | 21 | 10 |
 | 2026-03-04 | Feb 19 – Mar 4 | 51 | 12 | 59 | 12 |
@@ -96,6 +106,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 18 | 3 | 34 | 2 |
 | 2026-04-09 | Mar 27 – Apr 9 | 70 | 2 | 71 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 18 | 8 | 18 | 8 |
 | 2026-03-04 | Feb 19 – Mar 4 | 40 | 11 | 40 | 11 |
@@ -104,6 +115,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 3 | 3 | 3 | 3 |
 | 2026-04-09 | Mar 27 – Apr 9 | 3 | 2 | 3 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 11 | 6 | 11 | 6 |
 | 2026-03-04 | Feb 19 – Mar 4 | 34 | 15 | 34 | 15 |
@@ -112,6 +124,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 3 | 3 | 4 | 4 |
 | 2026-04-09 | Mar 27 – Apr 9 | 4 | 2 | 4 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 7 | 5 | 7 | 5 |
 | 2026-03-04 | Feb 19 – Mar 4 | 34 | 13 | 34 | 13 |
@@ -120,6 +133,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 2 | 2 | 2 | 2 |
 | 2026-04-09 | Mar 27 – Apr 9 | 72 | 2 | 72 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 13 | 6 | 13 | 6 |
 | 2026-03-04 | Feb 19 – Mar 4 | 33 | 12 | 33 | 12 |
@@ -128,6 +142,7 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 | Snapshot Date | Window | Taps | Unique Devices | Screen Views | View Devices |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 15 | 6 | 128 | 6 |
 | 2026-04-09 | Mar 27 – Apr 9 | 93 | 2 | 174 | 2 |
 | 2026-03-20 | Mar 7 – Mar 20 | 36 | 10 | 100 | 10 |
 | 2026-03-04 | Feb 19 – Mar 4 | 25 | 10 | 40 | 10 |
@@ -136,10 +151,10 @@ Feature taps from the Landing screen and corresponding screen views. Each featur
 
 ```mermaid
 xychart-beta
-    title "Feature Taps — Mar 27–Apr 9"
+    title "Feature Taps — Apr 27–May 10"
     x-axis ["Chat", "Setup", "Search", "Turn", "Dice", "Timer", "Team", "Score"]
-    y-axis "Taps" 0 --> 100
-    bar [19, 50, 22, 70, 3, 4, 72, 93]
+    y-axis "Taps" 0 --> 25
+    bar [2, 4, 4, 18, 3, 3, 2, 15]
 ```
 
 ---
@@ -148,12 +163,12 @@ xychart-beta
 
 > **Note**: This table is **replaced** each snapshot (not appended) since version mix changes completely across periods.
 
-**Snapshot: 2026-04-09 (Mar 27 – Apr 9):**
+**Snapshot: 2026-05-10 (Apr 27 – May 10):**
 
 | Version | Sessions | Devices | % of Sessions |
 |---|---|---|---|
-| 3.5.5 | 24 | 5 | 96% |
-| 3.4.1 | 1 | 1 | 4% |
+| 3.6.3 | 19 | 9 | 95% |
+| (unknown) | 1 | 1 | 5% |
 
 ---
 
@@ -161,6 +176,7 @@ xychart-beta
 
 | Snapshot Date | Window | Shown | Dismissed | Rated | Conversion |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 3 | 2 | 1 | 33% |
 | 2026-04-09 | Mar 27 – Apr 9 | 173 | 169 | 1 | 1% |
 | 2026-03-20 | Mar 7 – Mar 20 | 14 | 13 | 1 | 7% |
 | 2026-03-04 | Feb 19 – Mar 4 | 16 | 13 | 3 | 19% |
@@ -169,6 +185,7 @@ xychart-beta
 
 | Snapshot Date | Window | Prompted | Accepted | Dismissed | Conversion |
 |---|---|---|---|---|---|
+| 2026-05-10 | Apr 27 – May 10 | 0 | 0 | 0 | — |
 | 2026-04-09 | Mar 27 – Apr 9 | 0 | 0 | 0 | — |
 | 2026-03-20 | Mar 7 – Mar 20 | 0 | 0 | 0 | — |
 | 2026-03-04 | Feb 19 – Mar 4 | 5 | 2 | 4 | 40% |

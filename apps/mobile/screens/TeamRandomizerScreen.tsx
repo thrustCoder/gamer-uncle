@@ -47,6 +47,27 @@ export default function TeamRandomizerScreen() {
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
   const celebrationBounce = useRef(new Animated.Value(0)).current;
 
+  // Track pending timer and running animation so we can cancel on unmount
+  // (prevents leaked timers from firing after Jest tears down the env)
+  const celebrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const celebrationAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (celebrationTimeoutRef.current) {
+        clearTimeout(celebrationTimeoutRef.current);
+        celebrationTimeoutRef.current = null;
+      }
+      if (celebrationAnimationRef.current) {
+        celebrationAnimationRef.current.stop();
+        celebrationAnimationRef.current = null;
+      }
+    };
+  }, []);
+
   const handleNameChange = (index: number, name: string) => {
     const updated = [...playerNames];
     updated[index] = name;
@@ -60,9 +81,15 @@ export default function TeamRandomizerScreen() {
     celebrationBounce.setValue(0);
     
     setCelebrate(true);
-    
-    // Start the celebration animation sequence
-    Animated.sequence([
+
+    // Stop any previously running celebration animation before starting a new one
+    if (celebrationAnimationRef.current) {
+      celebrationAnimationRef.current.stop();
+      celebrationAnimationRef.current = null;
+    }
+
+    // Start the celebration animation sequence (store handle for cleanup)
+    celebrationAnimationRef.current = Animated.sequence([
       Animated.parallel([
         Animated.spring(celebrationScale, {
           toValue: 1,
@@ -96,7 +123,9 @@ export default function TeamRandomizerScreen() {
         duration: 500,
         useNativeDriver: true,
       }),
-    ]).start(() => {
+    ]);
+    celebrationAnimationRef.current.start(() => {
+      if (!isMountedRef.current) return;
       setCelebrate(false);
     });
   };
@@ -155,10 +184,17 @@ export default function TeamRandomizerScreen() {
       result[i % teamCount].push(player.name);
     });
     setTeams(result);
-    
-    // Start celebration animation
-    setTimeout(() => startCelebrationAnimation(), 100);
-    
+
+    // Start celebration animation (store handle so unmount can cancel it)
+    if (celebrationTimeoutRef.current) {
+      clearTimeout(celebrationTimeoutRef.current);
+    }
+    celebrationTimeoutRef.current = setTimeout(() => {
+      celebrationTimeoutRef.current = null;
+      if (!isMountedRef.current) return;
+      startCelebrationAnimation();
+    }, 100);
+
     if (!hasRandomizedOnce.current) {
       hasRandomizedOnce.current = true;
     }
@@ -169,7 +205,10 @@ export default function TeamRandomizerScreen() {
     await trackEngagement();
   };
 
-  // hydrate cache on mount (or from active group when groups enabled)
+  // hydrate cache on mount (or from active group when groups enabled).
+  // We also re-run when the active group's data (playerCount, teamCount,
+  // playerNames) mutates — e.g. after editing the active group via the
+  // Manage Groups screen — so the shuffle uses the latest roster.
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
       const pc = activeGroup.playerCount;
@@ -197,7 +236,13 @@ export default function TeamRandomizerScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, [groupsState.enabled, activeGroup?.id]);
+  }, [
+    groupsState.enabled,
+    activeGroup?.id,
+    activeGroup?.playerCount,
+    activeGroup?.teamCount,
+    activeGroup?.playerNames,
+  ]);
 
   // persist when core counts change
   useEffect(() => {

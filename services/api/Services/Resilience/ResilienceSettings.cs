@@ -29,6 +29,17 @@ namespace GamerUncle.Api.Services.Resilience
         public double AgentCallRetryBaseDelaySeconds { get; set; } = 1.0;
 
         /// <summary>
+        /// Network (HTTP) timeout in seconds applied to the underlying Azure SDK transport
+        /// for the AI Project / PersistentAgents clients. Must be >= AgentCallTimeoutSeconds
+        /// so that Polly's pessimistic timeout can fire first; the SDK timeout then guarantees
+        /// the underlying socket is closed shortly after, instead of hanging on the SDK's
+        /// 100s default. Without this, a stuck Foundry HTTP call can block the request for
+        /// ~100 seconds even though Polly already abandoned the awaiter.
+        /// Default: 25 seconds (5s headroom above the 20s Polly timeout).
+        /// </summary>
+        public int AgentSdkNetworkTimeoutSeconds { get; set; } = 25;
+
+        /// <summary>
         /// Maximum number of retry attempts for Redis operations.
         /// Default: 2.
         /// </summary>
