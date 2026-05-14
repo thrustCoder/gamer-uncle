@@ -132,7 +132,9 @@ export default function TurnSelectorScreen() {
     );
   };
 
-  // hydrate cache on mount (or from active group when groups enabled)
+  // hydrate cache on mount (or from active group when groups enabled).
+  // Re-runs when the active group's roster mutates — e.g. after editing the
+  // active group via the Manage Groups screen — so the wheel uses the latest players.
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
       setPlayerCount(activeGroup.playerCount);
@@ -153,7 +155,12 @@ export default function TurnSelectorScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, [groupsState.enabled, activeGroup?.id]);
+  }, [
+    groupsState.enabled,
+    activeGroup?.id,
+    activeGroup?.playerCount,
+    activeGroup?.playerNames,
+  ]);
 
   useEffect(() => {
     appCache.setPlayerCount(playerCount);

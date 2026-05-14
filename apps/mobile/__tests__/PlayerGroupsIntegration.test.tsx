@@ -298,6 +298,43 @@ describe('Player Groups Integration — groups enabled path', () => {
         expect(getByTestId('markdown-text')).toBeTruthy();
       });
     });
+
+    it('should re-hydrate player count when the active group is mutated (e.g. via Manage Groups)', async () => {
+      const originalPlayerCount = activeGroupData.playerCount;
+      const originalGameSetupPlayerCount = activeGroupData.gameSetupPlayerCount;
+
+      try {
+        const mockGetRecs = require('../services/ApiClient').getRecommendations;
+        mockGetRecs.mockResolvedValue({ responseText: 'Setup...' });
+
+        const { getByTestId, rerender } = render(<GameSetupScreen />);
+
+        await waitFor(() => {
+          expect(getByTestId('game-name-input')).toBeTruthy();
+        });
+
+        // Simulate the user editing the active group via the gear icon to add
+        // a 4th player. Group id stays the same; only its data mutates.
+        activeGroupData.playerCount = 4;
+
+        // Returning to the setup screen re-renders the component.
+        rerender(<GameSetupScreen />);
+
+        // Submit the setup query and verify it uses the updated playerCount.
+        fireEvent.press(getByTestId('get-setup-button'));
+
+        await waitFor(() => {
+          expect(mockGetRecs).toHaveBeenCalledWith(
+            expect.objectContaining({
+              Query: expect.stringContaining('4 player'),
+            })
+          );
+        });
+      } finally {
+        activeGroupData.playerCount = originalPlayerCount;
+        activeGroupData.gameSetupPlayerCount = originalGameSetupPlayerCount;
+      }
+    });
   });
 
   // ── ScoreTrackerScreen ──────────────────────────────────────────
@@ -381,6 +418,34 @@ describe('Player Groups Integration — groups enabled path', () => {
       // Manual picker should be hidden
       expect(queryByTestId('player-count-picker')).toBeNull();
     });
+
+    it('should re-hydrate wheel players when the active group is mutated (e.g. via Manage Groups)', async () => {
+      const originalPlayerCount = activeGroupData.playerCount;
+      const originalPlayerNames = activeGroupData.playerNames;
+
+      try {
+        const { getByTestId, rerender, queryByTestId } = render(<TurnSelectorScreen />);
+
+        await waitFor(() => {
+          expect(getByTestId('wheel-player-2').children[0]).toBe('Carol');
+        });
+        expect(queryByTestId('wheel-player-3')).toBeNull();
+
+        // Simulate the user editing the active group via the gear icon to add
+        // a 4th player. Group id stays the same; only its data mutates.
+        activeGroupData.playerCount = 4;
+        activeGroupData.playerNames = ['Alice', 'Bob', 'Carol', 'Dave'];
+
+        rerender(<TurnSelectorScreen />);
+
+        await waitFor(() => {
+          expect(getByTestId('wheel-player-3').children[0]).toBe('Dave');
+        });
+      } finally {
+        activeGroupData.playerCount = originalPlayerCount;
+        activeGroupData.playerNames = originalPlayerNames;
+      }
+    });
   });
 
   // ── TeamRandomizerScreen ────────────────────────────────────────
@@ -426,6 +491,41 @@ describe('Player Groups Integration — groups enabled path', () => {
       });
 
       expect(queryByTestId('player-count-picker')).toBeNull();
+    });
+
+    it('should re-hydrate roster when the active group is mutated (e.g. via Manage Groups)', async () => {
+      // Snapshot original group values so we can restore them for sibling tests.
+      const originalPlayerCount = activeGroupData.playerCount;
+      const originalPlayerNames = activeGroupData.playerNames;
+      const originalTeamCount = activeGroupData.teamCount;
+
+      try {
+        const { getByText, rerender, findByText } = render(<TeamRandomizerScreen />);
+
+        // Initial roster: 3 players (Alice, Bob, Carol).
+        fireEvent.press(getByText('SHUFFLE'));
+        await findByText('Alice');
+        await findByText('Bob');
+        await findByText('Carol');
+
+        // Simulate the user editing the active group via the gear icon
+        // (CreateGroupScreen → updateGroup) which adds a 4th player.
+        // The group's id stays the same; only its data mutates.
+        activeGroupData.playerCount = 4;
+        activeGroupData.playerNames = ['Alice', 'Bob', 'Carol', 'Dave'];
+
+        // Returning to the shuffle screen re-renders the component.
+        rerender(<TeamRandomizerScreen />);
+
+        // After re-hydration, the new player should appear in the shuffled teams.
+        fireEvent.press(getByText('SHUFFLE'));
+        await findByText('Dave');
+      } finally {
+        // Restore the shared fixture so other tests aren't polluted.
+        activeGroupData.playerCount = originalPlayerCount;
+        activeGroupData.playerNames = originalPlayerNames;
+        activeGroupData.teamCount = originalTeamCount;
+      }
     });
   });
 });

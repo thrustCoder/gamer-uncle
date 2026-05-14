@@ -23,12 +23,39 @@ let cachedSound: Audio.Sound | null = null;
 let loadingPromise: Promise<Audio.Sound> | null = null;
 /** Pending stop timer for the in-flight tick. Cleared on each new tap. */
 let stopTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Tracks whether we've already configured the iOS audio session for
+ * silent-mode playback. Without `playsInSilentModeIOS: true`, the tick is
+ * inaudible whenever the user has flipped their iPhone's silent switch — the
+ * default audio session honours the hardware mute.
+ */
+let audioModeConfigured = false;
+
+const ensureAudioMode = async (): Promise<void> => {
+  if (audioModeConfigured) return;
+  try {
+    await Audio.setAudioModeAsync({
+      // Only enable the bits we actually need. Setting `allowsRecordingIOS:
+      // false` here is important so we don't accidentally route audio through
+      // the earpiece if the voice service was previously recording.
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: false,
+      playThroughEarpieceAndroid: false,
+    });
+    audioModeConfigured = true;
+  } catch {
+    // Best-effort — if configuring the session fails we still try to play.
+  }
+};
 
 const loadSound = async (): Promise<Audio.Sound> => {
   if (cachedSound) return cachedSound;
   if (loadingPromise) return loadingPromise;
 
   loadingPromise = (async () => {
+    await ensureAudioMode();
     const { sound } = await Audio.Sound.createAsync(
       require('../assets/sounds/tick.mp3'),
       { volume: 0.6 }
@@ -76,6 +103,10 @@ export const unloadTurnTickSound = async (): Promise<void> => {
   const s = cachedSound;
   cachedSound = null;
   loadingPromise = null;
+  // Reset the audio-session flag so the next play re-applies the mode. This
+  // also keeps test isolation clean — each test that calls unload starts
+  // from a known state.
+  audioModeConfigured = false;
   if (s) {
     try {
       await s.unloadAsync();

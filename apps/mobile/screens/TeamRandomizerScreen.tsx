@@ -169,7 +169,10 @@ export default function TeamRandomizerScreen() {
     await trackEngagement();
   };
 
-  // hydrate cache on mount (or from active group when groups enabled)
+  // hydrate cache on mount (or from active group when groups enabled).
+  // We also re-run when the active group's data (playerCount, teamCount,
+  // playerNames) mutates — e.g. after editing the active group via the
+  // Manage Groups screen — so the shuffle uses the latest roster.
   useEffect(() => {
     if (groupsState.enabled && activeGroup) {
       const pc = activeGroup.playerCount;
@@ -197,7 +200,13 @@ export default function TeamRandomizerScreen() {
         setPlayerNames(Array.from({ length: pc }, (_, i) => `P${i + 1}`));
       }
     })();
-  }, [groupsState.enabled, activeGroup?.id]);
+  }, [
+    groupsState.enabled,
+    activeGroup?.id,
+    activeGroup?.playerCount,
+    activeGroup?.teamCount,
+    activeGroup?.playerNames,
+  ]);
 
   // persist when core counts change
   useEffect(() => {

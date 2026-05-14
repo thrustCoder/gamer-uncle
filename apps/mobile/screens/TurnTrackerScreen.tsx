@@ -304,7 +304,7 @@ export default function TurnTrackerScreen() {
         resizeMode="cover"
       >
         <BackButton />
-        <Text style={styles.pageHeader}>Track Turns</Text>
+        <Text style={styles.pageHeader} pointerEvents="none">Track Turns</Text>
       </ImageBackground>
     );
   }
@@ -512,7 +512,7 @@ export default function TurnTrackerScreen() {
       resizeMode="cover"
     >
       <BackButton />
-      <Text style={styles.pageHeader}>Track Turns</Text>
+      <Text style={styles.pageHeader} pointerEvents="none">Track Turns</Text>
 
       <View style={{ flex: 1 }} testID="turn-tracker-screen">
         {inGame ? renderInGame() : renderSetup()}

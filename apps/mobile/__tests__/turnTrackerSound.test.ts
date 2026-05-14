@@ -12,12 +12,14 @@ const createAsync = jest.fn(() => Promise.resolve({
     setOnPlaybackStatusUpdate: jest.fn(),
   },
 }));
+const setAudioModeAsync = jest.fn(() => Promise.resolve());
 
 jest.mock('expo-av', () => ({
   Audio: {
     Sound: {
       createAsync: (...args: any[]) => (createAsync as any)(...args),
     },
+    setAudioModeAsync: (...args: any[]) => (setAudioModeAsync as any)(...args),
   },
 }));
 
@@ -98,5 +100,13 @@ describe('turnTrackerSound', () => {
   it('Audio module is consumed', () => {
     // Smoke check that the test really wired the mock
     expect(Audio.Sound.createAsync).toBeDefined();
+  });
+
+  it('configures the iOS audio session for silent-mode playback before loading', async () => {
+    await playTurnTickSound();
+    expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+    expect(setAudioModeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ playsInSilentModeIOS: true, allowsRecordingIOS: false })
+    );
   });
 });
