@@ -295,4 +295,202 @@ describe('TurnTrackerContext', () => {
       expect(result.current.session?.direction).toBe('ccw');
     });
   });
+
+  describe('No-session no-ops', () => {
+    it('advanceTurn does nothing when no session is active', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      expect(() => act(() => result.current.advanceTurn())).not.toThrow();
+      expect(result.current.session).toBeNull();
+      expect(result.current.activeSeatIndex).toBeNull();
+    });
+
+    it('retractTurn does nothing when no session is active', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      expect(() => act(() => result.current.retractTurn())).not.toThrow();
+      expect(result.current.session).toBeNull();
+    });
+
+    it('setDirection does nothing when no session is active', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      expect(() => act(() => result.current.setDirection('ccw'))).not.toThrow();
+      expect(result.current.session).toBeNull();
+    });
+  });
+
+  describe('Derived helpers (next/prev seat & player indices)', () => {
+    it('computes nextSeatIndex / prevSeatIndex correctly for cw direction', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+      act(() => result.current.beginGame([5, 1, 7, 2], 'cw'));
+
+      // active=0, n=4, step=+1
+      expect(result.current.activeSeatIndex).toBe(0);
+      expect(result.current.nextSeatIndex).toBe(1);
+      expect(result.current.prevSeatIndex).toBe(3);
+      // Player indices follow seatOrder
+      expect(result.current.activePlayerIndex).toBe(5);
+      expect(result.current.nextPlayerIndex).toBe(1);
+      expect(result.current.prevPlayerIndex).toBe(2);
+    });
+
+    it('wraps prev/next around the modulo boundary', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+      act(() => result.current.beginGame([10, 20, 30], 'cw'));
+      // active = 0; prev wraps to 2 (last seat)
+      expect(result.current.prevSeatIndex).toBe(2);
+      expect(result.current.prevPlayerIndex).toBe(30);
+    });
+
+    it('inverts next/prev when direction is ccw', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+      act(() => result.current.beginGame([10, 20, 30, 40], 'ccw'));
+      // active=0, step=-1
+      expect(result.current.nextSeatIndex).toBe(3); // 0 - 1 mod 4
+      expect(result.current.prevSeatIndex).toBe(1); // 0 + 1 mod 4
+      expect(result.current.nextPlayerIndex).toBe(40);
+      expect(result.current.prevPlayerIndex).toBe(20);
+    });
+  });
+
+  describe('Persistence (group mode)', () => {
+    const groupId = 'g1';
+    const makeGroupsStateJson = (turnTracker: TurnTrackerSession | null) =>
+      JSON.stringify({
+        enabled: true,
+        activeGroupId: groupId,
+        groups: [
+          {
+            id: groupId,
+            name: 'Test Group',
+            playerCount: 4,
+            playerNames: ['A', 'B', 'C', 'D'],
+            teamCount: 2,
+            gameScore: null,
+            leaderboard: [],
+            gameSetupGameName: '',
+            gameSetupPlayerCount: 4,
+            gameSetupResponse: null,
+            turnTracker,
+          },
+        ],
+      });
+
+    it('hydrates from the active group when groups are enabled', async () => {
+      const session: TurnTrackerSession = {
+        seatOrder: [3, 1, 0, 2],
+        activeSeatIndex: 1,
+        direction: 'cw',
+        startedAt: Date.now() - 5000,
+        playerCountAtStart: 4,
+        totalAdvances: 1,
+        totalRetracts: 0,
+      };
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'app.playerGroups') return Promise.resolve(makeGroupsStateJson(session));
+        return Promise.resolve(null);
+      });
+
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      expect(result.current.session).not.toBeNull();
+      expect(result.current.session?.seatOrder).toEqual([3, 1, 0, 2]);
+      expect(result.current.session?.activeSeatIndex).toBe(1);
+    });
+
+    it('persists session updates back to the active group (NOT the appCache key)', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'app.playerGroups') return Promise.resolve(makeGroupsStateJson(null));
+        return Promise.resolve(null);
+      });
+
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      act(() => result.current.beginGame([0, 1, 2, 3], 'cw'));
+      await flushAsync();
+      // Allow the PlayerGroups debounced persistence (400ms) to flush.
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 450));
+      });
+
+      const setItemCalls = (AsyncStorage.setItem as jest.Mock).mock.calls;
+      // In group mode the TurnTrackerContext writes through updateActiveGroupData
+      // (PlayerGroupsContext persists the whole groups state under
+      // 'app.playerGroups'), NOT to 'app.turnTracker'.
+      const groupWrites = setItemCalls.filter((call) => call[0] === 'app.playerGroups');
+      expect(groupWrites.length).toBeGreaterThan(0);
+      const lastGroupWrite = JSON.parse(groupWrites[groupWrites.length - 1][1]);
+      const activeGroup = lastGroupWrite.groups.find((g: any) => g.id === groupId);
+      expect(activeGroup?.turnTracker).not.toBeNull();
+      expect(activeGroup?.turnTracker?.seatOrder).toEqual([0, 1, 2, 3]);
+    });
+
+    it('discards a group session whose playerCountAtStart mismatches the group player count', async () => {
+      const stale: TurnTrackerSession = {
+        seatOrder: [0, 1, 2],
+        activeSeatIndex: 0,
+        direction: 'cw',
+        startedAt: Date.now() - 1000,
+        playerCountAtStart: 3,
+        totalAdvances: 0,
+        totalRetracts: 0,
+      };
+      (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+        if (key === 'app.playerGroups') return Promise.resolve(makeGroupsStateJson(stale));
+        return Promise.resolve(null);
+      });
+
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      // Group reports playerCount=4 but session says 3 → session is dropped.
+      expect(result.current.session).toBeNull();
+    });
+  });
+
+  describe('beginGame counters and snapshot', () => {
+    it('records playerCountAtStart from seatOrder length', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+      act(() => result.current.beginGame([0, 1, 2, 3, 4], 'cw'));
+      expect(result.current.session?.playerCountAtStart).toBe(5);
+    });
+
+    it('resets totalAdvances and totalRetracts on every new game', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+      act(() => result.current.beginGame([0, 1, 2], 'cw'));
+      act(() => result.current.advanceTurn());
+      act(() => result.current.advanceTurn());
+      act(() => result.current.retractTurn());
+      expect(result.current.session?.totalAdvances).toBe(2);
+      expect(result.current.session?.totalRetracts).toBe(1);
+
+      act(() => {
+        result.current.endGame();
+      });
+      act(() => result.current.beginGame([0, 1, 2], 'cw'));
+      expect(result.current.session?.totalAdvances).toBe(0);
+      expect(result.current.session?.totalRetracts).toBe(0);
+    });
+
+    it('seatOrder is copied (mutations to the input array do not affect the session)', async () => {
+      const { result } = renderHook(() => useTurnTracker(), { wrapper });
+      await flushAsync();
+
+      const input = [0, 1, 2, 3];
+      act(() => result.current.beginGame(input, 'cw'));
+      input[0] = 99;
+      expect(result.current.session?.seatOrder).toEqual([0, 1, 2, 3]);
+    });
+  });
 });

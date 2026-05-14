@@ -1,4 +1,27 @@
-import { shortestAngleDelta } from '../components/turnTracker/TurnMarker';
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+
+// Override the global mock with one that exports Svg/Path as plain View
+// functions. The global mock in jest.setup.js sometimes resolves the default
+// export as an object (instead of a function) when interop occurs through
+// ts-jest, which makes React reject the element type.
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Stub = ({ children, ...rest }: any) =>
+    React.createElement(View, rest, children);
+  return {
+    __esModule: true,
+    default: Stub,
+    Svg: Stub,
+    Path: Stub,
+    Circle: Stub,
+    G: Stub,
+    Text: Stub,
+  };
+});
+
+import TurnMarker, { shortestAngleDelta } from '../components/turnTracker/TurnMarker';
 
 describe('shortestAngleDelta', () => {
   it('returns 0 for identical angles', () => {
@@ -42,5 +65,44 @@ describe('shortestAngleDelta', () => {
     expect(steps.every((s) => s === 60)).toBe(true);
     // Two full revolutions => abs == 720
     expect(abs).toBe(720);
+  });
+});
+
+describe('TurnMarker (rendering)', () => {
+  const baseProps = {
+    centerX: 100,
+    centerY: 100,
+    size: 64,
+    targetAngle: 0,
+  } as const;
+
+  it('renders a TouchableOpacity wired to onPress when onPress is provided', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = render(<TurnMarker {...baseProps} onPress={onPress} />);
+    const marker = getByTestId('turn-marker');
+    fireEvent.press(marker);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a non-touchable wrapper when onPress is omitted', () => {
+    const { getByTestId } = render(<TurnMarker {...baseProps} />);
+    const marker = getByTestId('turn-marker');
+    expect(marker).toBeTruthy();
+    // Pressing should not throw; no callback should fire either.
+    fireEvent.press(marker);
+  });
+
+  it('honours a custom testID', () => {
+    const { getByTestId } = render(
+      <TurnMarker {...baseProps} testID="custom-marker" onPress={() => {}} />
+    );
+    expect(getByTestId('custom-marker')).toBeTruthy();
+  });
+
+  it('renders without crashing when targetAngle is null (setup mode)', () => {
+    const { getByTestId } = render(
+      <TurnMarker {...baseProps} targetAngle={null} />
+    );
+    expect(getByTestId('turn-marker')).toBeTruthy();
   });
 });

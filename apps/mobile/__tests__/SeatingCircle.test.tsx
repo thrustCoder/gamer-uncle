@@ -1,4 +1,25 @@
-import { getSeatPosition, getSeatAngleDeg, computeSeatSize } from '../components/turnTracker/SeatingCircle';
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+
+import SeatingCircle, {
+  getSeatPosition,
+  getSeatAngleDeg,
+  computeSeatSize,
+} from '../components/turnTracker/SeatingCircle';
+
+// react-native-svg's mock can't render the SVG marker reliably; swap it with a
+// lightweight stand-in so we can still drive press events from the circle.
+jest.mock('../components/turnTracker/TurnMarker', () => {
+  const React = require('react');
+  const { TouchableOpacity } = require('react-native');
+  const MockTurnMarker = ({ onPress, testID }: any) =>
+    React.createElement(TouchableOpacity, {
+      testID: testID ?? 'turn-marker',
+      onPress,
+      accessibilityRole: 'button',
+    });
+  return { __esModule: true, default: MockTurnMarker };
+});
 
 describe('getSeatAngleDeg', () => {
   it('returns 0 for the first seat (12 o\'clock)', () => {
@@ -110,6 +131,128 @@ describe('computeSeatSize', () => {
     expect(computeSeatSize(1, stage, defaultSize)).toBe(defaultSize);
     expect(computeSeatSize(0, stage, defaultSize)).toBe(defaultSize);
     expect(computeSeatSize(4, 0, defaultSize)).toBe(defaultSize);
+  });
+});
+
+describe('SeatingCircle (rendering)', () => {
+  const stageSize = 300;
+  const seatSize = 64;
+  const markerSize = 72;
+
+  const baseSetupProps = {
+    inGame: false as const,
+    playerCount: 4,
+    seats: [null, null, null, null] as (number | null)[],
+    getPlayerName: (i: number) => `P${i + 1}`,
+    onSeatPress: jest.fn(),
+    stageSize,
+    seatSize,
+    markerSize,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('Setup mode', () => {
+    it('renders one empty seat per player and no marker', () => {
+      const { getByTestId, queryByTestId } = render(<SeatingCircle {...baseSetupProps} />);
+      expect(getByTestId('seating-circle')).toBeTruthy();
+      for (let i = 0; i < 4; i += 1) {
+        expect(getByTestId(`seat-${i}`)).toBeTruthy();
+        expect(getByTestId(`seat-${i}-touch`)).toBeTruthy();
+      }
+      // No TurnMarker in setup mode.
+      expect(queryByTestId('turn-marker')).toBeNull();
+    });
+
+    it('invokes onSeatPress with the seat index when an empty seat is tapped', () => {
+      const onSeatPress = jest.fn();
+      const { getByTestId } = render(
+        <SeatingCircle {...baseSetupProps} onSeatPress={onSeatPress} />
+      );
+      fireEvent.press(getByTestId('seat-2-touch'));
+      expect(onSeatPress).toHaveBeenCalledWith(2);
+    });
+
+    it('renders filled seats with the assigned player label', () => {
+      const playerLabels = ['Al', 'Bo', 'Ca', 'Da'];
+      const { getByText } = render(
+        <SeatingCircle
+          {...baseSetupProps}
+          seats={[0, 1, null, null]}
+          getPlayerName={(i) => ['Alice', 'Bob', 'Carol', 'Dave'][i]!}
+          playerLabels={playerLabels}
+        />
+      );
+      // Filled seats use the unique-prefix label; empty seats show "+".
+      expect(getByText('Al')).toBeTruthy();
+      expect(getByText('Bo')).toBeTruthy();
+    });
+  });
+
+  describe('In-game mode', () => {
+    const inGameProps = {
+      inGame: true as const,
+      seatOrder: [0, 1, 2, 3],
+      getPlayerName: (i: number) => `Player${i + 1}`,
+      activeSeatIndex: 0,
+      nextSeatIndex: 1,
+      prevSeatIndex: 3,
+      onMarkerPress: jest.fn(),
+      onAdvancePress: jest.fn(),
+      onRetractPress: jest.fn(),
+      stageSize,
+      seatSize,
+      markerSize,
+    };
+
+    it('renders all seats plus the central turn marker', () => {
+      const { getByTestId } = render(<SeatingCircle {...inGameProps} />);
+      expect(getByTestId('turn-marker')).toBeTruthy();
+      for (let i = 0; i < 4; i += 1) {
+        expect(getByTestId(`seat-${i}`)).toBeTruthy();
+      }
+    });
+
+    it('makes only the next and prev seats tappable; active/idle seats are not', () => {
+      const { queryByTestId } = render(<SeatingCircle {...inGameProps} />);
+      // Active seat (index 0) is not tappable.
+      expect(queryByTestId('seat-0-touch')).toBeNull();
+      // Next seat (index 1) is tappable.
+      expect(queryByTestId('seat-1-touch')).not.toBeNull();
+      // Idle seat (index 2) is not tappable.
+      expect(queryByTestId('seat-2-touch')).toBeNull();
+      // Prev seat (index 3) is tappable.
+      expect(queryByTestId('seat-3-touch')).not.toBeNull();
+    });
+
+    it('tapping the next seat fires onAdvancePress', () => {
+      const onAdvancePress = jest.fn();
+      const { getByTestId } = render(
+        <SeatingCircle {...inGameProps} onAdvancePress={onAdvancePress} />
+      );
+      fireEvent.press(getByTestId('seat-1-touch'));
+      expect(onAdvancePress).toHaveBeenCalledTimes(1);
+    });
+
+    it('tapping the prev seat fires onRetractPress', () => {
+      const onRetractPress = jest.fn();
+      const { getByTestId } = render(
+        <SeatingCircle {...inGameProps} onRetractPress={onRetractPress} />
+      );
+      fireEvent.press(getByTestId('seat-3-touch'));
+      expect(onRetractPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('tapping the central marker fires onMarkerPress', () => {
+      const onMarkerPress = jest.fn();
+      const { getByTestId } = render(
+        <SeatingCircle {...inGameProps} onMarkerPress={onMarkerPress} />
+      );
+      fireEvent.press(getByTestId('turn-marker'));
+      expect(onMarkerPress).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
