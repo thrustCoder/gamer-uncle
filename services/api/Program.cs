@@ -6,6 +6,7 @@ using GamerUncle.Api.Services.GameData;
 using GamerUncle.Api.Services.RateLimiting;
 using GamerUncle.Api.Services.Resilience;
 using GamerUncle.Api.Services.Speech;
+using GamerUncle.Api.Services.Telemetry;
 using GamerUncle.Api.Services.ThreadMapping;
 using GamerUncle.Api.Models;
 using GamerUncle.Mcp.Extensions;
@@ -84,6 +85,13 @@ if (isValidAppInsightsConnectionString)
         options.DeveloperMode = builder.Environment.IsDevelopment();
         options.EnableAdaptiveSampling = enableAdaptiveSampling;
     });
+
+    // Tag telemetry from known synthetic callers (functional tests, Playwright) with
+    // Operation.SyntheticSource so alert queries can exclude them via
+    // `where isempty(SyntheticSource)`. Patterns are configurable in appsettings under
+    // SyntheticTraffic:UserAgentPatterns.
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, SyntheticSourceTelemetryInitializer>();
 
     // Configure AAD/RBAC authentication on the classic SDK's telemetry channel
     // so that TelemetryClient.TrackEvent() calls can ingest via managed identity.
