@@ -1,11 +1,32 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: May 11, 2026 — Removed historical cost snapshots, projected-savings tables, implementation roadmap, and traffic-milestone sections; doc now centered on recommendations + current status only  
-> **Previous update**: May 10, 2026 — Cut dev scheduled query rules 16→8, enabled adaptive sampling on prod App Insights, deleted unused `PlayerSessions` Cosmos container  
+> **Updated**: May 28, 2026 — Validated May 10–11 implementations against the May 14–28 billing window (see [14-Day Validation](#14-day-validation-may-1428-2026)); refreshed dev Log Analytics and prod Cosmos inventory estimates with realized run-rates  
+> **Previous update**: May 11, 2026 — Removed historical cost snapshots, projected-savings tables, implementation roadmap, and traffic-milestone sections; doc now centered on recommendations + current status only  
+> **Earlier**: May 10, 2026 — Cut dev scheduled query rules 16→8, enabled adaptive sampling on prod App Insights, deleted unused `PlayerSessions` Cosmos container  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
 > **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
+
+### 14-Day Validation (May 14–28, 2026)
+
+Total subscription spend in the trailing 14-day window: **$87.75** (vs $116.81 in the prior 14-day window Apr 30 – May 14). The $29.06 (-24.9%) drop confirms the May 10–11 implementations landed as designed.
+
+| Service | Prior 14d (Apr 30 – May 14) | Current 14d (May 14 – May 28) | Δ | Run-rate (mo) | Notes |
+|---|---:|---:|---:|---:|---|
+| Prod App Service (P1v3, 1 inst) | $47.88 | $46.82 | -$1.06 | ~$100/mo | Rec #1 partial — autoscale at min=1 confirmed; S1 downgrade still deferred |
+| Prod AFD (shared dev+prod) | $16.94 | $16.61 | -$0.33 | ~$36/mo | Rec #2 steady state |
+| Prod Cosmos DB | $17.35 | $4.29 | **-$13.06** | **~$9.20/mo** | Rec #12 — beat the $18/mo prediction; PlayerSessions delete fully realized |
+| Prod Log Analytics | $13.24 | $3.46 | **-$9.78** | **~$7.41/mo** | Rec #9+#10 — matches the $7/mo post-sampling estimate exactly |
+| Prod Azure Monitor (16 rules) | $7.64 | $7.48 | -$0.16 | ~$16/mo | Unchanged — prod rules intentionally kept |
+| Dev Azure Monitor (8 rules) | $6.61 | $3.67 | **-$2.94** | **~$7.86/mo** | Rec #13 — savings confirmed (~$7/mo vs prior $15/mo) |
+| Dev Log Analytics | $4.27 | $4.36 | +$0.09 | ~$9.34/mo | Steady; **inventory estimate "~$0.14/mo" was stale** — corrected below |
+| Prod Functions (Y1 Consumption) | $1.84 | <$0.10 | -$1.74 | <$0.50/mo | Lower invocation volume; not tied to a recommendation |
+| Prod Storage | $0.64 | $0.27 | -$0.37 | ~$0.58/mo | Rec #11 — orphan `gameruncleprodstorage` purge fully realized |
+| Dev App Service (B1↔F1 toggle) | <$0.10 | $0.16 | – | <$1/mo | Rec #4 — F1 the majority of the window |
+| **Total** | **$116.81** | **$87.75** | **-$29.06** | **~$188/mo** | -24.9% across the trailing 14 days |
+
+**Bottom line**: ~$62/mo of structural savings realized from the May 10–11 work (Cosmos PlayerSessions delete + App Insights sampling + dev alert-rule cut + orphan storage purge). The remaining lever for material savings is Rec #1 (P1v3 → S1, ~$45/mo).
 
 ### Cross-Reference with Scaling Analysis
 
@@ -40,7 +61,7 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 | gamer-uncle-dev-speech | Speech Services | **F0** (Free) | $0 |
 | gamer-uncle-dev-cosmos | Cosmos DB | **Free Tier** enabled | $0 |
 | gamer-uncle-dev-vault | Key Vault | Standard | ~$0 |
-| gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0.14 |
+| gamer-uncle-dev-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$9 (validated May 14–28, 2026; corrected from prior ~$0.14 estimate based on stale 5 GB free assumption) |
 | gamer-uncle-dev-app-insights | Application Insights | (no sampling), **linked to dev workspace** | Included in Log Analytics |
 | gameruncledevfuncstorage | Storage Account | Standard_LRS | ~$0.17 |
 | gamer-uncle-dev-function | Function App | Y1 (Consumption) | ~$0 |
@@ -62,10 +83,10 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 | gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD (rate limits: dev 60/min, prod 100/min) |
 | gamer-uncle-prod-foundry-resourc | AI Services | S0 | Pay-per-use |
 | gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
-| gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–1000 RU/s, **no free tier** | ~$18 |
+| gamer-uncle-prod-cosmos | Cosmos DB | Autoscale 100–1000 RU/s, **no free tier** | ~$9 (validated May 14–28, 2026 post `PlayerSessions` delete; ran below the predicted $18 floor) |
 | gamer-uncle-prod-vault | Key Vault | Standard | ~$0 |
-| gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap** | ~$0 |
-| gamer-uncle-prod-app-insights | Application Insights | (no sampling) | Included in Log Analytics |
+| gamer-uncle-prod-log-analytics-ws | Log Analytics | PerGB2018, 30d retention, **0.5 GB/day cap**, sampling on (May 2026) | ~$7 (post-sampling steady state; May 2026 was $16 due to 8 days pre-sampling) |
+| gamer-uncle-prod-app-insights | Application Insights | Adaptive sampling: 3 items/sec, ratio 0.5 (excl. Event/Exception) | Included in Log Analytics |
 | gameruncleprofuncstorage | Storage Account | Standard_LRS | ~$0.97 |
 | gamer-uncle-prod-function | Function App | Y1 (Consumption) | ~$0 |
 | Upstash Redis (external) | Redis Cache | Pro (estimated) | ~$0–10 |
@@ -255,7 +276,11 @@ Additionally, dev App Insights was relinked from the default workspace to `gamer
 
 **Prod (Apr 2026)**: Set 0.5 GB/day daily cap on prod workspace (`gamer-uncle-prod-log-analytics-ws`). The prod workspace had **no daily cap** (`dailyQuotaGb: -1`), which caused $24 Log Analytics + $15 Azure Monitor charges in March 2026 — up from near-zero in January. This was likely amplified by the 2-instance App Service configuration generating double the telemetry. Verified via `az monitor log-analytics workspace show` (dailyCapGb=0.5).
 
-First 5 GB/mo is free with Log Analytics. With the daily cap at 0.5 GB, maximum billable ingestion is ~15 GB/mo per workspace, capping worst-case cost at ~$28/workspace/mo.
+Pay-as-you-go (`pergb2018`) bills **$2.99/GB from byte 1** — the legacy 5 GB/mo free allowance was retired by Azure in 2023 and does **not** apply to workspaces created after that change. With the 0.5 GB/day cap, worst-case ingestion is ~15 GB/mo per workspace ≈ **~$45/workspace/mo ceiling**. Actual post-sampling steady state on prod is ~0.08 GB/day ≈ **~$7/mo** (validated May 11–27, 2026 after recommendation #9 rollout).
+
+> **May 2026 budget alert correlation**: The $160 budget alert that fired May 27 included $16 of Log Analytics charges — but that's front-loaded from May 1–8 (pre-sampling, averaging 0.51 GB/day at ~$1.50/day). Post-May-10 the daily rate dropped ~85% to ~$0.24/day, confirming #9 + #10 are working as designed. The earlier "~$0" estimate in the inventory table was based on the now-invalid 5 GB free assumption and has been corrected.
+
+> **May 28, 2026 validation**: Trailing 14-day prod Log Analytics cost was **$3.46** = ~$7.41/mo run-rate, matching the $7/mo post-sampling estimate exactly. Dev Log Analytics was **$4.36** = ~$9.34/mo run-rate (steady at the 0.5 GB/day cap ceiling, ~$15/mo worst-case). The dev inventory line has been corrected to reflect this; the prior "~$0.14" figure was a stale carryover from the retired 5 GB free allowance.
 
 ---
 
@@ -272,6 +297,8 @@ First 5 GB/mo is free with Log Analytics. With the daily cap at 0.5 GB, maximum 
 | **Implemented** | ✅ partial (Apr 2026) — autoscale min→1 (verified: min=1, default=1, max=4, currently 1 instance); full S1 downgrade deferred |
 
 **Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
+
+> **May 28, 2026 validation**: Trailing 14-day cost for `gamer-uncle-prod-app-plan` was **$46.82** = ~$100/mo run-rate, consistent with single-instance P1v3. Autoscale is correctly capped at min=1, so the April fix is holding. The $45/mo savings from the S1 downgrade are still on the table and remain the single largest unrealized recommendation in this plan.
 
 > **April 2026 fix**: The autoscale setting `gamer-uncle-prod-autoscale` was found with min=2, default=2 despite being marked as fixed in March. This caused the plan to run 2× P1v3 instances ($196/mo) throughout March. Fixed on April 8, 2026 — independently verified via `az monitor autoscale show` and `az appservice plan show` (capacity=1).
 
@@ -581,6 +608,8 @@ Verified post-deletion: both accounts now show only `Games` in the container lis
 
 **Expected impact**: Prod Cosmos DB billing should drop from ~$43/mo to ~$18/mo starting with the 5/8–6/7 cycle. Validate in the next monthly bill review.
 
+> **May 28, 2026 validation**: Trailing 14-day cost for `gamer-uncle-prod-cosmos` was **$4.29** = ~$9.20/mo run-rate — well below the $18/mo prediction. With the `PlayerSessions` container gone, only the `Games` container's autoscale floor remains (100 RU/s at ~$0.008/RU/hr ≈ $5.84/mo) plus storage and request units. Realized savings vs the pre-delete $17.35/14d baseline: **~$28/mo**.
+
 **Risk**: None. Zero code path touched this container.
 
 ---
@@ -665,6 +694,8 @@ Verified post-deletion: both accounts now show only `Games` in the container lis
 | BGG function slowdown | ❌ (intentional — not a main-merge gate; covered by prod alert) |
 
 **Cost driver math**: Azure Monitor scheduled query rules are billed per rule per month. A 5-min eval rule runs 8,640 times/mo; a 15-min rule 2,880; a 30-min rule 1,440. Dev cost dropped from ~$15/mo (16 rules) to ~$6/mo (8 rules).
+
+> **May 28, 2026 validation**: Trailing 14-day cost for dev Azure Monitor was **$3.67** = ~$7.86/mo run-rate (vs ~$15/mo pre-cut and ~$6/mo predicted). The slight overage vs the prediction reflects rule eval frequency mix rather than any kept rule firing. Realized savings vs the Apr 30 – May 14 baseline ($6.61/14d): **~$6.30/mo**.
 
 **Risk**: Low. The 8 dropped rules collectively had **zero activations** in the prior 5 weeks. Even if a regression in one of those failure domains slipped past dev, the corresponding **prod** alert (still in place) would catch it during canary/initial prod traffic. Dev now functions as a focused "merge gate" rather than a duplicate of prod.
 
