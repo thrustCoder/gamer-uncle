@@ -31,6 +31,13 @@
         "cache": {
           "paths": []
         }
+      },
+      "android": {
+        "buildType": "app-bundle",
+        "developmentClient": false,
+        "cache": {
+          "paths": []
+        }
       }
     }
   },  
@@ -39,6 +46,11 @@
       "ios": {
         "appleId": "rpsingh129@gmail.com",
         "ascAppId": "6747456645"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }

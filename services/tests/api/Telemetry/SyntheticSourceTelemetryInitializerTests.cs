@@ -71,7 +71,7 @@ namespace GamerUncle.Api.Tests.Telemetry
         public void Initialize_RealUserAgent_LeavesSyntheticSourceUnset()
         {
             var sut = new SyntheticSourceTelemetryInitializer(
-                AccessorWith("GamerUncle/3.7.1 CFNetwork/1494 Darwin/23.0.0"),
+                AccessorWith("GamerUncle/4.0.0 CFNetwork/1494 Darwin/23.0.0"),
                 EmptyConfig());
             var telemetry = new MetricTelemetry("AgentRequest.Duration", 1234);
 

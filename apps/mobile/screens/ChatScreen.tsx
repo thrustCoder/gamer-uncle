@@ -25,6 +25,7 @@ import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
+import { isVoiceFeatureEnabled } from '../utils/voiceFeatureFlag';
 import { useChat, ChatMessage } from '../store/ChatContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { shouldShowRatingPrompt, recordDismissal, recordRated, requestStoreReview, resetRatingStateForDev } from '../services/ratingPrompt';
@@ -1282,25 +1283,27 @@ export default function ChatScreen() {
                 {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
               />
               
-              {/* Voice Controls - mic button in input bar */}
-              <View style={voiceStyles.voiceContainer}>
-                <Animated.View 
-                  style={[
-                    { transform: [{ scale: micScale }] }
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={getMicButtonStyle()}
-                    activeOpacity={0.8}
-                    onPress={handleMicButtonPress}
-                    disabled={isProcessing}
-                    testID="mic-button"
-                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+              {/* Voice Controls - mic button in input bar (iOS only for v1; see voiceFeatureFlag.ts) */}
+              {isVoiceFeatureEnabled() && (
+                <View style={voiceStyles.voiceContainer}>
+                  <Animated.View 
+                    style={[
+                      { transform: [{ scale: micScale }] }
+                    ]}
                   >
-                    <Text style={voiceStyles.micIcon}>{getMicButtonIcon()}</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
+                    <TouchableOpacity
+                      style={getMicButtonStyle()}
+                      activeOpacity={0.8}
+                      onPress={handleMicButtonPress}
+                      disabled={isProcessing}
+                      testID="mic-button"
+                      {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                    >
+                      <Text style={voiceStyles.micIcon}>{getMicButtonIcon()}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                </View>
+              )}
 
               <TouchableOpacity 
                 onPress={handleSend} 
