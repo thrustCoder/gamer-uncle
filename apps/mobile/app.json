@@ -43,7 +43,8 @@
       "expo-dev-client",
       "expo-asset",
       "@config-plugins/react-native-webrtc",
-      "./plugins/ios-build-fixes"
+      "./plugins/ios-build-fixes",
+      "./plugins/android-build-fixes"
     ],
     "extra": {
       "eas": {

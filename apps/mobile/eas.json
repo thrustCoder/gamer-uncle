@@ -21,7 +21,8 @@
         "developmentClient": true
       },
       "android": {
-        "developmentClient": true
+        "buildType": "apk",
+        "developmentClient": false
       }
     },
     "production": {
