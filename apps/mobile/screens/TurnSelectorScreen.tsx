@@ -19,6 +19,7 @@ import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
 import BackButton from '../components/BackButton';
+import NumberPickerModal from '../components/NumberPickerModal';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
 import RatingModal from '../components/RatingModal';
@@ -36,6 +37,8 @@ export default function TurnSelectorScreen() {
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
   const [winner, setWinner] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
+  // Android-only modal picker (Alert.alert can't render >3 buttons on Android)
+  const [playerPickerVisible, setPlayerPickerVisible] = useState(false);
 
   // Rating prompt
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
@@ -111,21 +114,27 @@ export default function TurnSelectorScreen() {
     await trackEngagement();
   };
 
+  const applyPlayerCount = (newCount: number) => {
+    setPlayerCount(newCount);
+    setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
+    appCache.setPlayerCount(newCount);
+  };
+
   const showPlayerCountPicker = () => {
-    const options = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => `${i + 2} Players`);
-    
+    // Android's Alert.alert only supports up to 3 buttons, so the 2-20 option list
+    // collapses to a broken dialog. Use a themed modal grid there instead.
+    if (Platform.OS === 'android') {
+      setPlayerPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       "Select Number of Players",
       "",
       [
         ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => ({
           text: `${i + 2}`,
-          onPress: () => {
-            const newCount = i + 2;
-            setPlayerCount(newCount);
-            setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
-            appCache.setPlayerCount(newCount);
-          }
+          onPress: () => applyPlayerCount(i + 2)
         })),
         { text: "Cancel", style: "cancel" }
       ]
@@ -177,11 +186,10 @@ export default function TurnSelectorScreen() {
       style={[styles.container, { flex: 1 }]}
       resizeMode="cover"
     >
-      <BackButton />
       <Text style={styles.pageHeader}>Pick Turns</Text>
 
       <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible' }]} testID="turn-selector">
+      <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible', elevation: 0, shadowOpacity: 0 }]} testID="turn-selector">
         {groupsState.enabled ? (
           <View style={{ zIndex: 20 }}>
             <GroupPicker onManageGroups={() => navigation.navigate('ManageGroups')} rowJustify="center" />
@@ -277,6 +285,18 @@ export default function TurnSelectorScreen() {
         </View>
       </View>
       </ScrollView>
+      {/* Rendered after the ScrollView so it stays on top of the scroll area for
+          touch handling on Android (sibling z-order, not just zIndex). */}
+      <BackButton />
+      <NumberPickerModal
+        visible={playerPickerVisible}
+        title="Select Number of Players"
+        minValue={2}
+        maxValue={MAX_PLAYERS}
+        selectedValue={playerCount}
+        onSelect={applyPlayerCount}
+        onClose={() => setPlayerPickerVisible(false)}
+      />
       {celebrate && (
         <Animated.View 
           style={{ 

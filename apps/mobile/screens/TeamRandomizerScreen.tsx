@@ -11,12 +11,14 @@ import {
   Animated,
   Keyboard,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import NumberPickerModal from '../components/NumberPickerModal';
 import RatingModal from '../components/RatingModal';
 import { appCache } from '../services/storage/appCache';
 import { useDebouncedEffect } from '../services/hooks/useDebouncedEffect';
@@ -36,6 +38,9 @@ export default function TeamRandomizerScreen() {
   const [playerDetailExpanded, setPlayerDetailExpanded] = useState(false);
   const [teams, setTeams] = useState<string[][]>([]);
   const [celebrate, setCelebrate] = useState(false);
+  // Android-only modal pickers (Alert.alert can't render >3 buttons on Android)
+  const [playerPickerVisible, setPlayerPickerVisible] = useState(false);
+  const [teamPickerVisible, setTeamPickerVisible] = useState(false);
   const hasRandomizedOnce = useRef(false);
 
   // Rating prompt
@@ -130,41 +135,55 @@ export default function TeamRandomizerScreen() {
     });
   };
 
+  const applyPlayerCount = (newCount: number) => {
+    setPlayerCount(newCount);
+    setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
+    setTeamCount(Math.min(teamCount, Math.floor(newCount / 2)));
+    appCache.setPlayerCount(newCount);
+  };
+
   const showPlayerCountPicker = () => {
+    // Android's Alert.alert only supports up to 3 buttons, so the 2-20 option list
+    // collapses to a broken dialog. Use a themed modal grid there instead.
+    if (Platform.OS === 'android') {
+      setPlayerPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       "Select Number of Players",
       "",
       [
         ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => ({
           text: `${i + 2}`,
-          onPress: () => {
-            const newCount = i + 2;
-            setPlayerCount(newCount);
-            setPlayerNames(Array.from({ length: newCount }, (_, j) => `P${j + 1}`));
-            setTeamCount(Math.min(teamCount, Math.floor(newCount / 2)));
-            appCache.setPlayerCount(newCount);
-          }
+          onPress: () => applyPlayerCount(i + 2)
         })),
         { text: "Cancel", style: "cancel" }
       ]
     );
   };
 
+  const applyTeamCount = (val: number) => {
+    setTeamCount(val);
+    appCache.setTeamCount(val);
+  };
+
   const showTeamCountPicker = () => {
     const maxTeams = Math.floor(playerCount / 2);
     if (maxTeams < 2) return;
-    
+
+    if (Platform.OS === 'android') {
+      setTeamPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       "Select Number of Teams",
       "",
       [
         ...Array.from({ length: maxTeams - 1 }, (_, i) => ({
           text: `${i + 2}`,
-          onPress: () => {
-            const val = i + 2;
-            setTeamCount(val);
-            appCache.setTeamCount(val);
-          }
+          onPress: () => applyTeamCount(i + 2)
         })),
         { text: "Cancel", style: "cancel" }
       ]
@@ -420,6 +439,24 @@ export default function TeamRandomizerScreen() {
         visible={showRatingModal}
         onRate={handleRate}
         onDismiss={handleDismiss}
+      />
+      <NumberPickerModal
+        visible={playerPickerVisible}
+        title="Select Number of Players"
+        minValue={2}
+        maxValue={MAX_PLAYERS}
+        selectedValue={playerCount}
+        onSelect={applyPlayerCount}
+        onClose={() => setPlayerPickerVisible(false)}
+      />
+      <NumberPickerModal
+        visible={teamPickerVisible}
+        title="Select Number of Teams"
+        minValue={2}
+        maxValue={Math.max(2, Math.floor(playerCount / 2))}
+        selectedValue={teamCount}
+        onSelect={applyTeamCount}
+        onClose={() => setTeamPickerVisible(false)}
       />
     </ImageBackground>
     </TouchableWithoutFeedback>
