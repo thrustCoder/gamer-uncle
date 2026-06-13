@@ -10,12 +10,21 @@
  * Run "testit" command to automatically fetch keys from Azure Key Vault and create .env.local.
  */
 
+import { Platform } from 'react-native';
+
 // Configure which API endpoint to use
 export type ApiEnvironment = 'local' | 'dev' | 'prod';
 export const API_ENVIRONMENT = 'prod' as ApiEnvironment; // Change this to switch endpoints
 
 // API endpoint URLs
-const LOCAL_API_URL = 'http://192.168.50.11:5001/api/'; // Local API (host machine IP for iOS simulator)
+// Android emulators cannot reach the host machine via its LAN IP or "localhost"
+// (localhost resolves to the emulator itself). The Android emulator exposes the
+// host loopback at the special alias 10.0.2.2, so use that there. iOS simulator
+// and physical devices keep using the host machine's LAN IP.
+const LOCAL_API_URL =
+  Platform.OS === 'android'
+    ? 'http://10.0.2.2:5001/api/' // Android emulator -> host loopback
+    : 'http://192.168.50.11:5001/api/'; // iOS simulator / LAN devices (host machine IP)
 const AZURE_DEV_API_URL = 'https://gamer-uncle-dev-api-bba9ctg5dchce9ag.z03.azurefd.net/api/'; // Azure dev endpoint
 const AZURE_PROD_API_URL = 'https://gamer-uncle-prod-endpoint-cgctf0csbzetb6eb.z03.azurefd.net/api/'; // Azure prod endpoint
 
