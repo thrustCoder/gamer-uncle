@@ -23,8 +23,9 @@ export const backButtonStyles = StyleSheet.create({
     fontSize: 30, // Increased font size
     color: Colors.themeBrownDark, // Yellow color matching your theme
     fontWeight: '900', // Much thicker/bolder
-    lineHeight: 30, // Ensure proper alignment
-    marginTop: 5, // Adjusted to center vertically
-    textAlign: 'center', // Center the arrow
+    lineHeight: 30, // Match fontSize so the glyph box centers in the circle
+    textAlign: 'center', // Center the arrow horizontally
+    textAlignVertical: 'center', // Center the glyph vertically (Android)
+    includeFontPadding: false, // Remove Android font padding that skews centering
   },
 });

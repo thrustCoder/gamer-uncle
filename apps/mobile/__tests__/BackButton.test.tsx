@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import BackButton from '../components/BackButton';
+import { backButtonStyles } from '../styles/backButtonStyles';
 
 // Mock navigation
 const mockNavigate = jest.fn();
@@ -74,6 +75,18 @@ describe('BackButton Component', () => {
     const { getByTestId } = render(<BackButtonWrapper />);
     const backButton = getByTestId('back-button');
     expect(backButton).toBeTruthy();
+  });
+
+  it('should center the arrow glyph in the circle (no vertical offset)', () => {
+    const arrow = backButtonStyles.backArrow as Record<string, unknown>;
+    // marginTop pushed the glyph off-center; it must not be present.
+    expect(arrow.marginTop).toBeUndefined();
+    // Container centering relies on these for a centered glyph.
+    expect(arrow.textAlign).toBe('center');
+    expect(arrow.textAlignVertical).toBe('center');
+    expect(arrow.includeFontPadding).toBe(false);
+    // lineHeight should match fontSize so the text box centers within the circle.
+    expect(arrow.lineHeight).toBe(arrow.fontSize);
   });
 });
 

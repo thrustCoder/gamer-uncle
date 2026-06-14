@@ -511,7 +511,6 @@ export default function TurnTrackerScreen() {
       style={styles.background}
       resizeMode="cover"
     >
-      <BackButton />
       <Text style={styles.pageHeader} pointerEvents="none">Track Turns</Text>
 
       <View style={{ flex: 1 }} testID="turn-tracker-screen">
@@ -530,6 +529,10 @@ export default function TurnTrackerScreen() {
           onClose={() => setPickerSeatIndex(null)}
         />
       )}
+
+      {/* Rendered after the content View so it stays on top of the scroll area
+          for touch handling on Android (sibling z-order, not just zIndex). */}
+      <BackButton />
     </ImageBackground>
   );
 }
