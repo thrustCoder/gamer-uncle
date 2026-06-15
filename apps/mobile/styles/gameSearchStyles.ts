@@ -284,14 +284,6 @@ export const gameSearchStyles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  detailsBackArrow: {
-    fontSize: 30,
-    color: Colors.themeBrownDark,
-    fontWeight: '900',
-    lineHeight: 30,
-    marginTop: 5,
-    textAlign: 'center',
-  },
   detailsSearchButton: {
     backgroundColor: Colors.themeYellow,
     borderRadius: 25,

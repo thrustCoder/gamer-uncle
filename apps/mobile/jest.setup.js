@@ -181,6 +181,18 @@ jest.mock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView', () 
   };
 });
 
+// Ensure Keyboard.addListener returns a removable subscription (matches the
+// real react-native API). Without this, components that subscribe to keyboard
+// events and call subscription.remove() on cleanup throw in tests.
+try {
+  const { Keyboard } = require('react-native');
+  if (Keyboard && typeof Keyboard.addListener === 'function') {
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(() => ({ remove: jest.fn() }));
+  }
+} catch (e) {
+  // react-native not available in this context; ignore.
+}
+
 // Mock expo-av
 jest.mock('expo-av', () => ({
   Audio: {

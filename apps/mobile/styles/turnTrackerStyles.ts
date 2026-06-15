@@ -89,6 +89,16 @@ export const turnTrackerStyles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderStyle: 'dashed',
     borderColor: Colors.themeYellow,
+    // Empty seats must NOT cast an elevation/shadow. On Android the dashed,
+    // rounded border is rendered as an octagonal outline and the elevation
+    // shadow is cast from that outline — producing a solid octagon "sub-circle"
+    // inside the dashed ring. Zeroing the shadow/elevation removes it so only
+    // the dashed circle and the centred "+" remain.
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   seatCircleActive: {
     borderColor: Colors.themeYellow,
@@ -108,6 +118,13 @@ export const turnTrackerStyles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     color: Colors.themeYellow,
+    // Centre the "+" glyph precisely inside the circular seat: a matching
+    // lineHeight plus removal of Android's extra font padding keeps the glyph
+    // box on the true centre instead of riding low.
+    lineHeight: 28,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   seatLabel: {
     position: 'absolute',

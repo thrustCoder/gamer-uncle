@@ -1,7 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text, Platform } from 'react-native';
+import { TouchableOpacity, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { backButtonStyles as styles } from '../styles/backButtonStyles';
+import { Colors } from '../styles/colors';
 
 interface BackButtonProps {
   onPress?: () => void;
@@ -32,7 +34,10 @@ export default function BackButton({ onPress }: BackButtonProps) {
       testID="back-button"
       {...(Platform.OS === 'web' && { 'data-testid': 'back-button' })}
     >
-      <Text style={styles.backArrow}>←</Text>
+      {/* Vector icon centers itself within its square glyph box, so the arrow
+          sits on the true centre of the circle — unlike a raw "←" text glyph
+          whose font metrics push it off-centre. */}
+      <Ionicons name="arrow-back" size={24} color={Colors.themeBrownDark} />
     </TouchableOpacity>
   );
 }

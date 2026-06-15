@@ -347,7 +347,7 @@ export default function GameSearchScreen() {
             onPress={handleBackToSearch}
             testID="back-to-search"
           >
-            <Text style={styles.detailsBackArrow}>←</Text>
+            <Ionicons name="arrow-back" size={24} color={Colors.themeBrownDark} />
           </TouchableOpacity>
           <Text style={styles.detailsTitle} numberOfLines={2}>{selectedGame.name}</Text>
           <View style={{ width: 40 }} />
