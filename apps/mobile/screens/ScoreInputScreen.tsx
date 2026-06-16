@@ -17,6 +17,7 @@ import {
 const { width: _sw, height: _sh } = Dimensions.get('window');
 const _isTablet = Math.min(_sw, _sh) >= 768;
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
@@ -50,6 +51,9 @@ type RouteParams = {
 
 export default function ScoreInputScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Save/Delete buttons aren't hidden behind it.
+  const insets = useSafeAreaInsets();
   const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   
   const {
@@ -354,7 +358,7 @@ export default function ScoreInputScreen() {
       <BackButton />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 60 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 60 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

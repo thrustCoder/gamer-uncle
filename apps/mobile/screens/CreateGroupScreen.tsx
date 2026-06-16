@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createGroupStyles as styles } from '../styles/createGroupStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -22,6 +23,9 @@ const MAX_NAMED_PLAYERS = 12;
 
 export default function CreateGroupScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Save button isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const { state, createGroup, updateGroup } = usePlayerGroups();
 
@@ -111,7 +115,7 @@ export default function CreateGroupScreen() {
       <BackButton />
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

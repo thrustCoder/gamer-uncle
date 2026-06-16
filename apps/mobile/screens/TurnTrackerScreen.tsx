@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import BackButton from '../components/BackButton';
@@ -57,6 +58,9 @@ const CONTENT_TOP_PADDING = isShortScreen ? 110 : 140;
 
 export default function TurnTrackerScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Start/End Game buttons aren't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state: groupsState, activeGroup } = usePlayerGroups();
   const {
     session,
@@ -318,7 +322,7 @@ export default function TurnTrackerScreen() {
       contentContainerStyle={{
         paddingHorizontal: 10,
         paddingTop: CONTENT_TOP_PADDING,
-        paddingBottom: 60,
+        paddingBottom: 60 + insets.bottom,
       }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -412,7 +416,7 @@ export default function TurnTrackerScreen() {
         contentContainerStyle={{
           paddingHorizontal: 10,
           paddingTop: CONTENT_TOP_PADDING,
-          paddingBottom: 60,
+          paddingBottom: 60 + insets.bottom,
         }}
         showsVerticalScrollIndicator={false}
       >

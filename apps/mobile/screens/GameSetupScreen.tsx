@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -40,6 +41,9 @@ const generateUserId = () => {
 
 export default function GameSetupScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so bottom content isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state: groupsState, activeGroup } = usePlayerGroups();
   const [gameName, setGameName] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
@@ -203,7 +207,7 @@ Please provide step-by-step setup instructions including:
       >
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

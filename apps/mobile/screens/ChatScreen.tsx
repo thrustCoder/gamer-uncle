@@ -21,6 +21,7 @@ import BackButton from '../components/BackButton';
 import MarkdownText from '../components/MarkdownText';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
@@ -272,6 +273,10 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
+
+  // Edge-to-edge (app.json `edgeToEdgeEnabled`) draws content behind the Android
+  // system navigation bar. Lift the input bar above it by the bottom inset.
+  const insets = useSafeAreaInsets();
 
   // Auto-stop handler for recording safety (max duration & silence detection)
   const handleRecordingAutoStop = useCallback((reason: 'max-duration' | 'silence') => {
@@ -1267,7 +1272,7 @@ export default function ChatScreen() {
 
           {/* Input bar - show in default mode and during TTS playback (inline controls in messages) */}
           {(voiceUXMode === 'default' || voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') && (
-            <View style={styles.inputBar}>
+            <View style={[styles.inputBar, { paddingBottom: 12 + insets.bottom }]}>
               <TextInput
                 ref={textInputRef}
                 value={input}

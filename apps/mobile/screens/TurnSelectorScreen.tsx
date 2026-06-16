@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { turnSelectorStyles as styles } from '../styles/turnSelectorStyles';
 import { Colors } from '../styles/colors';
 import SpinningWheel from '../components/SpinningWheel';
@@ -32,6 +33,9 @@ const MAX_PLAYERS = 20;
 
 export default function TurnSelectorScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so bottom content isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
@@ -188,7 +192,7 @@ export default function TurnSelectorScreen() {
     >
       <Text style={styles.pageHeader}>Pick Turns</Text>
 
-      <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, marginTop: 50 }} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 40 + insets.bottom }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={[styles.inputBox, { backgroundColor: 'transparent', borderWidth: 0, paddingTop: 10, paddingHorizontal: 10, marginTop: 0, overflow: 'visible', elevation: 0, shadowOpacity: 0 }]} testID="turn-selector">
         {groupsState.enabled ? (
           <View style={{ zIndex: 20 }}>

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { teamRandomizerStyles as styles } from '../styles/teamRandomizerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -31,6 +32,9 @@ const MAX_PLAYERS = 20;
 
 export default function TeamRandomizerScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad the teams list by
+  // the bottom inset so the last team card isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state: groupsState, activeGroup } = usePlayerGroups();
   const [playerCount, setPlayerCount] = useState(4);
   const [playerNames, setPlayerNames] = useState(Array.from({ length: 4 }, (_, i) => `P${i + 1}`));
@@ -393,7 +397,8 @@ export default function TeamRandomizerScreen() {
           contentContainerStyle={{ 
             flexDirection: 'row', 
             flexWrap: 'wrap', 
-            justifyContent: 'center' 
+            justifyContent: 'center',
+            paddingBottom: insets.bottom,
           }}
           showsVerticalScrollIndicator={false}
         >

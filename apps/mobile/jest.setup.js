@@ -1,6 +1,25 @@
 // Setup fetch mock
 global.fetch = jest.fn();
 
+// Mock react-native-safe-area-context so screens that call useSafeAreaInsets()
+// (for edge-to-edge bottom padding) render in tests without a real
+// <SafeAreaProvider>. Returns zero insets and passes children through.
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  const Passthrough = ({ children }) => children;
+  return {
+    SafeAreaProvider: Passthrough,
+    SafeAreaView: Passthrough,
+    SafeAreaInsetsContext: React.createContext(inset),
+    SafeAreaFrameContext: React.createContext(frame),
+    useSafeAreaInsets: () => inset,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: { insets: inset, frame },
+  };
+});
+
 // Mock NativeEventEmitter for react-native-voice
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
   return class MockNativeEventEmitter {

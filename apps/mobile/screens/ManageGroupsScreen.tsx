@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { manageGroupsStyles as styles } from '../styles/manageGroupsStyles';
 import BackButton from '../components/BackButton';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
@@ -16,6 +17,9 @@ import { MAX_GROUPS } from '../types/playerGroups';
 
 export default function ManageGroupsScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so bottom content isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state, activeGroup, setActiveGroup, deleteGroup, disableGroups } = usePlayerGroups();
 
   const handleSelectGroup = (groupId: string) => {
@@ -88,7 +92,7 @@ export default function ManageGroupsScreen() {
       <BackButton />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>

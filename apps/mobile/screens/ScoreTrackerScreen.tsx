@@ -11,6 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -47,6 +48,9 @@ function extractPlayerNamesFromScores(
 
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Save button isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard, loadGroupData } = useScoreTracker();
   const { state: groupsState, activeGroup, updateActiveGroupData } = usePlayerGroups();
   
@@ -332,7 +336,7 @@ export default function ScoreTrackerScreen() {
       <BackButton />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
