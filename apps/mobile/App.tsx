@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, Theme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { GameProvider } from './store/GameContext';
 import { ChatProvider } from './store/ChatContext';
@@ -28,6 +28,20 @@ import { checkAppVersion, VersionCheckResult } from './services/AppConfigService
 
 const Stack = createStackNavigator();
 
+// React Navigation's DefaultTheme paints scene cards with an opaque light-grey
+// (rgb(242,242,242)). With edge-to-edge enabled, that grey shows through in the
+// bottom navigation-bar inset area as a "footer" beneath each screen's own
+// full-bleed background. Making the card background transparent lets every
+// screen's ImageBackground (and the chat input bar's inset padding) paint that
+// region instead, removing the grey strip.
+const navTheme: Theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: 'transparent',
+  },
+};
+
 export default function App() {
   const { onNavigationStateChange } = useAnalytics();
   const [upgradeInfo, setUpgradeInfo] = useState<VersionCheckResult | null>(null);
@@ -51,7 +65,7 @@ export default function App() {
           <ScoreTrackerProvider>
             <PlayerGroupsProvider>
             <TurnTrackerProvider>
-            <NavigationContainer onStateChange={onNavigationStateChange}>
+            <NavigationContainer theme={navTheme} onStateChange={onNavigationStateChange}>
               <Stack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="Landing" component={LandingScreen} />
                 <Stack.Screen name="Chat" component={ChatScreen} />
