@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import ScoreTrackerScreen from '../screens/ScoreTrackerScreen';
 import { ScoreTrackerProvider } from '../store/ScoreTrackerContext';
 
@@ -226,6 +226,49 @@ describe('ScoreTrackerScreen', () => {
       '',
       expect.any(Array)
     );
+  });
+
+  describe('on Android', () => {
+    const originalOS = Platform.OS;
+    beforeEach(() => {
+      Platform.OS = 'android';
+    });
+    afterEach(() => {
+      Platform.OS = originalOS;
+    });
+
+    it('opens the themed NumberPickerModal instead of Alert.alert', async () => {
+      const { getByTestId, queryByTestId } = renderWithContext(<ScoreTrackerScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('player-count-picker')).toBeTruthy();
+      });
+
+      // Modal starts hidden
+      expect(queryByTestId('number-picker-modal')).toBeNull();
+
+      fireEvent.press(getByTestId('player-count-picker'));
+
+      // Themed modal is shown; Alert.alert is NOT used for the option list on Android
+      expect(getByTestId('number-picker-modal')).toBeTruthy();
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('updates player count when an option is selected from the modal', async () => {
+      const { getByTestId } = renderWithContext(<ScoreTrackerScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('player-count-picker')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('player-count-picker'));
+
+      await act(async () => {
+        fireEvent.press(getByTestId('number-picker-option-6'));
+      });
+
+      expect(getByTestId('player-count').props.children).toBe('Players: 6');
+    });
   });
 
   it('renders back button', async () => {
