@@ -1,6 +1,6 @@
 {
   "name": "gamer-uncle",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
