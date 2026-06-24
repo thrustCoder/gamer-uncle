@@ -16,8 +16,18 @@
 //    (the appcompat dependency is vestigial), so excluding the legacy
 //    `com.android.support` group is safe: the voice module still compiles and
 //    links, and AndroidX provides every class the app actually uses.
+//
+// 2. Removes unused foreground-service permissions.
+//
+//    `expo-audio` auto-declares `FOREGROUND_SERVICE` and
+//    `FOREGROUND_SERVICE_MEDIA_PLAYBACK` in its library manifest. Gamer Uncle
+//    does not run a foreground media-playback service on Android (voice/audio
+//    playback is gated to iOS for v1; Android only plays short in-app sound
+//    effects). Shipping these permissions would force a Play Console
+//    foreground-service usage declaration for a service we never start, so we
+//    strip them from the merged manifest via `tools:node="remove"`.
 
-const { withAppBuildGradle } = require('@expo/config-plugins');
+const { withAppBuildGradle, withAndroidManifest } = require('@expo/config-plugins');
 
 const EXCLUDE_SNIPPET = `
 // [android-build-fixes] Drop the legacy Android Support Library so it does not
@@ -27,7 +37,13 @@ configurations.all {
 }
 `;
 
-function androidBuildFixes(config) {
+// Foreground-service permissions auto-added by expo-audio that the app never uses.
+const REMOVED_PERMISSIONS = [
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+];
+
+function withExcludeLegacySupport(config) {
   return withAppBuildGradle(config, (config) => {
     const marker = '// [android-build-fixes]';
     if (!config.modResults.contents.includes(marker)) {
@@ -35,6 +51,43 @@ function androidBuildFixes(config) {
     }
     return config;
   });
+}
+
+function withRemovedForegroundServicePermissions(config) {
+  return withAndroidManifest(config, (config) => {
+    const manifest = config.modResults.manifest;
+
+    // Ensure the tools namespace is declared so tools:node="remove" works.
+    manifest.$ = manifest.$ || {};
+    if (!manifest.$['xmlns:tools']) {
+      manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
+    }
+
+    manifest['uses-permission'] = manifest['uses-permission'] || [];
+
+    for (const name of REMOVED_PERMISSIONS) {
+      // Drop any existing add of this permission in the app manifest.
+      manifest['uses-permission'] = manifest['uses-permission'].filter(
+        (perm) => perm?.$?.['android:name'] !== name,
+      );
+      // Add an explicit remove directive so the manifest merger strips the
+      // permission contributed by expo-audio's library manifest.
+      manifest['uses-permission'].push({
+        $: {
+          'android:name': name,
+          'tools:node': 'remove',
+        },
+      });
+    }
+
+    return config;
+  });
+}
+
+function androidBuildFixes(config) {
+  config = withExcludeLegacySupport(config);
+  config = withRemovedForegroundServicePermissions(config);
+  return config;
 }
 
 module.exports = androidBuildFixes;

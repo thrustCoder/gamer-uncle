@@ -88,7 +88,7 @@ describe('checkAppVersion', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        minVersion: '4.0.1',
+        minVersion: '4.0.2',
         upgradeUrl: 'https://apps.apple.com/app/test',
         message: 'Please update',
         forceUpgrade: true,
