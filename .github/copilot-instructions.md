@@ -460,6 +460,15 @@ On **Windows**, the local API server is started for local development.
 - **Android emulator local API**: With `API_ENVIRONMENT='local'`, Android resolves the local API to `http://10.0.2.2:5001/api/` (the emulator's built-in host-loopback alias) via `apiConfig.ts` — no `adb reverse` needed for the API. `localhost`/`127.0.0.1` on the emulator would point at the emulator itself, and the host LAN IP is typically unroutable from the AVD.
 - **Office/Corporate network troubleshooting**: Corporate networks like MSFTCONNECT block device-to-device LAN traffic and may block ngrok tunnels too. If `--tunnel` fails with "remote gone away", the laptop's outbound internet is blocked — disconnect from corp Ethernet, use iPhone Personal Hotspot for laptop internet, then retry `--tunnel`. The phone should use cellular data (not corp Wi-Fi) to reach the tunnel URL. ADB is Android-only and won't work with iOS devices.
 
+## Mobile App Versioning (iOS + Android lockstep)
+
+The mobile app ships iOS and Android from the same commit using a single shared SemVer. Follow these rules for any release-affecting change in `apps/mobile/app.json`:
+
+- **One SemVer per release**: Bump `expo.version` once per release. This is the single source of truth and feeds iOS `CFBundleShortVersionString` and Android `versionName` automatically.
+- **Every store upload needs a new version**: Google Play requires `android.versionCode` to strictly increase on every upload, and Apple requires `ios.buildNumber` to strictly increase per App Store upload — independent of SemVer. Because we keep SemVer in lockstep, treat **every store upload as a new SemVer** (even a no-code-change rebuild requires bumping `expo.version`).
+- **Bump both build counters together**: When you bump `expo.version`, also bump **both** `ios.buildNumber` and `android.versionCode` for that release. Never let either platform's build counter go backwards on its respective store; each must be monotonically increasing per store.
+- **Keep them aligned**: `ios.buildNumber` and `android.versionCode` are separate counters but should be advanced in the same release commit so the two platforms stay traceable to one SemVer.
+
 ## Pull Request Conventions
 - **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.
 - **GitHub account**: Always create PRs using the `thrustCoder` GitHub account. If `gh auth status` shows a different active account, run `gh auth switch --user thrustCoder` before creating the PR.
