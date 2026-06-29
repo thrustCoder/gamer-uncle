@@ -8,14 +8,15 @@
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Play Console account | Personal (not yet created) | Subject to **20-tester / 14-day Closed Testing gate** before Production is unlocked. |
+| Play Console account | Personal (not yet created) | Subject to **one-time 20-tester / 14-day Closed Testing gate** before Production is unlocked. After this gate is passed once, all future releases (this app and any future apps on this account) ship straight to Production without re-testing. |
 | Android package name | `com.thrustCoder.gamerUncle` | Mirrors iOS `bundleIdentifier`; **permanent once published**. |
 | Release track plan | Internal → Closed → Open → Production (phased %) | Required path for new personal accounts; safest rollout. |
 | CI/CD integration | Local EAS builds for v1; Azure DevOps integration in v1.1+ | Ship Android faster; automate after the first stable release. |
 | `MinVersion` strategy | Keep single shared `AppVersionPolicy:MinVersion`; bump only when Android forces it | Avoids backend schema split; revisit if iOS/Android drift causes pain. |
 | Test surfaces | Android Studio AVD emulator (primary) + physical device gate before Production | Emulator covers most cases; real device validates audio/network. |
 | Voice / WebRTC scope | **Cut from v1.** Ship Android audio-text only; voice in v1.1 | Removes the largest risk (mic permission UX, WebRTC behavior, speech recognition). |
-| App version at launch | Continue current SemVer (`3.7.x` line). First Android-only release tagged `3.7.x-android` in branch name | Keeps version parity with iOS. |
+| Versioning scheme | **Single shared SemVer** (`app.json` → `version`) across iOS + Android, released simultaneously from the same commit | One source of truth; no `-android` suffix; iterative updates ship to both stores together. |
+| Per-platform build counters | iOS `buildNumber` and Android `versionCode` tracked independently and incremented monotonically per upload | Apple and Google each enforce strictly-increasing build numbers per store, independent of SemVer. |
 | Release artifact | Android App Bundle (`.aab`) | Required by Play Store since Aug 2021. |
 | App signing | Google Play App Signing (Google holds the signing key) with EAS-managed upload key | Standard, recoverable; supports dynamic delivery. |
 
@@ -50,9 +51,38 @@
 - [ ] Accept Developer Distribution Agreement
 
 ### 3.2 Recruit Closed Testing cohort (start early — long pole)
-- [ ] Collect **≥ 20 unique Google account emails** willing to install via opt-in link for 14 consecutive days
-- [ ] Track in a private list (e.g., Notion / spreadsheet) — names + emails + commit confirmation
-- [ ] Brief them: install from opt-in link, keep installed for ≥14 days, give feedback weekly
+
+**One-time investment.** This 20-tester / 14-day requirement is a per-account gate that only blocks the *first* time you publish to Production. After it's passed, every subsequent release (and every future app on this same developer account) goes straight to Production through Internal track — no closed testing required again.
+
+**Per-tester ask** (what you commit them to):
+- Click an opt-in link + install on a real Android device: ~5 minutes
+- **Leave the app installed for 14 consecutive days** — they do *not* have to open it daily
+- Google measures "opted-in testers with active install," not active usage
+- Optionally try it once or twice and share feedback
+
+**Recruitment strategies** — two legitimate sources only:
+
+| Source | Effort | Notes |
+|---|---|---|
+| **r/AndroidAppTesters** + **r/GooglePlayBetaTest** subreddits (and equivalent Discord / Telegram mutual-testing servers) | Low — typically fills 20 slots in 1–3 days | Mutual-testing norm: "I'll test yours if you test mine." Intended use of these communities. Fastest legitimate path for solo devs. |
+| **Family / friends with real Android phones** | Low — if you have 3–5 willing people | Use as the *seed* (3–5) to guarantee you don't drop below threshold mid-window |
+
+> **Explicitly out of scope:** Paid tester services (Google's detection has a rising rejection rate for Production access applications) and self-created alt accounts (violates ToS — risks $25 forfeit, account termination, and developer-account ban via device/IP/payment fingerprinting). Don't use either.
+
+**Recommended cohort composition** for first-time publishers:
+- 3–5 personal contacts (family/friends with Android phones) — reliable, won't disappear
+- 15–20 from Reddit mutual-testing subs — reciprocity-based, post one short call for testers
+- Aim for **25–30 total opt-ins** to have buffer against drop-outs
+
+**Briefing template** (copy/paste to testers):
+> "Hi! I'm launching a board-game assistant app called Gamer Uncle on Google Play and need 20 testers to satisfy Google's 14-day closed testing requirement. Ask: install via this link [opt-in URL], keep installed on any Android phone for 14 days. You don't have to actually use it daily — just leave it on your device. Happy to test your app in return!"
+
+**Critically: this is a one-time effort.** After your first release graduates to Production, the cohort can uninstall and disband. Every iterative release after that ships straight to Production with no testing-track gate.
+
+- [ ] Post in r/AndroidAppTesters and r/GooglePlayBetaTest (do this *before* Phase 6 starts so the cohort is queued)
+- [ ] Collect **≥ 25 unique Google account emails** willing to install via opt-in link for 14 consecutive days (over-recruit by 5+)
+- [ ] Track in a private list (e.g., Notion / spreadsheet) — names + emails + commit confirmation + source (reddit / personal)
+- [ ] Brief them with the template above
 
 ### 3.3 Store listing assets (prepare offline)
 | Asset | Spec | Source |
@@ -95,7 +125,8 @@ Add the missing `package` and `versionCode`; tighten permissions to v1 scope.
 ```
 
 - **`package`**: Required for any Android build. Mirrors iOS bundle ID.
-- **`versionCode`**: Monotonically increasing integer. Start at `1`; EAS can auto-increment in future via `eas.json` if we want.
+- **`versionCode`**: Monotonically increasing integer, **independent of SemVer and independent of iOS `buildNumber`**. Start at `1` (first Play Store upload) and increment by 1 for every AAB you upload to Play Console — even if SemVer stays the same. Tracked separately from iOS `buildNumber`, which keeps its own counter.
+- **Shared SemVer**: The top-level `app.json` → `version` (currently `4.0.0`) is the single source of truth. Expo feeds it into iOS `CFBundleShortVersionString` and Android `versionName` automatically — no Android-specific override needed.
 - **`permissions: []`**: Drop `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` for v1 since voice is cut. Restoring them in v1.1 is non-breaking.
 
 ### 4.2 `apps/mobile/eas.json` — Android production + submit
@@ -322,6 +353,14 @@ eas submit --platform android --profile production
 ## 9. Phase 6 — Closed Testing (THE 14-DAY GATE)
 
 > **This phase is the critical path.** For new personal Play accounts (post-Nov 2023), you cannot publish to Production until you have run a Closed Testing track with **at least 20 opted-in testers for 14 consecutive days**.
+>
+> **This is a one-time gate.** Once you've satisfied it and received "production access" approval, all future releases of this app — and any new apps on the same developer account — ship straight to Production via the Internal track. You never have to run a closed test again.
+
+### What testers are actually committing to
+- Click opt-in link → install via Play Store: ~5 minutes
+- Keep installed on a real Android device for 14 consecutive days (passive presence is enough; daily use not required)
+- Optional: try the app once or twice, share quick feedback
+- They can uninstall the moment the gate is passed
 
 ### 9.1 Set up Closed Testing track
 - [ ] Console → Testing → Closed testing → Create track (name it `closed-alpha`)
@@ -413,7 +452,7 @@ eas submit --platform android --profile production
 ### 12.3 Future improvements
 - 7"/10" tablet screenshots → unlock Android tablet visibility in Play Store search
 - Wear OS / Chrome OS support evaluation (likely defer)
-- `versionCode` auto-increment via `eas.json` → `"appVersionSource": "remote"` with EAS metadata
+- `versionCode` + iOS `buildNumber` auto-increment via `eas.json` → `"appVersionSource": "remote"` with EAS metadata (removes manual bump step on every upload)
 - Consider splitting `MinVersion` into `MinVersionIos` / `MinVersionAndroid` if cadences diverge
 
 ---
@@ -423,7 +462,8 @@ eas submit --platform android --profile production
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Personal account ID verification stalls | Med | Blocks Phase 0 | Submit Day 1; have a backup person to re-submit if rejected |
-| Can't recruit 20 testers / drop below 12 active | Med | Blocks Production | Over-recruit to 25–30; offer small incentive (gift card) |
+| Can't recruit 20 testers / drop below 12 active | Med | Blocks Production | Over-recruit to 25–30; post early in r/AndroidAppTesters + r/GooglePlayBetaTest (typically fills in 1–3 days) and combine with 3–5 personal contacts as a stability seed |
+| Production access application rejected | Low | Adds 1–2 weeks; have to re-test | Ensure testers are real humans on real devices; fill out application carefully describing the testing done |
 | Pre-launch report finds crash on a device model we can't reproduce | Med | Blocks Closed → Open | Use Firebase Test Lab (via Play Console pre-launch report) screenshots + stack traces; add try/catch around suspected surfaces |
 | App Bundle policy rejection (e.g., data safety mismatch) | Low | Blocks any upload | Cross-check Data Safety form against iOS App Privacy answers; declare conservatively |
 | WebRTC native code causes Android build to fail under Expo prebuild | Low | Delays v1 | Mitigated by deferring voice; if it fails, conditionally exclude `@config-plugins/react-native-webrtc` plugin for Android in `app.json` |
@@ -450,18 +490,55 @@ eas submit --platform android --profile production
 
 ---
 
-## 15. Open Questions (revisit during execution)
+## 15. Versioning & Simultaneous Release Workflow
 
-1. **Privacy policy**: confirm the existing iOS privacy policy URL is generic enough to cover Android, or do we need a separate one?
-2. **Data Safety form**: cross-walk the iOS App Privacy answers — anyone need to be a "shared with third parties" toggle changed for Android (e.g., Azure AI, BGG)?
-3. **Account exit strategy**: if we move to an Organization Play Console later (for D-U-N-S display benefits or to remove the 20-tester gate), how do we transfer ownership without losing reviews?
-4. **App naming**: does "Gamer Uncle" trip any Play Store trademark filters? (Worth a pre-check before account submission.)
+With shared SemVer, every release iteration follows the same script for both platforms:
+
+1. **Bump SemVer once** in [apps/mobile/app.json](apps/mobile/app.json) → `version` (e.g., `3.7.0` → `3.8.0`). This automatically becomes iOS `CFBundleShortVersionString` and Android `versionName`.
+2. **Bump per-platform build counters independently:**
+   - iOS: `ios.buildNumber` in [apps/mobile/app.json](apps/mobile/app.json) (currently kept in sync with `version` — that's fine, just must be strictly increasing per App Store upload).
+   - Android: `android.versionCode` in [apps/mobile/app.json](apps/mobile/app.json) — increment by 1 for every AAB uploaded to Play Console.
+3. **Build both artifacts from the same commit:**
+   ```powershell
+   Set-Location "C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile"
+   eas build --platform all --profile production
+   ```
+4. **Submit to both stores within the same window:**
+   ```powershell
+   eas submit --platform ios --profile production
+   eas submit --platform android --profile production
+   ```
+5. **Stagger only the final rollout %** — iOS phased release and Android phased rollout run on each store's own schedule but start from the same SemVer.
+
+### Drift handling (when iOS or Android needs a hotfix the other doesn't)
+Two viable models — pick when the first hotfix happens:
+
+| Model | Behavior | Trade-off |
+|---|---|---|
+| **Lock-step (recommended)** | iOS-only bug at `3.8.0` → bump to `3.8.1`, rebuild *both* platforms, resubmit both | Tiny extra Android upload; versions stay aligned; release notes simpler |
+| **Allow drift** | iOS goes to `3.8.1`, Android stays at `3.8.0` until next planned release | No wasted Android upload, but version-tracking and `MinVersion` reasoning gets harder |
+
+Backend `AppVersionPolicy:MinVersion` is a single value and handles either model fine — it's a floor, not an equality check.
+
+### What the backend should expect
+- `User-Agent` from the mobile app already includes platform (`ios` / `android`) and SemVer — no schema change needed
+- Functional tests in [services/tests/functional/](services/tests/functional/) should remain platform-agnostic (the API contract is the same for iOS and Android clients of the same version)
 
 ---
 
-## 16. Definition of Done (v1)
+## 16. Open Questions (revisit during execution)
+
+1. **Privacy policy**: confirm the existing iOS privacy policy URL is generic enough to cover Android, or do we need a separate one?
+2. **Data Safety form**: cross-walk the iOS App Privacy answers — anyone need to be a "shared with third parties" toggle changed for Android (e.g., Azure AI, BGG)?
+3. **App naming**: does "Gamer Uncle" trip any Play Store trademark filters? (Worth a pre-check before account submission.)
+4. **Hotfix drift policy**: pick lock-step vs. allow-drift the first time a platform-specific hotfix is needed (default to lock-step).
+
+---
+
+## 17. Definition of Done (v1)
 
 - [ ] App available on Google Play Store as **Gamer Uncle** at `com.thrustCoder.gamerUncle`
+- [ ] iOS and Android both shipped from the same SemVer (e.g., `3.8.0`) from the same commit
 - [ ] 100% production rollout achieved with crash-free sessions ≥ 99.5%
 - [ ] Backend `UpgradeUrlAndroid` populated and deployed
 - [ ] iOS app continues to function with no regressions

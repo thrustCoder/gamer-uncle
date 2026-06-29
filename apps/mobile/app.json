@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gamer Uncle",
     "slug": "gamer-uncle",
-    "version": "3.7.1",
+    "version": "4.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thrustCoder.gamerUncle",
-      "buildNumber": "3.7.1",
+      "buildNumber": "4.0.2",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
         "UILaunchStoryboardName": "SplashScreen",
@@ -27,15 +27,14 @@
       }
     },
     "android": {
+      "package": "com.thrustCoder.gamerUncle",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +43,8 @@
       "expo-dev-client",
       "expo-asset",
       "@config-plugins/react-native-webrtc",
-      "./plugins/ios-build-fixes"
+      "./plugins/ios-build-fixes",
+      "./plugins/android-build-fixes"
     ],
     "extra": {
       "eas": {

@@ -5,7 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ImageBackground,
   Image,
@@ -21,10 +21,12 @@ import BackButton from '../components/BackButton';
 import MarkdownText from '../components/MarkdownText';
 import { getRecommendations } from '../services/ApiClient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 import { EnvironmentDetection } from '../utils/environmentDetection';
 import { PermissionChecker, PermissionStatus } from '../utils/permissionChecker';
 import { debugLogger } from '../utils/debugLogger';
+import { isVoiceFeatureEnabled } from '../utils/voiceFeatureFlag';
 import { useChat, ChatMessage } from '../store/ChatContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 import { shouldShowRatingPrompt, recordDismissal, recordRated, requestStoreReview, resetRatingStateForDev } from '../services/ratingPrompt';
@@ -271,6 +273,33 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const textInputRef = useRef<TextInput>(null); // Add this ref
   const navigation = useNavigation();
+
+  // Edge-to-edge (app.json `edgeToEdgeEnabled`) draws content behind the Android
+  // system navigation bar. Lift the input bar above it by the bottom inset.
+  const insets = useSafeAreaInsets();
+
+  // Manually track the keyboard height to lift the input bar above the keyboard.
+  // Under edge-to-edge, KeyboardAvoidingView (both `height` and `padding`)
+  // leaves a residual grey gap at the bottom after the keyboard closes because
+  // it never fully resets its inset. Tracking the height ourselves and zeroing
+  // it on hide is gap-free, and combining the lift with the input bar's own
+  // bottom inset padding keeps the text field fully clear of the keyboard.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Auto-stop handler for recording safety (max duration & silence detection)
   const handleRecordingAutoStop = useCallback((reason: 'max-duration' | 'silence') => {
@@ -1152,11 +1181,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
+    <View style={{ flex: 1 }}>
       <ImageBackground
         source={require('../assets/images/tool_background.png')}
         style={styles.background}
@@ -1266,7 +1291,7 @@ export default function ChatScreen() {
 
           {/* Input bar - show in default mode and during TTS playback (inline controls in messages) */}
           {(voiceUXMode === 'default' || voiceUXMode === 'tts-playing' || voiceUXMode === 'tts-paused') && (
-            <View style={styles.inputBar}>
+            <View style={[styles.inputBar, { paddingBottom: 12 + insets.bottom, marginBottom: keyboardHeight }]}>
               <TextInput
                 ref={textInputRef}
                 value={input}
@@ -1282,25 +1307,27 @@ export default function ChatScreen() {
                 {...(Platform.OS === 'web' && { 'data-testid': 'chat-input' })}
               />
               
-              {/* Voice Controls - mic button in input bar */}
-              <View style={voiceStyles.voiceContainer}>
-                <Animated.View 
-                  style={[
-                    { transform: [{ scale: micScale }] }
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={getMicButtonStyle()}
-                    activeOpacity={0.8}
-                    onPress={handleMicButtonPress}
-                    disabled={isProcessing}
-                    testID="mic-button"
-                    {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+              {/* Voice Controls - mic button in input bar (iOS only for v1; see voiceFeatureFlag.ts) */}
+              {isVoiceFeatureEnabled() && (
+                <View style={voiceStyles.voiceContainer}>
+                  <Animated.View 
+                    style={[
+                      { transform: [{ scale: micScale }] }
+                    ]}
                   >
-                    <Text style={voiceStyles.micIcon}>{getMicButtonIcon()}</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              </View>
+                    <TouchableOpacity
+                      style={getMicButtonStyle()}
+                      activeOpacity={0.8}
+                      onPress={handleMicButtonPress}
+                      disabled={isProcessing}
+                      testID="mic-button"
+                      {...(Platform.OS === 'web' && { 'data-testid': 'mic-button' })}
+                    >
+                      <Text style={voiceStyles.micIcon}>{getMicButtonIcon()}</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                </View>
+              )}
 
               <TouchableOpacity 
                 onPress={handleSend} 
@@ -1376,6 +1403,6 @@ export default function ChatScreen() {
         </View>
 
       </ImageBackground>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

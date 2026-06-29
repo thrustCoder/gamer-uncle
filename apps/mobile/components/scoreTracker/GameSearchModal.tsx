@@ -7,7 +7,7 @@ import {
   FlatList,
   Image,
   Modal,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -33,8 +33,36 @@ export default function GameSearchModal({
   const [searchResults, setSearchResults] = useState<GameSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  // Tracked keyboard height used to lift the bottom sheet above the keyboard.
+  // A React Native transparent Modal creates its own window that does NOT
+  // resize for the keyboard, so neither window-resize nor KeyboardAvoidingView
+  // can be relied on here — KeyboardAvoidingView's height behavior actually
+  // fights the layout and produces rapid flicker. Manually applying the
+  // keyboard height as bottom spacing is deterministic and flicker-free.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
+
+  // Subscribe to keyboard show/hide while the modal is visible so we can keep
+  // the sheet (and its search field) above the keyboard.
+  useEffect(() => {
+    if (!visible) {
+      setKeyboardHeight(0);
+      return;
+    }
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -105,16 +133,17 @@ export default function GameSearchModal({
       transparent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.modalOverlay}>
         <TouchableOpacity
           style={{ flex: 1 }}
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.modalContent}>
+        {/* Lift the sheet above the keyboard. The transparent Modal window does
+            not resize for the keyboard on Android, so we add its measured
+            height as bottom margin. This is deterministic and avoids the
+            KeyboardAvoidingView relayout flicker. */}
+        <View style={[styles.modalContent, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Game</Text>
@@ -259,7 +288,7 @@ export default function GameSearchModal({
             </View>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

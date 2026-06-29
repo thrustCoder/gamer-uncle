@@ -14,6 +14,7 @@ import {
   Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { gameSearchStyles as styles } from '../styles/gameSearchStyles';
 import { Colors } from '../styles/colors';
@@ -32,6 +33,10 @@ type ViewState = 'search' | 'details';
 
 export default function GameSearchScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge (app.json `edgeToEdgeEnabled`) draws content behind the Android
+  // system navigation bar. Pad the scroll content by the bottom inset so the
+  // detail CTAs / results aren't hidden behind it.
+  const insets = useSafeAreaInsets();
   
   // Rating prompt
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
@@ -347,7 +352,7 @@ export default function GameSearchScreen() {
             onPress={handleBackToSearch}
             testID="back-to-search"
           >
-            <Text style={styles.detailsBackArrow}>←</Text>
+            <Ionicons name="arrow-back" size={24} color={Colors.themeBrownDark} />
           </TouchableOpacity>
           <Text style={styles.detailsTitle} numberOfLines={2}>{selectedGame.name}</Text>
           <View style={{ width: 40 }} />
@@ -509,7 +514,10 @@ export default function GameSearchScreen() {
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={viewState === 'details' ? styles.scrollContentDetails : styles.scrollContent}
+          contentContainerStyle={[
+            viewState === 'details' ? styles.scrollContentDetails : styles.scrollContent,
+            { paddingBottom: 40 + insets.bottom },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

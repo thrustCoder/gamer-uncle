@@ -11,6 +11,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scoreTrackerStyles as styles } from '../styles/scoreTrackerStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
@@ -22,6 +23,7 @@ import GameScoreSection from '../components/scoreTracker/GameScoreSection';
 import LeaderboardSection from '../components/scoreTracker/LeaderboardSection';
 import EnableGroupsToggle from '../components/EnableGroupsToggle';
 import GroupPicker from '../components/GroupPicker';
+import NumberPickerModal from '../components/NumberPickerModal';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
 import type { GameScoreSession, LeaderboardEntry } from '../types/scoreTracker';
 
@@ -47,11 +49,16 @@ function extractPlayerNamesFromScores(
 
 export default function ScoreTrackerScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Save button isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { gameScore, leaderboard, isLoading, renamePlayer, clearGameScore, clearLeaderboard, loadGroupData } = useScoreTracker();
   const { state: groupsState, activeGroup, updateActiveGroupData } = usePlayerGroups();
   
   // Player state - synced with appCache
   const [playerCount, setPlayerCount] = useState(4);
+  // Android-only modal picker (Alert.alert can't render >3 buttons on Android)
+  const [playerPickerVisible, setPlayerPickerVisible] = useState(false);
   const [playerNames, setPlayerNames] = useState<string[]>(
     Array.from({ length: 4 }, (_, i) => `P${i + 1}`)
   );
@@ -257,40 +264,48 @@ export default function ScoreTrackerScreen() {
     currentPlayerNamesRef.current = [...newNames];
   };
 
-  const showPlayerCountPicker = () => {
+  // Handles a chosen player count, prompting to reset existing score data when needed.
+  const handlePlayerCountSelected = (newCount: number) => {
     const hasData = gameScore !== null || leaderboard.length > 0;
-    
+
+    // If there's existing data and count is changing, confirm first
+    if (hasData && newCount !== playerCount) {
+      Alert.alert(
+        'Reset Score Data?',
+        'Changing the number of players will clear all game scores and leaderboard data. This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reset & Change',
+            style: 'destructive',
+            onPress: () => {
+              clearGameScore();
+              clearLeaderboard();
+              applyPlayerCountChange(newCount);
+            },
+          },
+        ]
+      );
+    } else {
+      applyPlayerCountChange(newCount);
+    }
+  };
+
+  const showPlayerCountPicker = () => {
+    // Android's Alert.alert only supports up to 3 buttons, so the 2-20 option list
+    // collapses to a broken dialog. Use the themed modal grid there instead.
+    if (Platform.OS === 'android') {
+      setPlayerPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       'Select Number of Players',
       '',
       [
         ...Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => ({
           text: `${i + 2}`,
-          onPress: () => {
-            const newCount = i + 2;
-            
-            // If there's existing data and count is changing, confirm first
-            if (hasData && newCount !== playerCount) {
-              Alert.alert(
-                'Reset Score Data?',
-                'Changing the number of players will clear all game scores and leaderboard data. This cannot be undone.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Reset & Change',
-                    style: 'destructive',
-                    onPress: () => {
-                      clearGameScore();
-                      clearLeaderboard();
-                      applyPlayerCountChange(newCount);
-                    },
-                  },
-                ]
-              );
-            } else {
-              applyPlayerCountChange(newCount);
-            }
-          },
+          onPress: () => handlePlayerCountSelected(i + 2),
         })),
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -330,9 +345,18 @@ export default function ScoreTrackerScreen() {
       resizeMode="cover"
     >
       <BackButton />
+      <NumberPickerModal
+        visible={playerPickerVisible}
+        title="Select Number of Players"
+        minValue={2}
+        maxValue={MAX_PLAYERS}
+        selectedValue={playerCount}
+        onSelect={handlePlayerCountSelected}
+        onClose={() => setPlayerPickerVisible(false)}
+      />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

@@ -1,6 +1,25 @@
 // Setup fetch mock
 global.fetch = jest.fn();
 
+// Mock react-native-safe-area-context so screens that call useSafeAreaInsets()
+// (for edge-to-edge bottom padding) render in tests without a real
+// <SafeAreaProvider>. Returns zero insets and passes children through.
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  const Passthrough = ({ children }) => children;
+  return {
+    SafeAreaProvider: Passthrough,
+    SafeAreaView: Passthrough,
+    SafeAreaInsetsContext: React.createContext(inset),
+    SafeAreaFrameContext: React.createContext(frame),
+    useSafeAreaInsets: () => inset,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: { insets: inset, frame },
+  };
+});
+
 // Mock NativeEventEmitter for react-native-voice
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
   return class MockNativeEventEmitter {
@@ -54,6 +73,17 @@ import '@testing-library/jest-native/extend-expect';
 // Mock react-navigation
 jest.mock('@react-navigation/native', () => ({
   NavigationContainer: ({ children }) => children,
+  DefaultTheme: {
+    dark: false,
+    colors: {
+      primary: 'rgb(0, 122, 255)',
+      background: 'rgb(242, 242, 242)',
+      card: 'rgb(255, 255, 255)',
+      text: 'rgb(28, 28, 30)',
+      border: 'rgb(216, 216, 216)',
+      notification: 'rgb(255, 59, 48)',
+    },
+  },
   useNavigation: () => ({
     navigate: jest.fn(),
     goBack: jest.fn(),
@@ -181,6 +211,18 @@ jest.mock('react-native/Libraries/Components/Keyboard/KeyboardAvoidingView', () 
   };
 });
 
+// Ensure Keyboard.addListener returns a removable subscription (matches the
+// real react-native API). Without this, components that subscribe to keyboard
+// events and call subscription.remove() on cleanup throw in tests.
+try {
+  const { Keyboard } = require('react-native');
+  if (Keyboard && typeof Keyboard.addListener === 'function') {
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(() => ({ remove: jest.fn() }));
+  }
+} catch (e) {
+  // react-native not available in this context; ignore.
+}
+
 // Mock expo-av
 jest.mock('expo-av', () => ({
   Audio: {
@@ -204,9 +246,9 @@ jest.mock('expo-constants', () => ({
   default: {
     expoConfig: {
       extra: {},
-      version: '3.7.1',
+      version: '4.0.2',
     },
-    appVersion: '3.7.1',
+    appVersion: '4.0.2',
   },
 }));
 

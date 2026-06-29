@@ -379,6 +379,72 @@ On **Windows**, the local API server is started for local development.
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --clear"
    ```
 
+7. **If targeting an Android emulator (e.g. Pixel 7 via Android Studio AVD), connect it to Metro** — a QR code is useless for emulators, and the emulator CANNOT reach Metro via the host LAN IP (e.g. `192.168.50.11:8081`) that Expo advertises by default. The emulator runs in its own virtual network, so it must reach Metro over loopback through an `adb reverse` tunnel.
+
+   **7a. CRITICAL FIRST CHECK — is the installed APK an actual debuggable dev-client build?** A non-debuggable EAS *preview/production* APK has the JS bundle baked in and **physically cannot connect to Metro** — `r` / Fast Refresh / relaunch will silently do nothing, no matter how Metro or adb is configured. Always verify this BEFORE touching Metro/adb:
+     ```powershell
+     $adb = Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+     if (-not (Test-Path $adb)) {
+       $adb = (Get-ChildItem -Path "$env:LOCALAPPDATA\Android","$env:ProgramFiles\Android","$env:USERPROFILE" -Filter adb.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName)
+     }
+     $pkgInfo = & $adb shell dumpsys package com.thrustCoder.gamerUncle 2>$null | Out-String
+     $isInstalled = $pkgInfo -match 'versionName='
+     # A real dev build is DEBUGGABLE (flags include 0x2 / DEBUGGABLE) and ships expo-dev-launcher
+     $isDebuggable = ($pkgInfo -match 'DEBUGGABLE') -or ($pkgInfo -match 'flags=\[[^\]]*DEBUGGABLE')
+     $hasDevLauncher = ($pkgInfo -match 'devlauncher') -or ($pkgInfo -match 'DevLauncher')
+     $isDevBuild = $isInstalled -and ($isDebuggable -or $hasDevLauncher)
+     Write-Output ("Installed: $isInstalled | Debuggable: $isDebuggable | DevLauncher: $hasDevLauncher | Usable dev build: $isDevBuild")
+     ```
+     - **If `Usable dev build: False`** (not installed, OR an embedded-bundle preview/prod APK like EAS build `e98d89b3`), you MUST build a local development build. This is a **local Gradle build — no Expo server queue** — and is the one-shot path the user wants from "testit":
+       ```powershell
+       # Builds a debuggable dev-client APK via Gradle, installs it on the emulator,
+       # starts Metro, and auto-connects with Fast Refresh. First run runs expo prebuild
+       # (generates android/) and takes several minutes; subsequent runs are fast.
+       Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo run:android"
+       ```
+       `expo run:android` handles install + Metro + connect itself, so when you take this branch you can SKIP steps 7b–7e below. Requires a JDK 17 and the Android SDK (emulator already working). The app's native modules (WebRTC, voice) are why a dev build — not Expo Go — is mandatory.
+     - **If `Usable dev build: True`**, the existing APK is fine; continue with 7b–7e to (re)connect it to Metro.
+
+   **7b. PREFER starting Metro in localhost mode for emulators.** LAN mode (plain `npx expo start`) advertises the host LAN IP; the emulator can still fetch the bundle through the reverse tunnel (so the app shows current code), but the Fast Refresh / reload websocket never stays attached — pressing **`r`** then prints "No apps connected" and nothing live-reloads. Starting Metro with `--localhost` makes BOTH the bundle and the reload websocket use `localhost:8081`, matching the tunnel:
+     ```powershell
+     Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --dev-client --localhost --clear"
+     ```
+   **7c. Confirm the emulator is connected** and the dev-client app is installed (package `com.thrustCoder.gamerUncle`) — `$adb` was resolved in 7a:
+     ```powershell
+     & $adb devices
+     & $adb shell pm list packages | Select-String "gamer"
+     ```
+   **7d. Set up the reverse tunnel(s)** so the emulator's loopback maps to the host. Port 8081 (Metro) is the one that matters for live refresh; 5001 (local API) is optional because `apiConfig.ts` already routes Android's `local` env to `10.0.2.2:5001`:
+     ```powershell
+     & $adb reverse tcp:8081 tcp:8081
+     & $adb reverse tcp:5001 tcp:5001   # optional; only if forcing localhost for the API
+     ```
+   **7e. Launch (or relaunch) the dev client pointed at `localhost:8081`**, NOT the LAN IP. Force-stop first so it picks up the new URL instead of reusing the old LAN-IP session. **URL-encode the `url` query value** — an un-encoded `://` and `:` break intent parsing and the dev client silently ignores the URL:
+     ```powershell
+     & $adb shell am force-stop com.thrustCoder.gamerUncle
+     Start-Sleep -Seconds 1
+     & $adb shell am start -a android.intent.action.VIEW -d "exp+gamer-uncle://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" com.thrustCoder.gamerUncle
+     ```
+     (With Metro in `--localhost` mode you can instead just press **`a`** in the Expo window to install/open the app at `localhost:8081` directly.)
+   - **Verify Metro is reachable** on 8081 (expect HTTP 200 with `packager-status:running`):
+     ```powershell
+     try { (Invoke-WebRequest -Uri "http://localhost:8081/status" -UseBasicParsing -TimeoutSec 5).StatusCode } catch { Write-Output "Metro NOT reachable: $($_.Exception.Message)" }
+     ```
+   - **Confirm the app actually loaded the bundle from Metro** (definitive success signal). The reliable proof is a unique ASCII marker temporarily added to a visible screen showing up on the device — but for routine runs the `Running "main"` logcat line plus the app rendering current code is enough:
+     ```powershell
+     & $adb logcat -d -t 1500 2>$null | Select-String -Pattern 'ReactNativeJS: Running "main"|Unable to load script|Could not connect' | Select-Object -Last 5
+     ```
+     Note: `http://localhost:8081/json/list` reporting 0 targets is NOT a failure — Hermes CDP inspector targets only register when a debugger attaches; the `Running "main"` logcat line is the reliable "app is connected" indicator.
+
+**Important Notes for Windows "testit"**:
+- Both the API server AND the Expo dev server MUST run in separate PowerShell windows (via `Start-Process PowerShell`)
+- The Expo dev server MUST be in its own terminal window so the QR code is visible for scanning
+- App keys are fetched from Azure Key Vault and written to `.env.local` (gitignored)
+- The mobile app reads keys from environment variables via `.env.local`
+- Use `--clear` flag with Expo to ensure a fresh cache start
+- Existing dotnet and Metro/Node processes are killed to prevent port conflicts
+- Change `API_ENVIRONMENT` in `apps/mobile/config/apiConfig.ts` to switch between 'local', 'dev', or 'prod'
+
 **Important Notes for Windows "testit"**:
 - Both the API server AND the Expo dev server MUST run in separate PowerShell windows (via `Start-Process PowerShell`)
 - The Expo dev server MUST be in its own terminal window so the QR code is visible for scanning
@@ -389,7 +455,19 @@ On **Windows**, the local API server is started for local development.
 - Change `API_ENVIRONMENT` in `apps/mobile/config/apiConfig.ts` to switch between 'local', 'dev', or 'prod'
 - **Dev App Service scale-up**: When `API_ENVIRONMENT` is `dev`, the dev App Service may be parked on F1 (free) by the nightly schedule. Step 0.5 wakes it up. When using `dev`, do NOT start a local API server — the mobile app connects to Azure dev via AFD.
 - **Local does NOT need scale-up**: When `API_ENVIRONMENT` is `local`, the mobile app hits `localhost:5001` (local API server), not the dev App Service.
+- **Android emulator NOTHING refreshes (most common root cause)**: If `r`, Fast Refresh, AND relaunch all fail to show code changes on the emulator, the installed APK is almost certainly a **non-debuggable EAS preview/production build** (e.g. build `e98d89b3`) with the JS bundle baked in — it CANNOT connect to Metro at all. Diagnose with step 7a (`dumpsys package … | Select-String DEBUGGABLE`); a usable dev build is DEBUGGABLE and ships expo-dev-launcher. Definitive proof: add a unique ASCII marker (e.g. `ZZTESTZZ`) to a visible screen, confirm it IS in Metro's served bundle (`Invoke-WebRequest http://localhost:8081/index.bundle?platform=android&dev=true | … Contains 'ZZTESTZZ'` → True) but does NOT appear on the device after relaunch → the app is running an embedded bundle, not Metro. Fix: build a local debuggable dev build with `npx expo run:android` (step 7a). NOTE: a real `⚡`/emoji marker gets unicode-escaped (`\u26a1`) in the bundle, so a literal-emoji `Contains` check gives false negatives — use a plain ASCII marker when testing.
+- **Android emulator refresh troubleshooting**: "No apps connected. Sending 'reload' to all React Native apps failed" means the dev client has no live reload websocket attached to Metro. Assuming the APK IS a real dev build (see above), the usual cause is Metro running in **LAN mode** (advertising `192.168.50.11:8081`): the emulator fetches the bundle through the `adb reverse` tunnel (so the app shows current code) but the Fast Refresh websocket never stays attached, so `r` does nothing. Fix by restarting Metro with `--localhost` (`npx expo start --dev-client --localhost --clear`), re-assert `adb reverse tcp:8081 tcp:8081`, then force-stop + relaunch the app at the URL-encoded `http%3A%2F%2Flocalhost%3A8081`. Confirm success with the `ReactNativeJS: Running "main"` logcat line (NOT `/json/list`, which legitimately shows 0 targets). Reverse tunnels survive app restarts but are CLEARED on emulator cold boot — re-run the `adb reverse` commands after rebooting the emulator. `adb reverse` does not require root and works on standard AVDs.
+- **Android emulator local API**: With `API_ENVIRONMENT='local'`, Android resolves the local API to `http://10.0.2.2:5001/api/` (the emulator's built-in host-loopback alias) via `apiConfig.ts` — no `adb reverse` needed for the API. `localhost`/`127.0.0.1` on the emulator would point at the emulator itself, and the host LAN IP is typically unroutable from the AVD.
 - **Office/Corporate network troubleshooting**: Corporate networks like MSFTCONNECT block device-to-device LAN traffic and may block ngrok tunnels too. If `--tunnel` fails with "remote gone away", the laptop's outbound internet is blocked — disconnect from corp Ethernet, use iPhone Personal Hotspot for laptop internet, then retry `--tunnel`. The phone should use cellular data (not corp Wi-Fi) to reach the tunnel URL. ADB is Android-only and won't work with iOS devices.
+
+## Mobile App Versioning (iOS + Android lockstep)
+
+The mobile app ships iOS and Android from the same commit using a single shared SemVer. Follow these rules for any release-affecting change in `apps/mobile/app.json`:
+
+- **One SemVer per release**: Bump `expo.version` once per release. This is the single source of truth and feeds iOS `CFBundleShortVersionString` and Android `versionName` automatically.
+- **Every store upload needs a new version**: Google Play requires `android.versionCode` to strictly increase on every upload, and Apple requires `ios.buildNumber` to strictly increase per App Store upload — independent of SemVer. Because we keep SemVer in lockstep, treat **every store upload as a new SemVer** (even a no-code-change rebuild requires bumping `expo.version`).
+- **Bump both build counters together**: When you bump `expo.version`, also bump **both** `ios.buildNumber` and `android.versionCode` for that release. Never let either platform's build counter go backwards on its respective store; each must be monotonically increasing per store.
+- **Keep them aligned**: `ios.buildNumber` and `android.versionCode` are separate counters but should be advanced in the same release commit so the two platforms stay traceable to one SemVer.
 
 ## Pull Request Conventions
 - **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.

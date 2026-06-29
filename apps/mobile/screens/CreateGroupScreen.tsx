@@ -10,9 +10,11 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createGroupStyles as styles } from '../styles/createGroupStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import NumberPickerModal from '../components/NumberPickerModal';
 import { usePlayerGroups } from '../store/PlayerGroupsContext';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
@@ -21,6 +23,9 @@ const MAX_NAMED_PLAYERS = 12;
 
 export default function CreateGroupScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so the Save button isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const { state, createGroup, updateGroup } = usePlayerGroups();
 
@@ -36,6 +41,8 @@ export default function CreateGroupScreen() {
       : Array.from({ length: existingGroup?.playerCount ?? 4 }, (_, i) => `P${i + 1}`)
   );
   const [nameError, setNameError] = useState('');
+  // Android-only modal picker (Alert.alert can't render >3 buttons on Android)
+  const [playerPickerVisible, setPlayerPickerVisible] = useState(false);
 
   const handlePlayerCountChange = (newCount: number) => {
     setPlayerCount(newCount);
@@ -45,6 +52,13 @@ export default function CreateGroupScreen() {
   };
 
   const showPlayerCountPicker = () => {
+    // Android's Alert.alert only supports up to 3 buttons, so the 2-20 option list
+    // collapses to a broken dialog. Use a themed modal grid there instead.
+    if (Platform.OS === 'android') {
+      setPlayerPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       'Select Number of Players',
       '',
@@ -101,7 +115,7 @@ export default function CreateGroupScreen() {
       <BackButton />
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -173,6 +187,15 @@ export default function CreateGroupScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+        <NumberPickerModal
+          visible={playerPickerVisible}
+          title="Select Number of Players"
+          minValue={2}
+          maxValue={MAX_PLAYERS}
+          selectedValue={playerCount}
+          onSelect={handlePlayerCountChange}
+          onClose={() => setPlayerPickerVisible(false)}
+        />
     </ImageBackground>
   );
 }

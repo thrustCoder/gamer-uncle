@@ -8,6 +8,17 @@ import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
+// On Android, edge-to-edge mode (app.json `edgeToEdgeEnabled: true`) lets the app
+// draw behind the system bars, but Dimensions.get('window') excludes the system bar
+// overhang. The absolutely-positioned icon ring is centered using the (shorter)
+// window height, so it ends up pushed up relative to the full-screen background.
+// Compensate by shifting the ring down by half of the screen/window overhang.
+// iOS is unaffected (no edge-to-edge overhang there).
+const androidCenterYOffset =
+  Platform.OS === 'android'
+    ? Math.max(0, (Dimensions.get('screen').height - screenHeight) / 2)
+    : 0;
+
 // Detect tablet/iPad (screen width >= 768 is typically tablet)
 const isTablet = Math.min(screenWidth, screenHeight) >= 768;
 
@@ -18,7 +29,7 @@ const labelScaleMultiplier = isTablet ? 1.5 : 1;
 
 // Calculate circle layout parameters (scaled for tablets)
 const centerX = screenWidth / 2;
-const centerY = screenHeight / 2 - 20; // Center of screen
+const centerY = screenHeight / 2 - 20 + androidCenterYOffset; // Center of screen
 const circleRadius = Math.min(screenWidth, screenHeight) * (isTablet ? 0.38 : 0.45); // Adjust radius for tablets
 const iconSize = 100 * scaleMultiplier; // Larger icon touch area, scaled for tablets
 const centerCircleSize = Math.min(screenWidth, screenHeight) * (isTablet ? 0.30 : 0.35); // Size of tappable center circle
@@ -186,7 +197,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '3.7.1'}
+            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '4.0.2'}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>

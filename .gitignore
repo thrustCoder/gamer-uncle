@@ -170,3 +170,9 @@ packages/
 
 # Local configuration files with secrets (use environment variables instead)
 appsettings.*.local.json
+
+# Android signing / Play Console secrets
+apps/mobile/google-play-service-account.json
+apps/mobile/upload-keystore.jks
+apps/mobile/android/app/release.keystore
+apps/mobile/android/app/upload.keystore

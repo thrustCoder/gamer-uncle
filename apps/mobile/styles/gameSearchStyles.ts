@@ -251,7 +251,12 @@ export const gameSearchStyles = StyleSheet.create({
 
   // Game Details Section
   detailsContainer: {
-    flex: 1,
+    // Intentionally NOT flex:1. Inside the ScrollView's flexGrow content
+    // container, flex:1 would cap this box to exactly the viewport height,
+    // and the bottom CTA buttons (pushed down) would be clipped with no way
+    // to scroll to them. Letting it grow to its content height lets the
+    // ScrollView measure the true height and scroll the buttons into view.
+    flexGrow: 1,
   },
   detailsHeader: {
     flexDirection: 'row',
@@ -283,14 +288,6 @@ export const gameSearchStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 3,
-  },
-  detailsBackArrow: {
-    fontSize: 30,
-    color: Colors.themeBrownDark,
-    fontWeight: '900',
-    lineHeight: 30,
-    marginTop: 5,
-    textAlign: 'center',
   },
   detailsSearchButton: {
     backgroundColor: Colors.themeYellow,
@@ -400,7 +397,7 @@ export const gameSearchStyles = StyleSheet.create({
   statsGridOutside: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 4,
   },
   statItem: {
     flex: 1,
@@ -482,8 +479,11 @@ export const gameSearchStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: 16,
+    // Fixed top spacing (not marginTop:'auto'). 'auto' only behaves when the
+    // parent is a fixed-height flex box; combined with the old detailsContainer
+    // flex:1 it forced the buttons below the viewport and clipped them.
+    marginTop: 8,
+    paddingTop: 8,
     gap: 12,
   },
 

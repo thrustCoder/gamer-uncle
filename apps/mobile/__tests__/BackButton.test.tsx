@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import BackButton from '../components/BackButton';
+import { backButtonStyles } from '../styles/backButtonStyles';
 
 // Mock navigation
 const mockNavigate = jest.fn();
@@ -65,15 +66,26 @@ describe('BackButton Component', () => {
     expect(mockGoBack).not.toHaveBeenCalled();
   });
 
-  it('should display back arrow text', () => {
-    const { getByText } = render(<BackButtonWrapper />);
-    expect(getByText('←')).toBeTruthy();
+  it('should display the back arrow icon', () => {
+    const { getByTestId } = render(<BackButtonWrapper />);
+    // The arrow is now an Ionicons "arrow-back" vector icon (mocked to a View
+    // with testID `icon-Ionicons`), which self-centres within its glyph box.
+    expect(getByTestId('icon-Ionicons')).toBeTruthy();
   });
 
   it('should have correct testID', () => {
     const { getByTestId } = render(<BackButtonWrapper />);
     const backButton = getByTestId('back-button');
     expect(backButton).toBeTruthy();
+  });
+
+  it('should keep the button above page headers for touch handling', () => {
+    // The Track Turns page header is absolutely positioned with zIndex 30 and
+    // overlaps the button; the button must outrank it so taps aren't swallowed
+    // on Android (where pointerEvents pass-through under a higher zIndex is
+    // unreliable).
+    const z = backButtonStyles.backButton.zIndex as number;
+    expect(z).toBeGreaterThan(30);
   });
 });
 

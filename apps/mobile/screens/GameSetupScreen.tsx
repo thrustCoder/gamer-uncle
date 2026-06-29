@@ -14,9 +14,11 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gameSetupStyles as styles } from '../styles/gameSetupStyles';
 import { Colors } from '../styles/colors';
 import BackButton from '../components/BackButton';
+import NumberPickerModal from '../components/NumberPickerModal';
 import MarkdownText from '../components/MarkdownText';
 import RatingModal from '../components/RatingModal';
 import { getRecommendations } from '../services/ApiClient';
@@ -39,6 +41,9 @@ const generateUserId = () => {
 
 export default function GameSetupScreen() {
   const navigation = useNavigation<any>();
+  // Edge-to-edge draws content behind the Android nav bar; pad scroll content by
+  // the bottom inset so bottom content isn't hidden behind it.
+  const insets = useSafeAreaInsets();
   const { state: groupsState, activeGroup } = usePlayerGroups();
   const [gameName, setGameName] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
@@ -47,6 +52,8 @@ export default function GameSetupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [userId] = useState(generateUserId());
   const [isHydrated, setIsHydrated] = useState(false);
+  // Android-only modal picker (Alert.alert can't render >3 buttons on Android)
+  const [playerPickerVisible, setPlayerPickerVisible] = useState(false);
 
   // Rating prompt
   const { showRatingModal, trackEngagement, handleRate, handleDismiss } =
@@ -95,6 +102,13 @@ export default function GameSetupScreen() {
   }, [playerCount, isHydrated]);
 
   const showPlayerCountPicker = () => {
+    // Android's Alert.alert only supports up to 3 buttons, so the 1-20 option list
+    // collapses to a broken dialog. Use a themed modal grid there instead.
+    if (Platform.OS === 'android') {
+      setPlayerPickerVisible(true);
+      return;
+    }
+
     Alert.alert(
       "Select Number of Players",
       "",
@@ -193,7 +207,7 @@ Please provide step-by-step setup instructions including:
       >
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -300,6 +314,15 @@ Please provide step-by-step setup instructions including:
         visible={showRatingModal}
         onRate={handleRate}
         onDismiss={handleDismiss}
+      />
+      <NumberPickerModal
+        visible={playerPickerVisible}
+        title="Select Number of Players"
+        minValue={1}
+        maxValue={MAX_PLAYERS}
+        selectedValue={playerCount}
+        onSelect={setPlayerCount}
+        onClose={() => setPlayerPickerVisible(false)}
       />
     </ImageBackground>
     </TouchableWithoutFeedback>

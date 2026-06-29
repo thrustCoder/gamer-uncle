@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ImageBackground, Animated, Alert } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import BackButton from '../components/BackButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { timerStyles as styles } from '../styles/timerStyles';
 import { Colors } from '../styles/colors';
 import { Dimensions } from 'react-native';
@@ -16,6 +17,9 @@ const PRESET_VALUES = [
 ];
 
 export default function TimerScreen() {
+  // Edge-to-edge draws content behind the Android nav bar; pad the screen by the
+  // bottom inset so the START/PAUSE controls aren't hidden behind it.
+  const insets = useSafeAreaInsets();
   // Use global timer context - timer continues even when navigating away
   const {
     timeLeft,
@@ -94,7 +98,7 @@ export default function TimerScreen() {
     >
       <BackButton />
       <Text style={styles.pageHeader}>Timer</Text>
-      <View style={styles.container} testID="timer-screen">
+      <View style={[styles.container, { paddingBottom: insets.bottom }]} testID="timer-screen">
 
         {/* Additive presets: 10s, 30s, 1m, 5m */}
         <View style={styles.presetContainer}>

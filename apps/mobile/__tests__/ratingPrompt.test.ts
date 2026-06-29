@@ -16,6 +16,16 @@ import {
 } from '../services/ratingPrompt';
 import { _resetRatingUrlsCache } from '../services/AppConfigService';
 
+// Pin the installed version so rating tests are independent of the app's
+// current SemVer (e.g. major bumps to 4.x). Major version is '3' here.
+jest.mock('../services/AppConfigService', () => {
+  const actual = jest.requireActual('../services/AppConfigService');
+  return {
+    ...actual,
+    getInstalledVersion: jest.fn(() => '3.2.7'),
+  };
+});
+
 // AsyncStorage is auto-mocked by jest-expo / __mocks__
 
 beforeEach(async () => {
@@ -257,7 +267,7 @@ describe('ratingPrompt', () => {
   describe('_getMajorVersion', () => {
     it('extracts major version from semver string', () => {
       expect(_getMajorVersion('3.2.7')).toBe('3');
-      expect(_getMajorVersion('4.0.0')).toBe('4');
+      expect(_getMajorVersion('4.0.2')).toBe('4');
       expect(_getMajorVersion('10.1.2')).toBe('10');
     });
 
