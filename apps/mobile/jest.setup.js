@@ -246,9 +246,9 @@ jest.mock('expo-constants', () => ({
   default: {
     expoConfig: {
       extra: {},
-      version: '4.0.2',
+      version: '4.0.3',
     },
-    appVersion: '4.0.2',
+    appVersion: '4.0.3',
   },
 }));
 

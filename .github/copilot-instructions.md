@@ -378,6 +378,17 @@ On **Windows**, the local API server is started for local development.
    ```powershell
    Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --clear"
    ```
+   - **Physical iPhone with a dev build (custom native modules — WebRTC/voice)**: The app is NOT Expo Go compatible, so use the `--dev-client` flag so the QR opens the installed dev build instead of Expo Go:
+     ```powershell
+     Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "Set-Location 'C:\Users\rajsin\r\Code\gamer-uncle\apps\mobile'; npx expo start --dev-client --clear"
+     ```
+     - **"Gamer Uncle is no longer available" on launch**: The installed iOS dev build's ad-hoc provisioning profile expired/was revoked (or the app was removed). Rebuild + reinstall via EAS cloud (no local iOS build possible on Windows): from `apps/mobile` run `npx eas build --platform ios --profile development`. This is INTERACTIVE and needs Apple credentials — run it in a dedicated visible window (`cmd /c start "" powershell.exe -NoExit -Command "cd '...\apps\mobile'; npx eas build --platform ios --profile development"`) because `--non-interactive` fails with "Distribution Certificate is not validated". Answer `Y` to the Apple-account login prompt, then the user types the Apple password + 2FA DIRECTLY in that window (never route the password through the agent). After it finishes, open the build's Expo page on the iPhone in Safari and tap Install. Check for an already-finished build first with `npx eas build:list --platform ios --limit 3 --non-interactive` before kicking off a new ~15-20 min build.
+     - **App launches but "nothing happens" / won't connect to Metro (LAN mode)**: On a home network (laptop `192.168.50.11`), the usual cause is Windows Firewall blocking inbound port 8081. Add a persistent allow rule (needs admin/UAC — the rule survives reboots so it's a one-time fix):
+       ```powershell
+       Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-Command',"New-NetFirewallRule -DisplayName 'Metro 8081' -Direction Inbound -Protocol TCP -LocalPort 8081 -Action Allow -Profile Any"
+       ```
+       Then verify Metro is reachable on the LAN IP the phone will use: `Invoke-WebRequest -Uri "http://192.168.50.11:8081/status" -UseBasicParsing` (expect 200 `packager-status:running`). Ensure the phone is on the SAME Wi-Fi subnet (not Guest/cellular). As a fallback, in the app's dev launcher tap "Enter URL manually" and type `http://192.168.50.11:8081`.
+     - **Tunnel fallback pitfalls**: `--tunnel` needs `@expo/ngrok` (pre-install once with `npm install --global @expo/ngrok@^4.1.0` so the tunnel doesn't hang on a Y/n install prompt in a window you can't see). If the tunnel fails with "failed to start tunnel / remote gone away", the laptop's outbound path to ngrok is blocked (VPN/corp) — prefer LAN mode + firewall rule on a home network; only use tunnel when the phone genuinely can't share the laptop's LAN.
 
 7. **If targeting an Android emulator (e.g. Pixel 7 via Android Studio AVD), connect it to Metro** — a QR code is useless for emulators, and the emulator CANNOT reach Metro via the host LAN IP (e.g. `192.168.50.11:8081`) that Expo advertises by default. The emulator runs in its own virtual network, so it must reach Metro over loopback through an `adb reverse` tunnel.
 
