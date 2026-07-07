@@ -267,7 +267,7 @@ describe('ratingPrompt', () => {
   describe('_getMajorVersion', () => {
     it('extracts major version from semver string', () => {
       expect(_getMajorVersion('3.2.7')).toBe('3');
-      expect(_getMajorVersion('4.0.2')).toBe('4');
+      expect(_getMajorVersion('4.0.3')).toBe('4');
       expect(_getMajorVersion('10.1.2')).toBe('10');
     });
 

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gamer Uncle",
     "slug": "gamer-uncle",
-    "version": "4.0.2",
+    "version": "4.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thrustCoder.gamerUncle",
-      "buildNumber": "4.0.2",
+      "buildNumber": "4.0.3",
       "infoPlist": {
         "CFBundleDisplayName": "Gamer Uncle",
         "UILaunchStoryboardName": "SplashScreen",
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.thrustCoder.gamerUncle",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
