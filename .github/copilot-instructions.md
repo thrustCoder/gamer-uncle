@@ -487,3 +487,10 @@ The mobile app ships iOS and Android from the same commit using a single shared 
 ## General Guidelines
 
 Please don't add any summary documents or markdown files unless asked.
+
+<!-- mermaid-ai-skills:start -->
+## Mermaid Diagrams
+
+When the user asks to create, edit, or visualize a diagram, follow the
+instructions in `.github/instructions/mermaid.instructions.md`.
+<!-- mermaid-ai-skills:end -->
