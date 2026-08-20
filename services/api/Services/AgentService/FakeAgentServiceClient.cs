@@ -27,7 +27,7 @@ namespace GamerUncle.Api.Services.AgentService
             ["strategy game strategy game"] = "For heavier strategy: Brass: Birmingham (economic routes) or Gaia Project (deep asymmetry)."
         };
 
-        public Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null)
+        public Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null, GameQueryCriteria? preExtractedCriteria = null, string? criteriaSource = null)
         {
             var trimmed = (userInput ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(trimmed))

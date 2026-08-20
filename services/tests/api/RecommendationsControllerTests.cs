@@ -44,7 +44,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             // Act
@@ -70,7 +70,7 @@ namespace GamerUncle.Api.Tests
             };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ThrowsAsync(new Exception("Service unavailable"));
 
             // Act
@@ -97,7 +97,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             // Act
@@ -128,7 +128,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Default recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(queryText!, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(queryText!, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             // Act

@@ -32,7 +32,7 @@ namespace GamerUncle.Mcp.Tests
             // Mock agent service (what BoardGameQueryTool calls)
             var agentMock = new Mock<IAgentServiceClient>();
             toolResponse ??= new AgentResponse { ResponseText = "Test response", ThreadId = "thread-1", MatchingGamesCount = 2 };
-            agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>()))
+            agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(toolResponse);
             services.AddSingleton(agentMock.Object);
 
@@ -85,7 +85,7 @@ namespace GamerUncle.Mcp.Tests
             var (server, agentMock, _, toolResp) = CreateServer();
             var request = "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"board_game_query\",\"arguments\":{\"query\":\"recommend games\",\"conversationId\":\"conv-1\"}}}";
             var response = await server.ProcessJsonRpcAsync(request);
-            agentMock.Verify(a => a.GetRecommendationsAsync("recommend games", It.IsAny<string?>()), Times.Once);
+            agentMock.Verify(a => a.GetRecommendationsAsync("recommend games", It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()), Times.Once);
             var json = GetJsonElement(response);
             Assert.Equal("2.0", json.GetProperty("jsonrpc").GetString());
             Assert.Equal(3, json.GetProperty("id").GetInt32());

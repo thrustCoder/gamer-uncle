@@ -35,8 +35,8 @@ public static class TestHostBuilder
         // Agent client mock
         var agentMock = new Mock<IAgentServiceClient>();
         responseFactory ??= (q, thread) => new AgentResponse { ResponseText = $"Answer:{q}:{thread ?? "new"}", ThreadId = thread ?? "t-new", MatchingGamesCount = 1 };
-        agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>()))
-            .ReturnsAsync((string q, string? t) => responseFactory(q, t));
+        agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
+            .ReturnsAsync((string q, string? t, GameQueryCriteria? c, string? cs) => responseFactory(q, t));
         services.AddSingleton(agentMock.Object);
 
         // Tool + server

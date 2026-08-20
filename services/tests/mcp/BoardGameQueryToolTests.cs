@@ -15,7 +15,7 @@ namespace GamerUncle.Mcp.Tests
         public async Task board_game_query_Success_AppendsMatchCountAnnotation()
         {
             var agentMock = new Mock<IAgentServiceClient>();
-            agentMock.Setup(a => a.GetRecommendationsAsync("recommend", null))
+            agentMock.Setup(a => a.GetRecommendationsAsync("recommend", null, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(new AgentResponse { ResponseText = "Base answer", ThreadId = "thread1", MatchingGamesCount = 3 });
 
             var convo = new McpConversation { ConversationId = "conv123" };
@@ -44,7 +44,7 @@ namespace GamerUncle.Mcp.Tests
             convo.QueryHistory.Add(new McpQueryHistory { Query = "old", Response = "resp", ThreadId = previousThreadId });
 
             var agentMock = new Mock<IAgentServiceClient>();
-            agentMock.Setup(a => a.GetRecommendationsAsync("follow up", previousThreadId))
+            agentMock.Setup(a => a.GetRecommendationsAsync("follow up", previousThreadId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(new AgentResponse { ResponseText = "Follow answer", ThreadId = "new-thread", MatchingGamesCount = null });
 
             var convoServiceMock = new Mock<IConversationStateService>();
@@ -63,7 +63,7 @@ namespace GamerUncle.Mcp.Tests
         public async Task board_game_query_ErrorPath_ReturnsFallbackMessage()
         {
             var agentMock = new Mock<IAgentServiceClient>();
-            agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>()))
+            agentMock.Setup(a => a.GetRecommendationsAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ThrowsAsync(new InvalidOperationException("boom"));
 
             var convo = new McpConversation { ConversationId = "convErr" };
@@ -93,7 +93,7 @@ namespace GamerUncle.Mcp.Tests
                 .Callback<string, string, string?, string?>((id, q, r, th) => { capturedId ??= id; });
 
             var agentMock = new Mock<IAgentServiceClient>();
-            agentMock.Setup(a => a.GetRecommendationsAsync("query", null))
+            agentMock.Setup(a => a.GetRecommendationsAsync("query", null, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(new AgentResponse { ResponseText = "Resp", ThreadId = "t1" });
 
             var tool = new BoardGameQueryTool(agentMock.Object, convoServiceMock.Object, NullLogger<BoardGameQueryTool>.Instance);

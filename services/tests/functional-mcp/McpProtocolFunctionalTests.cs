@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GamerUncle.Mcp.Services;
+using GamerUncle.Shared.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;
@@ -26,7 +27,7 @@ public class McpProtocolFunctionalTests
         Assert.Equal(2, content.Count);
         Assert.Equal("text", content[0].GetProperty("type").GetString());
         Assert.Equal("json", content[1].GetProperty("type").GetString());
-        agentMock.Verify(a => a.GetRecommendationsAsync("recommend coop", It.IsAny<string?>()), Times.Once);
+        agentMock.Verify(a => a.GetRecommendationsAsync("recommend coop", It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()), Times.Once);
     }
 
     [Fact]
@@ -48,8 +49,8 @@ public class McpProtocolFunctionalTests
         var threadId2 = resp2.GetProperty("result").GetProperty("content").EnumerateArray().ElementAt(1).GetProperty("json").GetProperty("threadId").GetString();
 
         // We expect the tool to pass previous thread as the thread parameter; we can only infer reuse via agentMock call arguments ordering.
-        agentMock.Verify(a => a.GetRecommendationsAsync("opening", It.IsAny<string?>()), Times.Once);
-        agentMock.Verify(a => a.GetRecommendationsAsync("followup", It.IsAny<string?>()), Times.Once);
+        agentMock.Verify(a => a.GetRecommendationsAsync("opening", It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()), Times.Once);
+        agentMock.Verify(a => a.GetRecommendationsAsync("followup", It.IsAny<string?>(), It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()), Times.Once);
         Assert.False(string.IsNullOrWhiteSpace(threadId2));
     }
 
