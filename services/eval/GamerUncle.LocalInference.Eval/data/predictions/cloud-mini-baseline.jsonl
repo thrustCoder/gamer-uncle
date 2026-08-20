@@ -1,0 +1,100 @@
+{"id": "g001", "criteriaSource": "CloudMini", "latencyMs": 640, "predicted": {"name": "Catan"}}
+{"id": "g002", "criteriaSource": "CloudMini", "latencyMs": 710, "predicted": {"name": "Ticket to Ride"}}
+{"id": "g003", "criteriaSource": "CloudMini", "latencyMs": 590, "predicted": {"MinPlayers": 2, "MaxPlayers": 2}}
+{"id": "g004", "criteriaSource": "CloudMini", "latencyMs": 620, "predicted": {"MinPlayers": 6}}
+{"id": "g005", "criteriaSource": "CloudMini", "latencyMs": 660, "predicted": {"MinPlayers": 3, "MaxPlayers": 5}}
+{"id": "g006", "criteriaSource": "CloudMini", "latencyMs": 580, "predicted": {"MaxPlaytime": 30}}
+{"id": "g007", "criteriaSource": "CloudMini", "latencyMs": 605, "predicted": {"MinPlaytime": 60, "MaxPlaytime": 60}}
+{"id": "g008", "criteriaSource": "CloudMini", "latencyMs": 700, "predicted": {"MinPlaytime": 120}}
+{"id": "g009", "criteriaSource": "CloudMini", "latencyMs": 650, "predicted": {"Mechanics": ["Deck Building"]}}
+{"id": "g010", "criteriaSource": "CloudMini", "latencyMs": 640, "predicted": {"Mechanics": ["Worker Placement"]}}
+{"id": "g011", "criteriaSource": "CloudMini", "latencyMs": 615, "predicted": {"Mechanics": ["Cooperative"]}}
+{"id": "g012", "criteriaSource": "CloudMini", "latencyMs": 690, "predicted": {"Mechanics": ["Dice Rolling"]}}
+{"id": "g013", "criteriaSource": "CloudMini", "latencyMs": 600, "predicted": {"Categories": ["Party"]}}
+{"id": "g014", "criteriaSource": "CloudMini", "latencyMs": 595, "predicted": {"Categories": ["Abstract"]}}
+{"id": "g015", "criteriaSource": "CloudMini", "latencyMs": 655, "predicted": {"Categories": ["Science Fiction"]}}
+{"id": "g016", "criteriaSource": "CloudMini", "latencyMs": 670, "predicted": {"Categories": ["Family", "Card Game"]}}
+{"id": "g017", "criteriaSource": "CloudMini", "latencyMs": 630, "predicted": {"MaxWeight": 2.5}}
+{"id": "g018", "criteriaSource": "CloudMini", "latencyMs": 625, "predicted": {"MaxWeight": 2.0}}
+{"id": "g019", "criteriaSource": "CloudMini", "latencyMs": 720, "predicted": {"MaxWeight": 5.0}}
+{"id": "g020", "criteriaSource": "CloudMini", "latencyMs": 610, "predicted": {"ageRequirement": 8}}
+{"id": "g021", "criteriaSource": "CloudMini", "latencyMs": 618, "predicted": {"ageRequirement": 10}}
+{"id": "g022", "criteriaSource": "CloudMini", "latencyMs": 640, "predicted": {"averageRating": 7.5}}
+{"id": "g023", "criteriaSource": "CloudMini", "latencyMs": 705, "predicted": {"averageRating": 8.0, "Categories": ["Strategy"], "Mechanics": ["Engine Building"]}}
+{"id": "g024", "criteriaSource": "CloudMini", "latencyMs": 680, "predicted": {"MinPlayers": 2, "MaxPlayers": 4, "Mechanics": ["Cooperative"]}}
+{"id": "g025", "criteriaSource": "CloudMini", "latencyMs": 695, "predicted": {"MaxPlayers": 5, "MaxPlaytime": 45, "Categories": ["Family"]}}
+{"id": "g026", "criteriaSource": "CloudMini", "latencyMs": 645, "predicted": {"MinPlayers": 2, "MaxPlayers": 2, "Categories": ["Card Game"]}}
+{"id": "g027", "criteriaSource": "CloudMini", "latencyMs": 660, "predicted": {"MinPlayers": 1, "MaxPlayers": 1, "Mechanics": ["Engine Building"]}}
+{"id": "g028", "criteriaSource": "CloudMini", "latencyMs": 600, "predicted": {"name": "Pandemic"}}
+{"id": "g029", "criteriaSource": "CloudMini", "latencyMs": 612, "predicted": {"name": "Wingspan"}}
+{"id": "g030", "criteriaSource": "CloudMini", "latencyMs": 715, "predicted": {"MinPlayers": 8, "MaxPlayers": 8, "MaxWeight": 2.0, "Categories": ["Party"]}}
+{"id": "g031", "criteriaSource": "CloudMini", "latencyMs": 707, "predicted": {"name": "Scythe"}}
+{"id": "g032", "criteriaSource": "CloudMini", "latencyMs": 744, "predicted": {"name": "Brass: Birmingham"}}
+{"id": "g033", "criteriaSource": "CloudMini", "latencyMs": 581, "predicted": {"name": "Spirit Island"}}
+{"id": "g034", "criteriaSource": "CloudMini", "latencyMs": 618, "predicted": {"name": "Everdell"}}
+{"id": "g035", "criteriaSource": "CloudMini", "latencyMs": 655, "predicted": {"name": "Root"}}
+{"id": "g036", "criteriaSource": "CloudMini", "latencyMs": 692, "predicted": {"name": "Ark Nova"}}
+{"id": "g037", "criteriaSource": "CloudMini", "latencyMs": 729, "predicted": {"name": "Cascadia"}}
+{"id": "g038", "criteriaSource": "CloudMini", "latencyMs": 566, "predicted": {"name": "Sushi Go!"}}
+{"id": "g039", "criteriaSource": "CloudMini", "latencyMs": 603, "predicted": {"name": "The Crew"}}
+{"id": "g040", "criteriaSource": "CloudMini", "latencyMs": 640, "predicted": {"name": "Patchwork"}}
+{"id": "g041", "criteriaSource": "CloudMini", "latencyMs": 677, "predicted": {"name": "Concordia"}}
+{"id": "g042", "criteriaSource": "CloudMini", "latencyMs": 714, "predicted": {"name": "Twilight Struggle"}}
+{"id": "g043", "criteriaSource": "CloudMini", "latencyMs": 751, "predicted": {"name": "Jaipur"}}
+{"id": "g044", "criteriaSource": "CloudMini", "latencyMs": 588, "predicted": {"name": "Small World"}}
+{"id": "g045", "criteriaSource": "CloudMini", "latencyMs": 625, "predicted": {"name": "Kingdomino"}}
+{"id": "g046", "criteriaSource": "CloudMini", "latencyMs": 662, "predicted": {"MinPlayers": 4, "MaxPlayers": 4}}
+{"id": "g047", "criteriaSource": "CloudMini", "latencyMs": 699, "predicted": {"MinPlayers": 5, "MaxPlayers": 5}}
+{"id": "g048", "criteriaSource": "CloudMini", "latencyMs": 736, "predicted": {"MinPlayers": 2, "MaxPlayers": 6}}
+{"id": "g049", "criteriaSource": "CloudMini", "latencyMs": 573, "predicted": {"MinPlayers": 7}}
+{"id": "g050", "criteriaSource": "CloudMini", "latencyMs": 610, "predicted": {"MinPlayers": 1, "MaxPlayers": 1}}
+{"id": "g051", "criteriaSource": "CloudMini", "latencyMs": 647, "predicted": {"MinPlayers": 3, "MaxPlayers": 3}}
+{"id": "g052", "criteriaSource": "CloudMini", "latencyMs": 684, "predicted": {"MaxPlaytime": 20}}
+{"id": "g053", "criteriaSource": "CloudMini", "latencyMs": 721, "predicted": {"MaxPlaytime": 90}}
+{"id": "g054", "criteriaSource": "CloudMini", "latencyMs": 758, "predicted": {"MinPlaytime": 180}}
+{"id": "g055", "criteriaSource": "CloudMini", "latencyMs": 595, "predicted": {"MinPlaytime": 90, "MaxPlaytime": 90}}
+{"id": "g056", "criteriaSource": "CloudMini", "latencyMs": 632, "predicted": {"MaxPlaytime": 15}}
+{"id": "g057", "criteriaSource": "CloudMini", "latencyMs": 669, "predicted": {"Mechanics": ["Tile Placement"]}}
+{"id": "g058", "criteriaSource": "CloudMini", "latencyMs": 706, "predicted": {"Mechanics": ["Card Drafting"]}}
+{"id": "g059", "criteriaSource": "CloudMini", "latencyMs": 743, "predicted": {"Mechanics": ["Area Control"]}}
+{"id": "g060", "criteriaSource": "CloudMini", "latencyMs": 580, "predicted": {"Mechanics": ["Engine Building"]}}
+{"id": "g061", "criteriaSource": "CloudMini", "latencyMs": 617, "predicted": {"Mechanics": ["Hand Management"]}}
+{"id": "g062", "criteriaSource": "CloudMini", "latencyMs": 654, "predicted": {"Mechanics": ["Auction"]}}
+{"id": "g063", "criteriaSource": "CloudMini", "latencyMs": 691, "predicted": {"Mechanics": ["Dice Rolling"]}}
+{"id": "g064", "criteriaSource": "CloudMini", "latencyMs": 728, "predicted": {"Categories": ["Fantasy"]}}
+{"id": "g065", "criteriaSource": "CloudMini", "latencyMs": 565, "predicted": {"Categories": ["Economic"]}}
+{"id": "g066", "criteriaSource": "CloudMini", "latencyMs": 602, "predicted": {"Categories": ["Word Game"]}}
+{"id": "g067", "criteriaSource": "CloudMini", "latencyMs": 639, "predicted": {"Categories": ["Horror"]}}
+{"id": "g068", "criteriaSource": "CloudMini", "latencyMs": 676, "predicted": {"Categories": ["Animals"]}}
+{"id": "g069", "criteriaSource": "CloudMini", "latencyMs": 713, "predicted": {"Categories": ["Dexterity"]}}
+{"id": "g070", "criteriaSource": "CloudMini", "latencyMs": 750, "predicted": {"Categories": ["Wargame"]}}
+{"id": "g071", "criteriaSource": "CloudMini", "latencyMs": 587, "predicted": {"MaxWeight": 3.5}}
+{"id": "g072", "criteriaSource": "CloudMini", "latencyMs": 624, "predicted": {"MaxWeight": 5.0}}
+{"id": "g073", "criteriaSource": "CloudMini", "latencyMs": 661, "predicted": {"MaxWeight": 1.5}}
+{"id": "g074", "criteriaSource": "CloudMini", "latencyMs": 698, "predicted": {"MaxWeight": 2.0}}
+{"id": "g075", "criteriaSource": "CloudMini", "latencyMs": 735, "predicted": {"ageRequirement": 6}}
+{"id": "g076", "criteriaSource": "CloudMini", "latencyMs": 572, "predicted": {"ageRequirement": 13}}
+{"id": "g077", "criteriaSource": "CloudMini", "latencyMs": 609, "predicted": {"ageRequirement": 5}}
+{"id": "g078", "criteriaSource": "CloudMini", "latencyMs": 646, "predicted": {"ageRequirement": 12}}
+{"id": "g079", "criteriaSource": "CloudMini", "latencyMs": 683, "predicted": {"averageRating": 8.0}}
+{"id": "g080", "criteriaSource": "CloudMini", "latencyMs": 720, "predicted": {"averageRating": 7.5}}
+{"id": "g081", "criteriaSource": "CloudMini", "latencyMs": 757, "predicted": {"averageRating": 8.0}}
+{"id": "g082", "criteriaSource": "CloudMini", "latencyMs": 594, "predicted": {"MinPlayers": 1, "MaxPlayers": 4, "MaxPlaytime": 120, "Mechanics": ["Cooperative"]}}
+{"id": "g083", "criteriaSource": "CloudMini", "latencyMs": 631, "predicted": {"MinPlayers": 2, "MaxPlayers": 4, "MaxWeight": 2.0, "Categories": ["Family"]}}
+{"id": "g084", "criteriaSource": "CloudMini", "latencyMs": 668, "predicted": {"MinPlayers": 3, "MaxPlayers": 5, "Mechanics": ["Worker Placement"], "Categories": ["Strategy"]}}
+{"id": "g085", "criteriaSource": "CloudMini", "latencyMs": 705, "predicted": {"averageRating": 8.0, "Mechanics": ["Deck Building"]}}
+{"id": "g086", "criteriaSource": "CloudMini", "latencyMs": 742, "predicted": {"MinPlayers": 2, "MaxPlayers": 2, "MaxPlaytime": 60}}
+{"id": "g087", "criteriaSource": "CloudMini", "latencyMs": 579, "predicted": {"MinPlayers": 6, "MaxPlayers": 8, "MaxWeight": 2.0, "Categories": ["Party"]}}
+{"id": "g088", "criteriaSource": "CloudMini", "latencyMs": 616, "predicted": {"MaxPlayers": 4, "Categories": ["Fantasy"]}}
+{"id": "g089", "criteriaSource": "CloudMini", "latencyMs": 653, "predicted": {"MinPlayers": 2, "MaxPlayers": 2, "MaxPlaytime": 30, "Categories": ["Abstract"]}}
+{"id": "g090", "criteriaSource": "CloudMini", "latencyMs": 690, "predicted": {"averageRating": 7.5, "MaxWeight": 5.0, "Categories": ["Economic"]}}
+{"id": "g091", "criteriaSource": "CloudMini", "latencyMs": 727, "predicted": {"Categories": ["Science Fiction"], "Mechanics": ["Engine Building"]}}
+{"id": "g092", "criteriaSource": "CloudMini", "latencyMs": 564, "predicted": {"MaxPlaytime": 30, "Mechanics": ["Dice Rolling", "Push Your Luck"], "Categories": ["Family"]}}
+{"id": "g093", "criteriaSource": "CloudMini", "latencyMs": 601, "predicted": {"MinPlayers": 2, "MaxPlayers": 5, "Mechanics": ["Cooperative"], "Categories": ["Card Game"]}}
+{"id": "g094", "criteriaSource": "CloudMini", "latencyMs": 638, "predicted": {"Mechanics": ["Worker Placement"], "Categories": ["Farming"]}}
+{"id": "g095", "criteriaSource": "CloudMini", "latencyMs": 675, "predicted": {"MinPlayers": 2, "MaxPlayers": 2, "averageRating": 8.0, "Categories": ["Strategy"]}}
+{"id": "g096", "criteriaSource": "CloudMini", "latencyMs": 712, "predicted": {"name": "Splendor"}}
+{"id": "g097", "criteriaSource": "CloudMini", "latencyMs": 749, "predicted": {"name": "Gloomhaven"}}
+{"id": "g098", "criteriaSource": "CloudMini", "latencyMs": 586, "predicted": {"name": "Azul"}}
+{"id": "g099", "criteriaSource": "CloudMini", "latencyMs": 623, "predicted": {"name": "Codenames"}}
+{"id": "g100", "criteriaSource": "CloudMini", "latencyMs": 660, "predicted": {"name": "Terraforming Mars"}}
