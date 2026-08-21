@@ -61,6 +61,21 @@ dotnet user-secrets remove "KeyName" --project services/api/GamerUncle.Api.cspro
 - Structured responses through agent orchestration
 - Error handling with proper HTTP status codes and logging
 
+### Telemetry & Observability (CRITICAL — where custom events live)
+Custom telemetry events emitted by the API (e.g. `AgentRequest.Started`/`WithRAG`/`Completed`, `CriteriaExtraction.*`) are **queryable in the Log Analytics `AppEvents` table**, NOT via the classic Application Insights `customEvents` schema. `az monitor app-insights query ... customEvents` returns EMPTY even when events exist — do not conclude there is a "telemetry gap" from that; query `AppEvents` instead.
+
+- **Workspaces**: prod Log Analytics workspace `gamer-uncle-prod-log-analytics-ws` (GUID `5ae63b98-a993-499d-821b-12dcbbe5fe51`).
+- **Query command**:
+  ```powershell
+  az monitor log-analytics query --workspace 5ae63b98-a993-499d-821b-12dcbbe5fe51 --analytics-query "<KQL>" -o json
+  ```
+- **`Properties` is a JSON string column** (not a dynamic object). It contains fields like `UserInput`, `MatchingGamesCount`, `CriteriaUsed`, `CriteriaSource`. Parse it with `json.loads` in Python (use `encoding="utf-8-sig"` and `$env:PYTHONUTF8="1"` to avoid cp1252 errors on game names with unicode).
+- **KQL quoting via az CLI**: use **single quotes** for KQL string literals inside a **double-quoted** PowerShell string, e.g. `"... | where Name == 'AgentRequest.WithRAG' ..."`. Double-quoted KQL literals get mangled into `SEM0139 Failed to resolve expression`.
+- **Example** (pull recent RAG requests with their input + match count):
+  ```powershell
+  az monitor log-analytics query --workspace 5ae63b98-a993-499d-821b-12dcbbe5fe51 --analytics-query "AppEvents | where Name == 'AgentRequest.WithRAG' | where TimeGenerated > ago(1h) | project TimeGenerated, Properties | order by TimeGenerated desc | take 20" -o json
+  ```
+
 ### Voice Functionality Configuration
 - **Azure OpenAI API Key Required**: Voice functionality requires `VoiceService:AzureOpenAIKey` configuration
 - **WebSocket Authentication**: React Native cannot send Authorization headers, so API key must be in query parameters
