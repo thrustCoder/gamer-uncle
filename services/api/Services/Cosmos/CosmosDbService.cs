@@ -75,7 +75,7 @@ ORDER BY c.averageRating DESC";
         /// Builds the WHERE clause and parameter dictionary from the query criteria.
         /// Shared between QueryGamesAsync and QueryGameSummariesAsync.
         /// </summary>
-        private static (string whereClause, Dictionary<string, object> parameters) BuildWhereClause(GameQueryCriteria criteria)
+        internal static (string whereClause, Dictionary<string, object> parameters) BuildWhereClause(GameQueryCriteria criteria)
         {
             var conditions = new List<string>();
             var parameters = new Dictionary<string, object>();
@@ -146,33 +146,41 @@ ORDER BY c.averageRating DESC";
                 parameters.Add("@ageRequirement", criteria.ageRequirement.Value);
             }
 
-            // More flexible mechanics and categories matching
+            // Flexible mechanics and categories matching.
+            //
+            // The database stores BoardGameGeek's canonical taxonomy strings (e.g. the mechanic
+            // "Cooperative Game", the category "Abstract Strategy", or "Murder / Mystery"), while
+            // the criteria extraction emits everyday shorthand words ("Cooperative", "Strategy",
+            // "Mystery"). An exact ARRAY_CONTAINS therefore misses almost every genre/mechanic
+            // query and returns zero games. We instead do a case-insensitive SUBSTRING match over
+            // each array element via a correlated EXISTS subquery, so "cooperative" matches
+            // "Cooperative Game", "strategy" matches "Abstract Strategy", "mystery" matches
+            // "Murder / Mystery", and so on.
             var allSearchTerms = new List<string>();
             if (criteria.Mechanics?.Any() == true)
             {
-                // Convert to title case to match database format
-                allSearchTerms.AddRange(criteria.Mechanics.Select(ToTitleCase));
+                allSearchTerms.AddRange(criteria.Mechanics.Where(t => !string.IsNullOrWhiteSpace(t)));
             }
             if (criteria.Categories?.Any() == true)
             {
-                // Convert to title case to match database format
-                allSearchTerms.AddRange(criteria.Categories.Select(ToTitleCase));
+                allSearchTerms.AddRange(criteria.Categories.Where(t => !string.IsNullOrWhiteSpace(t)));
             }
 
             if (allSearchTerms.Any())
             {
-                // Search in both mechanics AND categories arrays for any of the terms
-                var mechanicsOrCategories = "(";
+                // A game matches if ANY search term appears (case-insensitively) as a substring of
+                // any element in its mechanics OR categories arrays.
+                var termClauses = new List<string>();
                 for (int i = 0; i < allSearchTerms.Count; i++)
                 {
                     var paramName = $"@term{i}";
-                    if (i > 0) mechanicsOrCategories += " OR ";
-                    mechanicsOrCategories += $"ARRAY_CONTAINS(c.mechanics, {paramName}, true) OR ARRAY_CONTAINS(c.categories, {paramName}, true)";
-                    parameters.Add(paramName, allSearchTerms[i]);
+                    termClauses.Add(
+                        $"EXISTS(SELECT VALUE m FROM m IN c.mechanics WHERE CONTAINS(LOWER(m), LOWER({paramName}))) " +
+                        $"OR EXISTS(SELECT VALUE cat FROM cat IN c.categories WHERE CONTAINS(LOWER(cat), LOWER({paramName})))");
+                    parameters.Add(paramName, allSearchTerms[i].Trim());
                 }
-                mechanicsOrCategories += ")";
 
-                conditions.Add(mechanicsOrCategories);
+                conditions.Add("(" + string.Join(" OR ", termClauses) + ")");
             }
 
             var whereClause = conditions.Count > 0
@@ -180,14 +188,6 @@ ORDER BY c.averageRating DESC";
                 : "";
 
             return (whereClause, parameters);
-        }
-
-        private static string ToTitleCase(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return input;
-            
-            var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
-            return textInfo.ToTitleCase(input.ToLowerInvariant());
         }
     }
 }
