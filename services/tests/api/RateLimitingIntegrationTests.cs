@@ -66,7 +66,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             var json = JsonSerializer.Serialize(query);
@@ -93,7 +93,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             var json = JsonSerializer.Serialize(query);
@@ -145,7 +145,7 @@ namespace GamerUncle.Api.Tests
             var expectedResponse = new AgentResponse { ResponseText = "Test recommendation" };
 
             _mockAgentService
-                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId))
+                .Setup(x => x.GetRecommendationsAsync(query.Query, query.ConversationId, It.IsAny<GameQueryCriteria?>(), It.IsAny<string?>()))
                 .ReturnsAsync(expectedResponse);
 
             var json = JsonSerializer.Serialize(query);

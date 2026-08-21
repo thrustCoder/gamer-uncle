@@ -176,3 +176,7 @@ apps/mobile/google-play-service-account.json
 apps/mobile/upload-keystore.jks
 apps/mobile/android/app/release.keystore
 apps/mobile/android/app/upload.keystore
+
+# Local-inference eval harness output
+eval-output/
+services/eval/**/eval-output/

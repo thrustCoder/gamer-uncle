@@ -117,7 +117,7 @@ namespace GamerUncle.Api.Services.AgentService
             }
         }
 
-    public async Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null)
+    public async Task<AgentResponse> GetRecommendationsAsync(string userInput, string? threadId = null, GameQueryCriteria? preExtractedCriteria = null, string? criteriaSource = null)
         {
             using var activity = _telemetryClient?.StartOperation<RequestTelemetry>("AgentServiceClient.GetRecommendations");
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -132,25 +132,52 @@ namespace GamerUncle.Api.Services.AgentService
                     ["RequestId"] = activity?.Telemetry?.Id ?? Guid.NewGuid().ToString()
                 });
 
-                // Step 1: Extract query criteria using AI Agent (for any board game question)
+                // Step 1: Obtain query criteria.
+                // Local-inference A/B: if the client supplied non-empty pre-extracted criteria (e.g. from
+                // on-device inference), use it directly and SKIP the cloud mini extraction call. Otherwise
+                // extract via the cloud criteria agent (existing behavior).
                 // A7 Optimization: Capture the criteria thread ID so the response agent can reuse it
-                // instead of creating a brand-new thread (saves ~300ms CreateThread call).
-                var (criteria, criteriaThreadId) = await ExtractGameCriteriaViaAgent(userInput, threadId);
+                // instead of creating a brand-new thread (saves ~300ms CreateThread call). When we bypass
+                // via client criteria, there is no criteria thread, so the response tier creates its own.
+                GameQueryCriteria? criteria;
+                string? criteriaThreadId = null;
+                string resolvedCriteriaSource;
+                var criteriaStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                if (preExtractedCriteria != null && !IsCriteriaEmpty(preExtractedCriteria))
+                {
+                    criteria = preExtractedCriteria;
+                    resolvedCriteriaSource = string.IsNullOrEmpty(criteriaSource) ? "client" : criteriaSource!;
+                    criteriaStopwatch.Stop();
+
+                    _telemetryClient?.TrackEvent("CriteriaExtraction.Bypassed", new Dictionary<string, string>
+                    {
+                        ["CriteriaSource"] = resolvedCriteriaSource,
+                        ["UserInput"] = userInput.Substring(0, Math.Min(userInput.Length, 100))
+                    });
+                    // A cloud mini extraction call was saved by using client-supplied criteria.
+                    _telemetryClient?.TrackMetric("CriteriaExtraction.CloudCallsSaved", 1);
+                }
+                else
+                {
+                    (criteria, criteriaThreadId) = await ExtractGameCriteriaViaAgent(userInput, threadId);
+                    resolvedCriteriaSource = "cloud";
+                    criteriaStopwatch.Stop();
+                    _telemetryClient?.TrackMetric("CriteriaExtraction.CloudCallsSaved", 0);
+                }
+
+                // Baseline metric for the local-inference experiment: criteria-tier duration + source.
+                _telemetryClient?.TrackMetric("CriteriaExtraction.Duration", criteriaStopwatch.ElapsedMilliseconds);
+                _telemetryClient?.TrackEvent("CriteriaExtraction.Completed", new Dictionary<string, string>
+                {
+                    ["CriteriaSource"] = resolvedCriteriaSource,
+                    ["DurationMs"] = criteriaStopwatch.ElapsedMilliseconds.ToString()
+                });
 
                 // Step 2: Query Cosmos DB for relevant games (if criteria found)
                 List<GameSummary> matchingGames;
                 var messages = new List<object>();
-                if (criteria == null ||
-                    (string.IsNullOrEmpty(criteria.name) &&
-                    !criteria.MinPlayers.HasValue &&
-                    !criteria.MaxPlayers.HasValue &&
-                    !criteria.MinPlaytime.HasValue &&
-                    !criteria.MaxPlaytime.HasValue &&
-                    criteria.Mechanics == null &&
-                    criteria.Categories == null &&
-                    !criteria.MaxWeight.HasValue &&
-                    !criteria.averageRating.HasValue &&
-                    !criteria.ageRequirement.HasValue))
+                if (criteria == null || IsCriteriaEmpty(criteria))
                 {
                     // No specific criteria found - proceed without RAG context
                     matchingGames = new List<GameSummary>();
@@ -260,7 +287,8 @@ Avoid generic placeholders like 'Looking into that for you!' or 'On it! Give me 
                     ["ThreadId"] = currentThreadId ?? string.Empty,
                     ["MatchingGamesCount"] = matchingGames.Count.ToString(),
                     ["ResponseLength"] = response?.Length.ToString() ?? "0",
-                    ["Duration"] = stopwatch.ElapsedMilliseconds.ToString()
+                    ["Duration"] = stopwatch.ElapsedMilliseconds.ToString(),
+                    ["CriteriaSource"] = resolvedCriteriaSource
                 });
 
                 _telemetryClient?.TrackMetric("AgentRequest.Duration", stopwatch.ElapsedMilliseconds);
@@ -1095,6 +1123,25 @@ Your goal is to be the go-to expert for ALL board game questions with concise, m
                     }
                 }
             };
+        }
+
+        /// <summary>
+        /// Returns true when the criteria carries no usable filter — every field is null/empty.
+        /// Shared by the "no criteria found" branch and the client-supplied-criteria bypass check so
+        /// both use identical emptiness semantics.
+        /// </summary>
+        internal static bool IsCriteriaEmpty(GameQueryCriteria criteria)
+        {
+            return string.IsNullOrEmpty(criteria.name) &&
+                !criteria.MinPlayers.HasValue &&
+                !criteria.MaxPlayers.HasValue &&
+                !criteria.MinPlaytime.HasValue &&
+                !criteria.MaxPlaytime.HasValue &&
+                criteria.Mechanics == null &&
+                criteria.Categories == null &&
+                !criteria.MaxWeight.HasValue &&
+                !criteria.averageRating.HasValue &&
+                !criteria.ageRequirement.HasValue;
         }
 
         /// <summary>

@@ -1,0 +1,100 @@
+{"id": "g001", "query": "Tell me about Catan", "tag": "name", "gold": {"name": "Catan"}, "expectedGameIds": ["bgg-13"]}
+{"id": "g002", "query": "How do you play Ticket to Ride?", "tag": "name", "gold": {"name": "Ticket to Ride"}, "expectedGameIds": ["bgg-9209"]}
+{"id": "g003", "query": "What's a good game for 2 players?", "tag": "players", "gold": {"MinPlayers": 2, "MaxPlayers": 2}}
+{"id": "g004", "query": "We are a group of 6 friends, what should we play?", "tag": "players", "gold": {"MinPlayers": 6, "MaxPlayers": 6}}
+{"id": "g005", "query": "Looking for something that plays 3 to 5 people", "tag": "players", "gold": {"MinPlayers": 3, "MaxPlayers": 5}}
+{"id": "g006", "query": "I want a quick game under 30 minutes", "tag": "playtime", "gold": {"MaxPlaytime": 30}}
+{"id": "g007", "query": "Something we can play in about an hour", "tag": "playtime", "gold": {"MinPlaytime": 60, "MaxPlaytime": 60}}
+{"id": "g008", "query": "A long strategy game, at least two hours", "tag": "playtime", "gold": {"MinPlaytime": 120}}
+{"id": "g009", "query": "Any good deck building games?", "tag": "mechanics", "gold": {"Mechanics": ["Deck Building"]}}
+{"id": "g010", "query": "I love worker placement games", "tag": "mechanics", "gold": {"Mechanics": ["Worker Placement"]}}
+{"id": "g011", "query": "Recommend a cooperative game", "tag": "mechanics", "gold": {"Mechanics": ["Cooperative"]}}
+{"id": "g012", "query": "Something with dice rolling and tile placement", "tag": "mechanics", "gold": {"Mechanics": ["Dice Rolling", "Tile Placement"]}}
+{"id": "g013", "query": "What are some good party games?", "tag": "categories", "gold": {"Categories": ["Party"]}}
+{"id": "g014", "query": "I want an abstract game", "tag": "categories", "gold": {"Categories": ["Abstract"]}}
+{"id": "g015", "query": "Any science fiction themed board games?", "tag": "categories", "gold": {"Categories": ["Science Fiction"]}}
+{"id": "g016", "query": "A family friendly card game", "tag": "combo", "gold": {"Categories": ["Family", "Card Game"]}}
+{"id": "g017", "query": "Something easy for beginners", "tag": "weight", "gold": {"MaxWeight": 2.0}}
+{"id": "g018", "query": "A light game that's simple to learn", "tag": "weight", "gold": {"MaxWeight": 2.0}}
+{"id": "g019", "query": "I want a really heavy, complex strategy game", "tag": "weight", "gold": {"MaxWeight": 5.0, "Categories": ["Strategy"]}}
+{"id": "g020", "query": "Good games for kids age 8 and up", "tag": "age", "gold": {"ageRequirement": 8}}
+{"id": "g021", "query": "Something appropriate for a 10 year old", "tag": "age", "gold": {"ageRequirement": 10}}
+{"id": "g022", "query": "Only show me highly rated games above 8", "tag": "rating", "gold": {"averageRating": 8.0}}
+{"id": "g023", "query": "What are the best rated strategy games?", "tag": "combo", "gold": {"averageRating": 8.0, "Categories": ["Strategy"]}}
+{"id": "g024", "query": "A cooperative game for 2 to 4 players", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 4, "Mechanics": ["Cooperative"]}}
+{"id": "g025", "query": "Quick family game under 45 minutes for up to 5", "tag": "combo", "gold": {"MaxPlayers": 5, "MaxPlaytime": 45, "Categories": ["Family"]}}
+{"id": "g026", "query": "A two player card game", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 2, "Categories": ["Card Game"]}}
+{"id": "g027", "query": "Engine building games for a solo player", "tag": "combo", "gold": {"MinPlayers": 1, "MaxPlayers": 1, "Mechanics": ["Engine Building"]}}
+{"id": "g028", "query": "Show me Pandemic", "tag": "name", "gold": {"name": "Pandemic"}, "expectedGameIds": ["bgg-30549"]}
+{"id": "g029", "query": "Tell me about Wingspan", "tag": "name", "gold": {"name": "Wingspan"}, "expectedGameIds": ["bgg-266192"]}
+{"id": "g030", "query": "A light party game for a big group of 8", "tag": "combo", "gold": {"MinPlayers": 8, "MaxPlayers": 8, "MaxWeight": 2.0, "Categories": ["Party"]}}
+{"id": "g031", "query": "Tell me about Scythe", "tag": "name", "gold": {"name": "Scythe"}, "expectedGameIds": ["bgg-169786"]}
+{"id": "g032", "query": "How do you play Brass Birmingham?", "tag": "name", "gold": {"name": "Brass: Birmingham"}, "expectedGameIds": ["bgg-224517"]}
+{"id": "g033", "query": "What's Spirit Island about?", "tag": "name", "gold": {"name": "Spirit Island"}, "expectedGameIds": ["bgg-162886"]}
+{"id": "g034", "query": "Show me Everdell", "tag": "name", "gold": {"name": "Everdell"}, "expectedGameIds": ["bgg-199792"]}
+{"id": "g035", "query": "Tell me about Root", "tag": "name", "gold": {"name": "Root"}, "expectedGameIds": ["bgg-237182"]}
+{"id": "g036", "query": "Is Ark Nova any good?", "tag": "name", "gold": {"name": "Ark Nova"}, "expectedGameIds": ["bgg-342942"]}
+{"id": "g037", "query": "What is Cascadia?", "tag": "name", "gold": {"name": "Cascadia"}, "expectedGameIds": ["bgg-295947"]}
+{"id": "g038", "query": "How do you play Sushi Go?", "tag": "name", "gold": {"name": "Sushi Go!"}, "expectedGameIds": ["bgg-133473"]}
+{"id": "g039", "query": "Tell me about The Crew", "tag": "name", "gold": {"name": "The Crew"}, "expectedGameIds": ["bgg-284083"]}
+{"id": "g040", "query": "Show me Patchwork", "tag": "name", "gold": {"name": "Patchwork"}, "expectedGameIds": ["bgg-163412"]}
+{"id": "g041", "query": "What's Concordia like?", "tag": "name", "gold": {"name": "Concordia"}, "expectedGameIds": ["bgg-124361"]}
+{"id": "g042", "query": "Tell me about Twilight Struggle", "tag": "name", "gold": {"name": "Twilight Struggle"}, "expectedGameIds": ["bgg-12333"]}
+{"id": "g043", "query": "How do you play Jaipur?", "tag": "name", "gold": {"name": "Jaipur"}, "expectedGameIds": ["bgg-54043"]}
+{"id": "g044", "query": "What is Small World?", "tag": "name", "gold": {"name": "Small World"}, "expectedGameIds": ["bgg-40692"]}
+{"id": "g045", "query": "Show me Kingdomino", "tag": "name", "gold": {"name": "Kingdomino"}, "expectedGameIds": ["bgg-204583"]}
+{"id": "g046", "query": "A game for exactly 4 players", "tag": "players", "gold": {"MinPlayers": 4, "MaxPlayers": 4}}
+{"id": "g047", "query": "We have 5 players tonight", "tag": "players", "gold": {"MinPlayers": 5, "MaxPlayers": 5}}
+{"id": "g048", "query": "Something for 2 to 6 people", "tag": "players", "gold": {"MinPlayers": 2, "MaxPlayers": 6}}
+{"id": "g049", "query": "A game for a large group of 7 or 8", "tag": "players", "gold": {"MinPlayers": 7, "MaxPlayers": 8}}
+{"id": "g050", "query": "Just me tonight, a solo game", "tag": "players", "gold": {"MinPlayers": 1, "MaxPlayers": 1}}
+{"id": "g051", "query": "A three player game", "tag": "players", "gold": {"MinPlayers": 3, "MaxPlayers": 3}}
+{"id": "g052", "query": "A filler under 20 minutes", "tag": "playtime", "gold": {"MaxPlaytime": 20}}
+{"id": "g053", "query": "Something between 45 minutes and an hour and a half", "tag": "playtime", "gold": {"MinPlaytime": 45, "MaxPlaytime": 90}}
+{"id": "g054", "query": "An epic that takes all evening, three hours plus", "tag": "playtime", "gold": {"MinPlaytime": 180}}
+{"id": "g055", "query": "A game around 90 minutes", "tag": "playtime", "gold": {"MinPlaytime": 90, "MaxPlaytime": 90}}
+{"id": "g056", "query": "Quick, no more than 15 minutes", "tag": "playtime", "gold": {"MaxPlaytime": 15}}
+{"id": "g057", "query": "Games with tile placement", "tag": "mechanics", "gold": {"Mechanics": ["Tile Placement"]}}
+{"id": "g058", "query": "I enjoy card drafting", "tag": "mechanics", "gold": {"Mechanics": ["Card Drafting"]}}
+{"id": "g059", "query": "Area control games", "tag": "mechanics", "gold": {"Mechanics": ["Area Control"]}}
+{"id": "g060", "query": "Engine building please", "tag": "mechanics", "gold": {"Mechanics": ["Engine Building"]}}
+{"id": "g061", "query": "Hand management and set collection", "tag": "mechanics", "gold": {"Mechanics": ["Hand Management", "Set Collection"]}}
+{"id": "g062", "query": "Auction or bidding games", "tag": "mechanics", "gold": {"Mechanics": ["Auction"]}}
+{"id": "g063", "query": "Push your luck dice games", "tag": "mechanics", "gold": {"Mechanics": ["Push Your Luck", "Dice Rolling"]}}
+{"id": "g064", "query": "Fantasy themed games", "tag": "categories", "gold": {"Categories": ["Fantasy"]}}
+{"id": "g065", "query": "Economic games", "tag": "categories", "gold": {"Categories": ["Economic"]}}
+{"id": "g066", "query": "A good word game", "tag": "categories", "gold": {"Categories": ["Word Game"]}}
+{"id": "g067", "query": "Horror board games", "tag": "categories", "gold": {"Categories": ["Horror"]}}
+{"id": "g068", "query": "Games about animals", "tag": "categories", "gold": {"Categories": ["Animals"]}}
+{"id": "g069", "query": "A dexterity game", "tag": "categories", "gold": {"Categories": ["Dexterity"]}}
+{"id": "g070", "query": "Wargames", "tag": "categories", "gold": {"Categories": ["Wargame"]}}
+{"id": "g071", "query": "A medium weight game, nothing too crazy", "tag": "weight", "gold": {"MaxWeight": 3.0}}
+{"id": "g072", "query": "The heaviest, most complex game you have", "tag": "weight", "gold": {"MaxWeight": 5.0}}
+{"id": "g073", "query": "Very light, weight under 1.5", "tag": "weight", "gold": {"MaxWeight": 1.5}}
+{"id": "g074", "query": "Moderately complex, around 2.5", "tag": "weight", "gold": {"MaxWeight": 2.5}}
+{"id": "g075", "query": "Games suitable for a 6 year old", "tag": "age", "gold": {"ageRequirement": 6}}
+{"id": "g076", "query": "For teenagers, 13 and up", "tag": "age", "gold": {"ageRequirement": 13}}
+{"id": "g077", "query": "Kid friendly, age 5", "tag": "age", "gold": {"ageRequirement": 5}}
+{"id": "g078", "query": "Something for a 12 year old", "tag": "age", "gold": {"ageRequirement": 12}}
+{"id": "g079", "query": "Only top rated games, 8.5 or higher", "tag": "rating", "gold": {"averageRating": 8.5}}
+{"id": "g080", "query": "Well reviewed games above 7.5", "tag": "rating", "gold": {"averageRating": 7.5}}
+{"id": "g081", "query": "The highest rated games you know", "tag": "rating", "gold": {"averageRating": 8.0}}
+{"id": "g082", "query": "A cooperative game for 1 to 4 players under two hours", "tag": "combo", "gold": {"MinPlayers": 1, "MaxPlayers": 4, "MaxPlaytime": 120, "Mechanics": ["Cooperative"]}}
+{"id": "g083", "query": "A light family game for 2 to 4 kids age 8", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 4, "MaxWeight": 2.0, "ageRequirement": 8, "Categories": ["Family"]}}
+{"id": "g084", "query": "A strategy game with worker placement for 3 to 5 players", "tag": "combo", "gold": {"MinPlayers": 3, "MaxPlayers": 5, "Mechanics": ["Worker Placement"], "Categories": ["Strategy"]}}
+{"id": "g085", "query": "A highly rated deck building game", "tag": "combo", "gold": {"averageRating": 8.0, "Mechanics": ["Deck Building"]}}
+{"id": "g086", "query": "A two player only game under an hour", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 2, "MaxPlaytime": 60}}
+{"id": "g087", "query": "Party game for 6 to 8 people, easy to learn", "tag": "combo", "gold": {"MinPlayers": 6, "MaxPlayers": 8, "MaxWeight": 2.0, "Categories": ["Party"]}}
+{"id": "g088", "query": "A fantasy adventure game for up to 4", "tag": "combo", "gold": {"MaxPlayers": 4, "Categories": ["Fantasy", "Adventure"]}}
+{"id": "g089", "query": "A quick abstract game for 2", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 2, "MaxPlaytime": 30, "Categories": ["Abstract"]}}
+{"id": "g090", "query": "A heavy economic strategy game rated over 8", "tag": "combo", "gold": {"averageRating": 8.0, "MaxWeight": 5.0, "Categories": ["Economic", "Strategy"]}}
+{"id": "g091", "query": "A science fiction game with engine building", "tag": "combo", "gold": {"Categories": ["Science Fiction"], "Mechanics": ["Engine Building"]}}
+{"id": "g092", "query": "A dice game for the family under 30 minutes", "tag": "combo", "gold": {"MaxPlaytime": 30, "Mechanics": ["Dice Rolling"], "Categories": ["Family"]}}
+{"id": "g093", "query": "A cooperative card game for 2 to 5", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 5, "Mechanics": ["Cooperative"], "Categories": ["Card Game"]}}
+{"id": "g094", "query": "A worker placement farming game", "tag": "combo", "gold": {"Mechanics": ["Worker Placement"], "Categories": ["Farming"]}}
+{"id": "g095", "query": "A long heavy strategy game for 2 players rated 8 plus", "tag": "combo", "gold": {"MinPlayers": 2, "MaxPlayers": 2, "MinPlaytime": 120, "averageRating": 8.0, "Categories": ["Strategy"]}}
+{"id": "g096", "query": "How about Splendor", "tag": "name", "gold": {"name": "Splendor"}, "expectedGameIds": ["bgg-148228"]}
+{"id": "g097", "query": "Tell me about Gloomhaven", "tag": "name", "gold": {"name": "Gloomhaven"}, "expectedGameIds": ["bgg-174430"]}
+{"id": "g098", "query": "What is Azul?", "tag": "name", "gold": {"name": "Azul"}, "expectedGameIds": ["bgg-230802"]}
+{"id": "g099", "query": "Codenames rules please", "tag": "name", "gold": {"name": "Codenames"}, "expectedGameIds": ["bgg-178900"]}
+{"id": "g100", "query": "Is Terraforming Mars good?", "tag": "name", "gold": {"name": "Terraforming Mars"}, "expectedGameIds": ["bgg-167791"]}

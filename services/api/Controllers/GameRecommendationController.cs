@@ -32,7 +32,7 @@ namespace GamerUncle.Api.Controllers
 
             try
             {
-                var result = await _agentService.GetRecommendationsAsync(query.Query, query.ConversationId);
+                var result = await _agentService.GetRecommendationsAsync(query.Query, query.ConversationId, query.Criteria, query.CriteriaSource);
 
                 _logger.LogInformation("Game recommendation completed successfully for ConversationId: {ConversationId}",
                     query.ConversationId);
