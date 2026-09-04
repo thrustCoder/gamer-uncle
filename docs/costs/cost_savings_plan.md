@@ -1,12 +1,75 @@
 # Azure Cost Analysis & Savings Plan — Gamer Uncle
 
 > **Date**: February 17, 2026  
-> **Updated**: May 28, 2026 — Validated May 10–11 implementations against the May 14–28 billing window (see [14-Day Validation](#14-day-validation-may-1428-2026)); refreshed dev Log Analytics and prod Cosmos inventory estimates with realized run-rates  
-> **Previous update**: May 11, 2026 — Removed historical cost snapshots, projected-savings tables, implementation roadmap, and traffic-milestone sections; doc now centered on recommendations + current status only  
+> **Updated**: September 4, 2026 — Raised the prod budget alert from 80% to 90% ($180); confirmed prod plan is **Windows/West US** and quantified Rec #1 at exactly $54.31/mo; **rejected** Rec #5 (reserved instances cost more than the current Dev/Test rate)  
+> **Previous update**: August 31, 2026 — Root-caused the recurring prod budget alert (see [August 2026 Validation](#august-2026-validation--budget-alert-root-cause)); corrected two pricing assumptions (Dev/Test rates, AFD cost attribution)  
+> **Earlier**: May 28, 2026 — Validated May 10–11 implementations against the May 14–28 billing window (see [14-Day Validation](#14-day-validation-may-1428-2026)); refreshed dev Log Analytics and prod Cosmos inventory estimates with realized run-rates  
+> **Earlier**: May 11, 2026 — Removed historical cost snapshots, projected-savings tables, implementation roadmap, and traffic-milestone sections; doc now centered on recommendations + current status only  
 > **Earlier**: May 10, 2026 — Cut dev scheduled query rules 16→8, enabled adaptive sampling on prod App Insights, deleted unused `PlayerSessions` Cosmos container  
 > **Subscription costs queried**: Azure Cost Management API (real data)  
 > **Environments**: Dev (`gamer-uncle-dev-rg`) and Prod (`gamer-uncle-prod-rg`)  
 > **Traffic projections**: ~60 installs → 500 (Month 1) → 1,000+ (Month 3)
+
+### August 2026 Validation — Budget Alert Root Cause
+
+**Trigger**: The `gamer-uncle-prod-budget` alert fired on Aug 31, 2026 at 14:41 UTC (evaluated $161.83 against the $160 notification threshold).
+
+**Finding: costs are not creeping. They are flat and the threshold is set inside the steady-state run-rate.**
+
+The budget is $200/mo, **filtered to `gamer-uncle-prod-rg` only**, with notifications at 80% ($160) and 100% ($200) *at the time of the alert*. The 80% notification is what fired. (That 80% notification was subsequently raised to 90% — see recommended actions below.)
+
+| Month | Prod RG total | $/day |
+|---|---:|---:|
+| Mar 2026 | $315.72 | — |
+| Apr 2026 | $256.70 | — |
+| May 2026 | $191.90 | — |
+| Jun 2026 | $161.61 | $5.387 |
+| Jul 2026 | $168.14 | $5.424 |
+| Aug 2026 | $166.91 | $5.384 |
+
+Daily run-rate variance across Jun–Aug is **±0.4%**. The apparent Jun→Jul increase of $6.53 is almost entirely the 30→31 day billing calendar:
+
+| Service | Jun | Jul predicted (×31/30) | Jul actual | Organic Δ |
+|---|---:|---:|---:|---:|
+| Azure App Service | $95.76 | $98.95 | $98.95 | **-0.00** |
+| Azure Front Door | $33.87 | $35.00 | $35.00 | **+0.00** |
+| Azure Monitor | $15.18 | $15.69 | $15.76 | +0.07 |
+| Azure Cosmos DB | $8.77 | $9.06 | $9.07 | +0.01 |
+| Log Analytics | $6.84 | $7.07 | $7.92 | +0.85 |
+| Storage | $0.57 | $0.59 | $0.93 | +0.34 |
+| **Total** | | | | **+$1.27** |
+
+$5.26 of the $6.53 is pure day-count; only **$1.27 was organic**, and August reversed most of it. Corroborating checks: prod Log Analytics billable ingestion is flat at ~0.53 GB/week over the trailing 90 days, and prod autoscale remains healthy (`min=1, default=1, max=4`, plan capacity = 1).
+
+**August composition (prod RG)**:
+
+| Service | Aug 2026 | Share |
+|---|---:|---:|
+| Azure App Service (P1v3, 1 inst) | $98.95 | 59.3% |
+| Azure Front Door (shared dev+prod) | $35.00 | 21.0% |
+| Azure Monitor | $15.76 | 9.4% |
+| Azure Cosmos DB | $9.06 | 5.4% |
+| Log Analytics | $7.23 | 4.3% |
+| Storage / Foundry / other | $0.91 | 0.5% |
+| **Total** | **$166.91** | |
+
+App Service + Front Door alone are **80% of prod spend**.
+
+**Why the alert fires every month**: the run-rate (~$167/mo) sits only **$7 (4%) above the $160 trigger**, so it crosses on ~day 29–30 of every month. The same alert almost certainly fired in late June and late July. It never reaches 100% ($200) — there is $33/mo of headroom to the budget itself. This is a threshold-placement problem, not a spend problem: $160 was set while prod was still descending from $316 (Mar) and the optimization work plateaued just above it.
+
+**Recommended actions**:
+
+1. ~~**Raise the 80% notification to 90% ($180)**~~ ✅ **Done September 4, 2026.** The `actual_GreaterThan_80_Percent` notification was replaced with `actual_GreaterThan_90_Percent` (threshold 90.0, same contact emails and `gamer-uncle-prod-alerts-ag` action group). This stops the guaranteed monthly false positive while retaining ~$13/mo of early warning above the current run-rate. Note: `az consumption budget update` cannot edit an individual notification threshold — the budget must be re-PUT in full:
+   ```bash
+   az rest --method put \
+     --url "https://management.azure.com/subscriptions/<sub-id>/providers/Microsoft.Consumption/budgets/gamer-uncle-prod-budget?api-version=2023-05-01" \
+     --body @budget.json
+   ```
+   This budget is **not** defined in IaC (no Bicep/Terraform references it), so the change is durable and won't be reverted by a deployment.
+2. **Rec #1 (P1v3 → S1) is the only material lever** and is still unimplemented. Now quantified exactly at **$54.31/mo** — see the corrected figures below.
+3. ~~Consider a 3-year P1v3 reserved instance~~ ❌ **Rejected — see Rec #5.** A reservation would *increase* cost by $48–84/mo on this subscription, and this subscription tier likely cannot purchase one anyway.
+
+---
 
 ### 14-Day Validation (May 14–28, 2026)
 
@@ -26,7 +89,7 @@ Total subscription spend in the trailing 14-day window: **$87.75** (vs $116.81 i
 | Dev App Service (B1↔F1 toggle) | <$0.10 | $0.16 | – | <$1/mo | Rec #4 — F1 the majority of the window |
 | **Total** | **$116.81** | **$87.75** | **-$29.06** | **~$188/mo** | -24.9% across the trailing 14 days |
 
-**Bottom line**: ~$62/mo of structural savings realized from the May 10–11 work (Cosmos PlayerSessions delete + App Insights sampling + dev alert-rule cut + orphan storage purge). The remaining lever for material savings is Rec #1 (P1v3 → S1, ~$45/mo).
+**Bottom line**: ~$62/mo of structural savings realized from the May 10–11 work (Cosmos PlayerSessions delete + App Insights sampling + dev alert-rule cut + orphan storage purge). The remaining lever for material savings is Rec #1 (P1v3 → S1, **$54.31/mo** — confirmed Sep 2026). Reserved instances (Rec #5) were evaluated and **rejected** — they would cost more than the current Dev/Test rate.
 
 ### Cross-Reference with Scaling Analysis
 
@@ -79,7 +142,7 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 | Resource | Type | SKU/Tier | Monthly Cost (Est.) |
 |----------|------|----------|:-------------------:|
 | gamer-uncle-prod-app-plan | App Service Plan | **P1v3** (PremiumV3, 1 instance) | ~$99 |
-| gamer-uncle-prod-afd | Front Door | Standard_AzureFrontDoor | ~$35 (now serves both dev + prod endpoints) |
+| gamer-uncle-prod-afd | Front Door | Standard_AzureFrontDoor | ~$35 (serves both dev + prod endpoints; **full fee bills to prod RG** — see Rec #2) |
 | gameruncleprodwaf | WAF Policy | Standard_AzureFrontDoor | Included in AFD (rate limits: dev 60/min, prod 100/min) |
 | gamer-uncle-prod-foundry-resourc | AI Services | S0 | Pay-per-use |
 | gamer-uncle-prod-speech | Speech Services | **S0** (Standard, paid) | Pay-per-use |
@@ -107,11 +170,11 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 
 | # | Recommendation | Env | Cost Contributor (1-10) | Risk if Changed (1-10) | Est. Monthly Savings | Scale Impact | Implemented? |
 |---|----------------|:---:|:-----------------------:|:----------------------:|:--------------------:|:------------:|:------------:|
-| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $45/mo (temporary) | Temporary savings | ✅ (partial — autoscale min→1 verified Apr 2026; S1 downgrade deferred) |
+| 1 | [Downgrade prod App Service from P1v3 to S1](#1-downgrade-prod-app-service-from-p1v3) | Prod | **10** | **4** | $54.31/mo (temporary) | Temporary savings | ✅ (partial — autoscale min→1 verified Apr 2026; S1 downgrade deferred) |
 | 2 | [Consolidate dev AFD onto prod profile](#2-consolidate-dev-afd-onto-prod-profile) | Dev | **9** | **2** | $35/mo | Safe at scale | ✅ |
 | 3 | [Switch prod Cosmos DB to serverless or lower autoscale](#3-switch-prod-cosmos-db-to-serverless-or-lower-autoscale) | Prod | **9** | **5** | $54/mo (temporary) | Temporary savings | ✅ (Mar 2026) |
 | 4 | [Downgrade dev App Service from B1 to Free/Shared or use deployment slots](#4-downgrade-dev-app-service) | Dev | **8** | **3** | $25–31/mo | Safe at scale | ✅ |
-| 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | $15–30/mo (defer) | Depends on tier | 🟠 |
+| 5 | [Use Azure Reserved Instances for prod App Service](#5-use-azure-reserved-instances-for-prod-app-service) | Prod | **7** | **2** | ❌ None — costs $48–84/mo *more* | N/A on this subscription | ❌ Rejected (Sep 2026) |
 | 6 | [Optimize Cosmos DB indexing policy](#6-optimize-cosmos-db-indexing-policy) | Prod | **5** | **3** | $5–15/mo (RU savings) | Complementary | ✅ |
 | 7 | [Route more traffic through AI mini model](#7-route-more-traffic-through-ai-mini-model) | Both | **4** | **3** | $0.50–2/mo (grows with scale) | Complementary | 🟠 |
 | 8 | [Delete unused dev AI Foundry eastus2 resource](#8-delete-unused-dev-ai-foundry-eastus2-resource) | Dev | **3** | **1** | $0–2/mo | Safe at scale | ✅ |
@@ -175,6 +238,8 @@ This plan has been reconciled against the [Scalability Analysis](../performance/
 **Key finding**: Azure Front Door Standard tier does **not** support managed WAF rule sets (OWASP/bot protection). That requires Premium tier at ~$330/mo. Custom rules (rate limiting) work fine on Standard.
 
 **Risk**: Minimal. Both environments share one AFD profile but have separate endpoints, origin groups, and rate limit rules. No cross-contamination.
+
+> **August 31, 2026 — cost attribution caveat**: Verified that the `gamer-uncle-prod-afd` profile hosts **both** `gamer-uncle-prod-endpoint` and `gamer-uncle-dev-api`. Because the profile lives in `gamer-uncle-prod-rg`, the **entire $35/mo base fee bills to the prod resource group** — including dev's share. That is 21% of the `gamer-uncle-prod-budget` and roughly half of it is dev traffic. The consolidation still saves $35/mo in absolute terms and should be kept; just be aware that prod's apparent cost is ~$17/mo higher than its true share, which is a meaningful part of why the prod budget reads as tight. Splitting them again would *add* $35/mo, so the correct fix is to size the budget with this in mind, not to undo the consolidation.
 
 ---
 
@@ -292,13 +357,24 @@ Pay-as-you-go (`pergb2018`) bills **$2.99/GB from byte 1** — the legacy 5 GB/m
 |---|---|
 | **Cost Contributor** | 10/10 |
 | **Risk** | 4/10 |
-| **Savings** | $45/mo (temporary — ~2-3 months) |
+| **Savings** | $54.31/mo (temporary — ~2-3 months; confirmed Sep 2026) |
 | **Scale Impact** | **Temporary savings** — upgrade back to S2/P1v3 at 500+ users |
 | **Implemented** | ✅ partial (Apr 2026) — autoscale min→1 (verified: min=1, default=1, max=4, currently 1 instance); full S1 downgrade deferred |
 
 **Current state**: Prod runs on **P1v3** (PremiumV3, 1 instance) at ~$99/mo. P1v3 provides 2 vCPUs, 8 GB RAM, enhanced networking, and deployment slot support.
 
-> **May 28, 2026 validation**: Trailing 14-day cost for `gamer-uncle-prod-app-plan` was **$46.82** = ~$100/mo run-rate, consistent with single-instance P1v3. Autoscale is correctly capped at min=1, so the April fix is holding. The $45/mo savings from the S1 downgrade are still on the table and remain the single largest unrealized recommendation in this plan.
+> **May 28, 2026 validation**: Trailing 14-day cost for `gamer-uncle-prod-app-plan` was **$46.82** = ~$100/mo run-rate, consistent with single-instance P1v3. Autoscale is correctly capped at min=1, so the April fix is holding. The S1 downgrade remains the single largest unrealized recommendation in this plan.
+
+> **September 4, 2026 — exact figures confirmed**: Plan verified as **Windows** (`kind: app`, `reserved: null`), **West US**, P1v3, capacity 1. That resolves the Aug 31 range. Confirmed rates from the Azure retail price API:
+>
+> | Plan | Dev/Test rate | Monthly (744 hr) | vs current |
+> |---|---:|---:|---:|
+> | **P1v3 Windows** (current) | $0.133/hr | **$98.95** | — |
+> | **S1 Windows** | $0.06/hr | **$44.64** | **save $54.31/mo** |
+>
+> The S1 downgrade saves **$54.31/mo** — this takes the prod RG from ~$167/mo to ~$112/mo, a 33% cut. It is the single largest unrealized saving in this plan and the only material lever remaining.
+>
+> ⚠️ **Latent risk — Windows vs Linux**: Dev/Test pricing currently masks a large gap. At list pricing, Windows P1v3 is **$0.335/hr ($249.24/mo)** vs Linux P1v3 **$0.175/hr ($130.20/mo)** — Windows costs **1.9×** as much for identical compute. Today both bill at $0.133/hr under Dev/Test, so there is no saving from switching *right now*. But this is a .NET 8 API with no Windows-specific dependencies, so it runs natively on Linux App Service. If this workload ever moves to a real pay-as-you-go production subscription (which it should before serving real users at scale), staying on Windows would cost an extra **~$119/mo**. Worth planning the Linux move as part of that migration rather than after it. Note the reverse is true at S1: Windows S1 Dev/Test ($0.06/hr) is cheaper than Linux S1 ($0.095/hr, no Dev/Test rate published), so **stay on Windows if downgrading to S1 today**.
 
 > **April 2026 fix**: The autoscale setting `gamer-uncle-prod-autoscale` was found with min=2, default=2 despite being marked as fixed in March. This caused the plan to run 2× P1v3 instances ($196/mo) throughout March. Fixed on April 8, 2026 — independently verified via `az monitor autoscale show` and `az appservice plan show` (capacity=1).
 
@@ -310,7 +386,7 @@ Pay-as-you-go (`pergb2018`) bills **$2.99/GB from byte 1** — the legacy 5 GB/m
 
 | Phase | Users | Plan | Monthly Cost | Action |
 |-------|:-----:|------|:----------:|--------|
-| **Now** (0–3 months) | ~60 | **S1** (Standard) | ~$54 | Downgrade from P1v3 → S1; save $45/mo |
+| **Now** (0–3 months) | ~60 | **S1** (Standard, Windows) | ~$44.64 | Downgrade from P1v3 → S1; save **$54.31/mo** (Dev/Test rates, confirmed Sep 2026) |
 | **Month 1–2** (200–500 users) | 200–500 | **S1 × 2 instances** | ~$108 | Enable autoscaling (min 1, max 2); configure scale rules |
 | **Month 3** (1,000+ users) | 1,000+ | **S2 or P1v3 × 2–4** | $108–396 | Upgrade tier when P95 latency degrades; add more instances |
 
@@ -382,6 +458,25 @@ Purchasing a reserved instance on S1 now would lock you into a tier you'll likel
 - P1v3 pay-as-you-go: ~$99/mo → P1v3 reserved: ~$69/mo (save ~$30/mo)
 
 > **Scaling trigger**: Purchase RI once the same App Service tier has been stable for 1+ month and you're confident in the plan choice.
+
+> ## ❌ September 4, 2026 — DO NOT BUY. Recommendation rejected.
+>
+> An Aug 31 revision of this section proposed a 3-year P1v3 RI saving ~$41/mo. **That was wrong** — it used Linux reservation prices while the prod plan is actually **Windows** (`kind: app`, `reserved: null`, West US, verified Sep 4, 2026). With the correct Windows figures from the Azure retail price API, a reservation is **strictly more expensive** than what is being paid today:
+>
+> | Option | Rate | Monthly | vs current |
+> |---|---:|---:|---:|
+> | **Current** — Windows P1v3, Dev/Test PAYG | $0.133/hr | **$98.95** | — |
+> | Windows P1v3 list / PAYG | $0.335/hr | $249.24 | +$150.29 |
+> | Windows P1v3 **1-year** RI | $2,190/yr | $182.50 | **+$83.55** ❌ |
+> | Windows P1v3 **3-year** RI | $5,310/3yr | $147.50 | **+$48.55** ❌ |
+>
+> **Why**: Dev/Test pricing already discounts Windows P1v3 by **60%** off list ($0.335 → $0.133/hr). The best reservation term only discounts **41%** off list ($249.24 → $147.50). The discount you already have is larger than the one a 3-year commitment would buy, so reserving would raise the bill while also locking in a 3-year commitment.
+>
+> **Eligibility**: This subscription's `quotaId` is `MSDN_2014-09-01` — an *individual* Visual Studio Enterprise benefit, not Enterprise Dev/Test (EA). Individual VS subscriptions generally **cannot purchase reservations** at all, so the point is likely moot regardless of the math.
+>
+> **What a reservation actually is** (for future reference, if this workload ever moves to a real pay-as-you-go production subscription): it is a *billing* construct only — you pre-commit to 1 or 3 years of a specific SKU family, size, OS, and region, and Azure automatically applies the discounted rate to any matching running plan in scope. **It does not change your SKU, plan, configuration, performance, or capacity, and involves no downtime or migration.** You keep running P1v3 exactly as-is. The trade-off is purely commercial: you pay for the full term whether or not the plan is running, and unwinding it (exchange/refund) has policy limits.
+>
+> **The figures to use if this moves to a PAYG subscription**: at list pricing, Linux P1v3 ($0.175/hr = $130.20/mo) is **~48% cheaper than Windows P1v3** ($0.335/hr = $249.24/mo) for identical compute, and a Linux 3-year RI ($2,076/3yr = $57.67/mo) would then be genuinely attractive. See the Windows→Linux note in Rec #1.
 
 **Risk**: Very low. Only risk is premature commitment during the scaling transition period.
 
