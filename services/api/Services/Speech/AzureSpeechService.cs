@@ -159,7 +159,7 @@ public class AzureSpeechService : IAzureSpeechService
             if (string.IsNullOrEmpty(fullTranscription))
             {
                 _logger.LogWarning("STT: No speech could be recognized");
-                throw new InvalidOperationException("No speech could be recognized in the audio");
+                throw new NoSpeechRecognizedException("No speech could be recognized in the audio");
             }
 
             _logger.LogInformation("STT successful. Transcription: {Transcription}", fullTranscription);

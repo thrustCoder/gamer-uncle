@@ -1,5 +1,24 @@
 # Local (On-Device) Inference — Implementation Plan
 
+> ## ⛔ SUPERSEDED — this plan was NOT adopted (2026-08-30)
+>
+> On-device criteria extraction was **evaluated through Phase 2 and dropped**. Phases 3–5 below (settings
+> toggle, nudge UX, fallback chain, measurement) were **never built** and are retained only as a record of the
+> original design.
+>
+> **Why:** the cost saving that motivated it is worth ~$0.04/month at real traffic, against a ~3× accuracy
+> regression, a 350 MB model download, and a React Native New Architecture migration.
+>
+> **Read instead:**
+> - [`phase_2_decision_summary.md`](./phase_2_decision_summary.md) — the 1-page decision, in plain English
+> - [`phase_2_findings.md`](./phase_2_findings.md) — the full evidence trail
+> - [`recap_local_inference_analysis.md`](./recap_local_inference_analysis.md) — a second use case, also
+>   evaluated and steered away from on-device
+>
+> **What did ship** (Phases 0–1, already in `main`, unaffected by this decision): the additive
+> `Criteria`/`CriteriaSource` request contract with its cloud-extraction bypass, and the
+> `GamerUncle.LocalInference.Eval` scoring harness. Both are backward compatible and independently useful.
+
 ## Overview
 
 Move the **criteria / intent extraction tier** of the chat recommendation pipeline from the cloud
