@@ -26,8 +26,16 @@ var isProd = environment == 'prod'
 // Synthetic traffic (functional tests, Playwright) is excluded via SyntheticSource — see
 // SyntheticSourceTelemetryInitializer.
 var agentDurationQuery = 'AppMetrics | where Name == "AgentRequest.Duration" | where isempty(SyntheticSource) | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints >= ${isProd ? '5' : '1'} and p95 > ${isProd ? '15000' : '20000'}'
-var voiceFailureQuery = 'AppMetrics | where Name == "voice.audio_failures_total" | summarize total = sum(Sum), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
-var voiceDurationQuery = 'AppMetrics | where Name == "voice.total_duration_ms" | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '15000' : '25000'}'
+var voiceFailureQuery = 'AppMetrics | where Name == "voice.audio_failures_total" | where isempty(SyntheticSource) | summarize total = sum(Sum), datapoints = count() | where datapoints > 0 and total > ${isProd ? '3' : '5'}'
+// Voice duration: same sample-size trap as the agent query above. Voice traffic in prod is
+// very sparse (single digits per month), so with `datapoints > 0` the "P95" of a 15-min window
+// is frequently just ONE request — any single slow round-trip pages Sev3. Require a minimum
+// sample size before evaluating P95.
+// Threshold rationale: the pipeline's own baseline is ~12s (agent p50 ~8s + STT ~1.7s + TTS ~2s),
+// and STT time scales with recording length (capped at 60s client-side), so a 15s threshold sat
+// below normal operating cost and fired on healthy traffic. 30s reflects a genuinely broken trip.
+// Note the agent stage is already covered independently by Alert #4.
+var voiceDurationQuery = 'AppMetrics | where Name == "voice.total_duration_ms" | where isempty(SyntheticSource) | summarize p95 = percentile(Sum, 95), datapoints = count() | where datapoints >= ${isProd ? '3' : '1'} and p95 > ${isProd ? '30000' : '25000'}'
 var funcDurationQuery = 'AppRequests | where AppRoleName has "function" or SDKVersion has "azurefunctions" | summarize p95 = percentile(DurationMs, 95), datapoints = count() | where datapoints > 0 and p95 > ${isProd ? '30000' : '60000'}'
 
 // ============================================================================
@@ -335,7 +343,7 @@ resource voiceDurationAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-p
   name: 'gamer-uncle-${environment}-voice-duration-p95'
   location: resourceGroup().location
   properties: {
-    description: 'Alert #12: Voice round-trip (STT → Agent → TTS) P95 latency is high. >15s feels broken.'
+    description: 'Alert #12: Voice round-trip (STT → Agent → TTS) P95 latency is high. >30s feels broken.'
     severity: 3
     enabled: true // Re-enabled: voice metrics exist in LA workspace (AppMetrics table)
     evaluationFrequency: 'PT5M'

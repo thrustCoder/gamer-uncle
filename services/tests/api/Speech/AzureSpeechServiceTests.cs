@@ -85,7 +85,7 @@ public class AzureSpeechServiceTests
     }
 
     [Fact]
-    public async Task SpeechToTextAsync_WithEmptyAudio_ThrowsInvalidOperationException()
+    public async Task SpeechToTextAsync_WithEmptyAudio_ThrowsNoSpeechRecognizedException()
     {
         // Arrange
         var mockConfig = new Mock<IConfiguration>();
@@ -98,8 +98,11 @@ public class AzureSpeechServiceTests
 
         // Act & Assert
         // Empty base64 should fail with no speech recognized (empty audio)
-        await Assert.ThrowsAsync<InvalidOperationException>(() => 
+        var ex = await Assert.ThrowsAsync<NoSpeechRecognizedException>(() =>
             service.SpeechToTextAsync("", GamerUncle.Shared.Models.AudioFormat.Wav));
+
+        // Must remain an InvalidOperationException so VoiceController keeps mapping it to HTTP 400
+        Assert.IsAssignableFrom<InvalidOperationException>(ex);
     }
 
     [Fact]

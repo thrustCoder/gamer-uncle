@@ -23,6 +23,11 @@ public class AudioProcessingService : IAudioProcessingService
     private static readonly Counter<long> _audioFailureCounter = _meter.CreateCounter<long>(
         "voice.audio_failures_total",
         description: "Total number of audio processing failures");
+    // Tracked separately from failures: a caller sending silence is a user-input issue,
+    // not a service fault, and must not trigger the voice failure alert.
+    private static readonly Counter<long> _noSpeechCounter = _meter.CreateCounter<long>(
+        "voice.no_speech_total",
+        description: "Total number of requests where no speech could be recognized");
     private static readonly Histogram<double> _sttDurationHistogram = _meter.CreateHistogram<double>(
         "voice.stt_duration_ms",
         unit: "ms",
@@ -84,7 +89,7 @@ public class AudioProcessingService : IAudioProcessingService
 
             if (string.IsNullOrWhiteSpace(transcription))
             {
-                throw new InvalidOperationException("Speech recognition returned empty transcription");
+                throw new NoSpeechRecognizedException("Speech recognition returned empty transcription");
             }
 
             // Prepend game context to transcription if provided (from GameSetup screen)
@@ -140,6 +145,19 @@ public class AudioProcessingService : IAudioProcessingService
                 ResponseAudio = audioBytes,
                 ConversationId = agentResponse.ThreadId ?? conversationId ?? string.Empty
             };
+        }
+        catch (NoSpeechRecognizedException ex)
+        {
+            var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            // User-input condition (silence / mic released too early), NOT a service failure.
+            // Recorded on a dedicated counter so voice.audio_failures_total stays clean.
+            _noSpeechCounter.Add(1,
+                new KeyValuePair<string, object?>("format", format.ToString()));
+
+            _logger.LogWarning(ex, "Audio processing found no recognizable speech after {Duration}ms. ConversationId: {ConversationId}",
+                duration, conversationId);
+            throw;
         }
         catch (Exception ex)
         {
