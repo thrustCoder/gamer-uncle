@@ -491,9 +491,12 @@ On **Windows**, the local API server is started for local development.
 The mobile app ships iOS and Android from the same commit using a single shared SemVer. Follow these rules for any release-affecting change in `apps/mobile/app.json`:
 
 - **One SemVer per release**: Bump `expo.version` once per release. This is the single source of truth and feeds iOS `CFBundleShortVersionString` and Android `versionName` automatically.
+- **Keep package metadata aligned**: Set the root `version` in `apps/mobile/package.json` and both root version fields in `apps/mobile/package-lock.json` to the same SemVer as `expo.version`.
 - **Every store upload needs a new version**: Google Play requires `android.versionCode` to strictly increase on every upload, and Apple requires `ios.buildNumber` to strictly increase per App Store upload — independent of SemVer. Because we keep SemVer in lockstep, treat **every store upload as a new SemVer** (even a no-code-change rebuild requires bumping `expo.version`).
 - **Bump both build counters together**: When you bump `expo.version`, also bump **both** `ios.buildNumber` and `android.versionCode` for that release. Never let either platform's build counter go backwards on its respective store; each must be monotonically increasing per store.
 - **Keep them aligned**: `ios.buildNumber` and `android.versionCode` are separate counters but should be advanced in the same release commit so the two platforms stay traceable to one SemVer.
+- **Never hardcode the current release version in runtime code or test mocks**: Runtime UI and telemetry must read Expo configuration (prefer `getInstalledVersion()`); Jest's `expo-constants` mock must derive from `app.json`. Use obviously synthetic versions in behavior-only tests so they do not need release-by-release edits.
+- **Release verification**: Run `npm test -- --runInBand` from `apps/mobile` and confirm `versionConsistency.test.ts` passes before creating a store build. Historical analytics rows, compatibility policy values, generated web bundles, and dependency versions are not release-version references and must not be mechanically rewritten.
 
 ## Pull Request Conventions
 - **PR title prefix**: Always prefix the PR title with the version indicator extracted from the branch name. For example, if the branch is `users/rajsin/v3.5.8`, the PR title should start with `v3.5.8 - `.

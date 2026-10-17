@@ -35,9 +35,11 @@ export interface VersionCheckResult {
  * Falls back to app.json version, then to '0.0.0'.
  */
 export const getInstalledVersion = (): string => {
+  const legacyManifest = Constants.manifest as { version?: string } | null;
+
   return (
     Constants.expoConfig?.version ??
-    (Constants.manifest as any)?.version ??
+    legacyManifest?.version ??
     '0.0.0'
   );
 };

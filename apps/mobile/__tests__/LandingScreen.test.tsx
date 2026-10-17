@@ -2,19 +2,14 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import LandingScreen from '../screens/LandingScreen';
 
+const appVersion = require('../app.json').expo.version;
+
 // Mock navigation
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
   }),
-}));
-
-// Mock expo-constants
-jest.mock('expo-constants', () => ({
-  expoConfig: {
-    version: '4.0.3',
-  },
 }));
 
 // Mock vector icons
@@ -123,7 +118,7 @@ describe('LandingScreen', () => {
   it('displays version information', () => {
     const { getByText } = render(<LandingScreen />);
     
-    expect(getByText(/App Version:/)).toBeTruthy();
+    expect(getByText(`App Version: ${appVersion}`)).toBeTruthy();
     expect(getByText(/AI Model:/)).toBeTruthy();
   });
 

@@ -240,17 +240,20 @@ jest.mock('expo-av', () => ({
   },
 }));
 
-// Mock expo-constants
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    expoConfig: {
-      extra: {},
-      version: '4.0.3',
+// Mock expo-constants using the same version source as production builds.
+jest.mock('expo-constants', () => {
+  const { expo } = jest.requireActual('./app.json');
+  return {
+    __esModule: true,
+    default: {
+      expoConfig: {
+        extra: {},
+        version: expo.version,
+      },
+      appVersion: expo.version,
     },
-    appVersion: '4.0.3',
-  },
-}));
+  };
+});
 
 // Mock react-native-svg
 jest.mock('react-native-svg', () => ({

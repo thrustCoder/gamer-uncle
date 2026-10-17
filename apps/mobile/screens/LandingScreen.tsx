@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Image, TouchableOpacity, ImageBackground, Text, Platform, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { landingStyles as styles } from '../styles/landingStyles';
-import Constants from 'expo-constants';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { trackEvent, AnalyticsEvents } from '../services/Telemetry';
+import { getInstalledVersion } from '../services/AppConfigService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -197,7 +197,7 @@ export default function LandingScreen() {
         {/* Version info at bottom */}
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>
-            App Version: {Constants.expoConfig?.version || (Constants.manifest as any)?.version || '4.0.3'}
+            App Version: {getInstalledVersion()}
           </Text>
           <Text style={styles.aiModelText}>AI Model: OpenAI GPT</Text>
         </View>

@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import axios from 'axios';
 import { getApiBaseUrl, getAppKey } from '../config/apiConfig';
+import { getInstalledVersion } from './AppConfigService';
 
 // Storage keys
 const SESSION_ID_KEY = '@telemetry_session_id';
@@ -218,7 +218,7 @@ export const trackEvent = (
     sessionId: _sessionId ?? 'unknown',
     deviceId: _deviceId ?? 'unknown',
     platform: Platform.OS,
-    appVersion: Constants.expoConfig?.version ?? '0.0.0',
+    appVersion: getInstalledVersion(),
   };
 
   if (__DEV__) {
