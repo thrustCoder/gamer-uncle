@@ -171,6 +171,10 @@ packages/
 # Local configuration files with secrets (use environment variables instead)
 appsettings.*.local.json
 
+# Generated native projects (Windows EAS needs root rules without trailing slashes)
+apps/mobile/android
+apps/mobile/ios
+
 # Android signing / Play Console secrets
 apps/mobile/google-play-service-account.json
 apps/mobile/upload-keystore.jks

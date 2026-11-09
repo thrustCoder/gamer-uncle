@@ -1,7 +1,9 @@
-# EAS uses this file INSTEAD of .gitignore when present, so it must list
+# EAS uses this file INSTEAD of .gitignore when present at its archive root, so it must list
 # everything in .gitignore PLUS build-only artifacts not needed by EAS Build.
 # EAS reinstalls dependencies and runs prebuild itself, so native folders and
 # node_modules are regenerated remotely and should never be uploaded.
+# This monorepo's archive root is the repository root. Keep its .gitignore
+# native-project exclusions too: Windows EAS can miss nested .gitignore rules.
 
 # Dependencies (reinstalled on the build server)
 node_modules/
