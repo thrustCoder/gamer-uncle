@@ -8,6 +8,26 @@ pr:
     include:
       - main
 
+parameters:
+- name: deployFunctionsDev
+  displayName: 'Opt in to approved dev Flex code deployment (no sync/cutover)'
+  type: boolean
+  default: false
+- name: deployFunctionsProd
+  displayName: 'Opt in to approved prod Flex code deployment (requires same-run dev evidence)'
+  type: boolean
+  default: false
+- name: functionsDevAppName
+  type: string
+  default: '__REQUIRED__'
+- name: functionsProdAppName
+  type: string
+  default: '__REQUIRED__'
+- name: functionsMigrationApprovers
+  displayName: 'Named migration approvers (Azure DevOps users/groups)'
+  type: string
+  default: '__REQUIRED__'
+
 pool:
   vmImage: 'ubuntu-latest'
 
@@ -155,10 +175,17 @@ stages:
         eq(variables['Build.SourceBranch'], 'refs/heads/main')
       )
     steps:
+    - task: PowerShell@2
+      inputs:
+        targetType: 'filePath'
+        filePath: 'pipelines/scripts/verify-functions-flex.Tests.ps1'
+        pwsh: true
+      displayName: 'Verify Fail-Closed Functions Deployment Checks (Mocked)'
+
     - task: UseDotNet@2
       inputs:
         packageType: 'sdk'
-        version: '8.x'
+        version: '10.x'
         installationPath: $(Agent.ToolsDirectory)/dotnet
 
     - script: dotnet restore $(functionAppProject)
@@ -170,9 +197,81 @@ stages:
     - script: dotnet publish $(functionAppProject) --configuration $(buildConfiguration) --output $(publishOutputFunctionProject) --no-build
       displayName: 'Publish Function App'
 
+    - script: dotnet restore services/tests/functions/GamerUncle.Functions.Tests.csproj
+      displayName: 'Restore Functions Test Dependencies'
+
+    - script: dotnet test services/tests/functions/GamerUncle.Functions.Tests.csproj --configuration $(buildConfiguration) --no-restore --logger trx --results-directory $(Agent.TempDirectory)/functions-tests
+      displayName: 'Run Functions Regression Tests and Record Generated Metadata'
+      env:
+        FUNCTIONS_MANIFEST_PATH: '$(publishOutputFunctionProject)/functions.manifest.json'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/functions-tests/*.trx'
+        failTaskOnFailedTests: true
+        failTaskOnMissingResultsFile: true
+      displayName: 'Publish Functions Test Results'
+
+    - pwsh: |
+        $ErrorActionPreference = 'Stop'
+        $root = $env:FUNCTIONS_PUBLISH_ROOT
+        foreach ($file in @('host.json', 'worker.config.json', 'functions.manifest.json',
+          'extensions.json', 'GamerUncle.Function.BggSync.dll', 'GamerUncle.Function.BggSync.runtimeconfig.json')) {
+          if (-not (Test-Path -LiteralPath (Join-Path $root $file) -PathType Leaf)) {
+            throw "Functions publish output is missing $file."
+          }
+        }
+        $runtime = Get-Content (Join-Path $root 'GamerUncle.Function.BggSync.runtimeconfig.json') -Raw | ConvertFrom-Json
+        $worker = Get-Content (Join-Path $root 'worker.config.json') -Raw | ConvertFrom-Json
+        $names = @((Get-Content (Join-Path $root 'functions.manifest.json') -Raw | ConvertFrom-Json).name)
+        if ($runtime.runtimeOptions.tfm -ne 'net10.0' -or
+            $worker.description.language -ne 'dotnet-isolated' -or
+            $worker.description.workerIndexing -ne 'true' -or
+            (Test-Path -LiteralPath (Join-Path $root 'publish')) -or
+            $names.Count -ne 13 -or @($names | Sort-Object -Unique).Count -ne 13 -or
+            -not (Get-ChildItem (Join-Path $root '.azurefunctions') -Filter '*.dll' -File).Count) {
+          throw 'Invalid net10 worker, generated function manifest, or host extensions.'
+        }
+      displayName: 'Validate Functions Publish Contract'
+      env:
+        FUNCTIONS_PUBLISH_ROOT: '$(publishOutputFunctionProject)'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(publishOutputFunctionProject)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/functions-artifact/function.zip'
+        replaceExistingArchive: true
+      displayName: 'Archive Exact Functions Artifact'
+
+    - pwsh: |
+        $ErrorActionPreference = 'Stop'
+        $archive = Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'functions-artifact/function.zip'
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+        try {
+          $entries = @($zip.Entries.FullName)
+          if ('host.json' -notin $entries -or 'functions.manifest.json' -notin $entries -or
+              @($entries | Where-Object { $_ -like 'publish/*' }).Count -or
+              -not @($entries | Where-Object { $_ -like '.azurefunctions/*.dll' }).Count) {
+            throw 'Functions ZIP root or hidden extension content is invalid.'
+          }
+        }
+        finally {
+          $zip.Dispose()
+        }
+        $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+        Set-Content -LiteralPath "$archive.sha256" -Value $hash -NoNewline
+        Write-Host "Functions artifact SHA256: $hash"
+        Write-Host "##vso[task.setvariable variable=functionArtifactSha256;isOutput=true]$hash"
+      name: RecordFunctionArtifact
+      displayName: 'Record Functions Artifact SHA256'
+
     - task: PublishBuildArtifacts@1
       inputs:
-        PathtoPublish: '$(publishOutputFunctionProject)'
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/functions-artifact'
         ArtifactName: 'dropFunction'
 
   - job: BuildMobileJob
@@ -435,150 +534,55 @@ stages:
 
 
 - stage: DevDeployFunctions
-  displayName: 'Dev Deploy Functions'
+  displayName: 'Approved Dev Flex Code Deployment'
   dependsOn: 
     - DevBuild
     - DevTest
-  # Updated condition to be more reliable for post-merge deployments
   condition: |
     and(
+      succeeded(),
+      ${{ eq(parameters.deployFunctionsDev, true) }},
       ne(variables['Build.Reason'], 'PullRequest'),
-      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      eq(dependencies.DevBuild.result, 'Succeeded'),
+      eq(dependencies.DevTest.result, 'Succeeded')
     )
+  variables:
+    functionArtifactSha256: $[ stageDependencies.DevBuild.BuildFunctionJob.outputs['RecordFunctionArtifact.functionArtifactSha256'] ]
 
   jobs:
+  - job: ApproveDevFunctionsCode
+    pool: server
+    timeoutInMinutes: 1445
+    steps:
+    - task: ManualValidation@1
+      timeoutInMinutes: 1440
+      inputs:
+        notifyUsers: '${{ parameters.functionsMigrationApprovers }}'
+        approvers: '${{ parameters.functionsMigrationApprovers }}'
+        allowApproversToApproveTheirOwnRuns: false
+        onTimeout: 'reject'
+        instructions: |
+          Approve code deployment only to ${{ parameters.functionsDevAppName }}.
+          Current run: $(Build.BuildId); SHA256: $(functionArtifactSha256).
+          Reject unless the spec's provisioning, cost, identity, isolation, recovery, and owner decisions are recorded.
+          All five starters must already be disabled. This does not authorize a sync, Azure access change, or cutover.
   - deployment: DeployFunctionApp
-    displayName: 'Deploy Function App'
+    dependsOn: ApproveDevFunctionsCode
+    displayName: 'Deploy Disabled Dev Flex App'
     environment: 'Dev'
     strategy:
       runOnce:
         deploy:
           steps:
-          - download: current
-            artifact: dropFunction
-
-          - task: AzureCLI@2
-            displayName: 'Configure Function App Settings'
-            inputs:
-              azureSubscription: 'gamer-uncle-dev-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Setting Function App application settings..."
-                az functionapp config appsettings set \
-                  --name gamer-uncle-dev-function \
-                  --resource-group gamer-uncle-dev-rg \
-                  --settings \
-                    'COSMOS_ENDPOINT=https://gamer-uncle-dev-cosmos.documents.azure.com:443/' \
-                    'COSMOS_DATABASE_NAME=gamer-uncle-dev-cosmos-container' \
-                    'COSMOS_CONTAINER_NAME=Games' \
-                    'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-                    'AZURE_CLIENT_ID=bb090f27-f5ca-4d22-80be-7ef3392d1d26'
-                
-                echo "Verifying settings were applied..."
-                az functionapp config appsettings list \
-                  --name gamer-uncle-dev-function \
-                  --resource-group gamer-uncle-dev-rg \
-                  --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='AZURE_CLIENT_ID']" \
-                  -o table
-
-          - task: AzureFunctionApp@1
-            displayName: 'Deploy Function App (Consumption Linux)'
-            inputs:
-              azureSubscription: 'gamer-uncle-dev-sc'
-              appType: 'functionAppLinux'
-              appName: 'gamer-uncle-dev-function'
-              package: '$(Pipeline.Workspace)/dropFunction'
-              runtimeStack: 'DOTNET-ISOLATED|8.0'
-
-          - task: AzureCLI@2
-            displayName: 'Verify and Trigger Function'
-            inputs:
-              azureSubscription: 'gamer-uncle-dev-sc'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                echo "Waiting for Function App to be ready after deployment..."
-                sleep 60
-                
-                echo "Checking Function App status..."
-                az functionapp show \
-                  --name gamer-uncle-dev-function \
-                  --resource-group gamer-uncle-dev-rg \
-                  --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
-                
-                # Check if function app base URL is accessible before proceeding
-                echo "Verifying Function App base URL accessibility..."
-                FUNCTION_APP_URL="https://gamer-uncle-dev-function.azurewebsites.net"
-                MAX_URL_RETRIES=5
-                URL_RETRY_COUNT=0
-                URL_ACCESSIBLE=false
-                
-                while [[ $URL_RETRY_COUNT -lt $MAX_URL_RETRIES && "$URL_ACCESSIBLE" == "false" ]]; do
-                  URL_RETRY_COUNT=$((URL_RETRY_COUNT + 1))
-                  echo "Checking Function App URL accessibility (attempt $URL_RETRY_COUNT of $MAX_URL_RETRIES)..."
-                  
-                  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL" || echo "000")
-                  
-                  if [[ "$HTTP_STATUS" != "404" && "$HTTP_STATUS" != "000" ]]; then
-                    echo "✅ Function App is accessible (HTTP $HTTP_STATUS)"
-                    URL_ACCESSIBLE=true
-                  else
-                    echo "⚠️ Function App not yet accessible (HTTP $HTTP_STATUS). Waiting 30 seconds..."
-                    sleep 30
-                  fi
-                done
-                
-                if [[ "$URL_ACCESSIBLE" == "false" ]]; then
-                  echo "❌ Function App base URL is not accessible after $MAX_URL_RETRIES attempts"
-                  exit 1
-                fi
-                
-                echo "Listing deployed functions..."
-                FUNCTIONS=$(az functionapp function list \
-                  --name gamer-uncle-dev-function \
-                  --resource-group gamer-uncle-dev-rg \
-                  --query "[].name" -o tsv 2>/dev/null || echo "")
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions found. Waiting and retrying..."
-                  sleep 30
-                  FUNCTIONS=$(az functionapp function list \
-                    --name gamer-uncle-dev-function \
-                    --resource-group gamer-uncle-dev-rg \
-                    --query "[].name" -o tsv 2>/dev/null || echo "")
-                fi
-                
-                if [[ -z "$FUNCTIONS" ]]; then
-                  echo "❌ No functions deployed! Check deployment logs"
-                  exit 1
-                else
-                  echo "✅ Found functions: $FUNCTIONS"
-                fi
-                
-                # Get function key
-                echo "Getting Function App host key..."
-                HOST_KEY=$(az functionapp keys list \
-                  --name gamer-uncle-dev-function \
-                  --resource-group gamer-uncle-dev-rg \
-                  --query "masterKey" -o tsv)
-                
-                if [[ -z "$HOST_KEY" ]]; then
-                  echo "❌ Could not get function key"
-                  exit 1
-                fi
-                
-                # Verify function deployment without triggering
-                if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
-                  echo "✅ GameSyncHttpStart function deployed successfully"
-                  echo "ℹ️  Function will run automatically based on timer schedule:"
-                  echo "   - Dev: Mondays & Thursdays at 12:05 AM PT" 
-                  echo "   - Prod: Every second Tuesday at 12:05 AM PT"
-                else
-                  echo "❌ GameSyncHttpStart function not found"
-                  echo "Available functions: $FUNCTIONS"
-                  exit 1
-                fi
+          - template: templates/deploy-functions-flex.yml
+            parameters:
+              appName: '${{ parameters.functionsDevAppName }}'
+              sourceAppName: 'gamer-uncle-dev-function'
+              resourceGroup: 'gamer-uncle-dev-rg'
+              serviceConnection: 'gamer-uncle-dev-sc'
+              environment: 'Development'
+              approvers: '${{ parameters.functionsMigrationApprovers }}'
 
 - stage: DevDeployMobile
   displayName: 'Dev Deploy Mobile'
@@ -1118,148 +1122,97 @@ stages:
           
           echo "✅ Autoscale configured: min=1, max=4, rules=$RULE_COUNT"
 
-- stage: ProdDeployFunctions
-  displayName: 'Prod Deploy Functions'
-  dependsOn: 
+- stage: FunctionsValidationDev
+  displayName: 'Review Functions-Specific Dev Evidence'
+  dependsOn:
+    - DevBuild
+    - DevDeployFunctions
     - FunctionalTestsDev
-  # Only deploy to prod after successful dev functional tests
   condition: |
     and(
+      succeeded(),
+      ${{ eq(parameters.deployFunctionsDev, true) }},
       ne(variables['Build.Reason'], 'PullRequest'),
       eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-      in(dependencies.FunctionalTestsDev.result, 'Succeeded')
+      eq(dependencies.DevBuild.result, 'Succeeded'),
+      eq(dependencies.DevDeployFunctions.result, 'Succeeded'),
+      eq(dependencies.FunctionalTestsDev.result, 'Succeeded')
     )
+  variables:
+    functionArtifactSha256: $[ stageDependencies.DevBuild.BuildFunctionJob.outputs['RecordFunctionArtifact.functionArtifactSha256'] ]
+  jobs:
+  - job: ReviewFunctionsDevEvidence
+    pool: server
+    timeoutInMinutes: 1445
+    steps:
+    - task: ManualValidation@1
+      timeoutInMinutes: 1440
+      inputs:
+        notifyUsers: '${{ parameters.functionsMigrationApprovers }}'
+        approvers: '${{ parameters.functionsMigrationApprovers }}'
+        allowApproversToApproveTheirOwnRuns: false
+        onTimeout: 'reject'
+        instructions: |
+          Review secure dev evidence for run $(Build.BuildId), app ${{ parameters.functionsDevAppName }},
+          SHA256 $(functionArtifactSha256). Record the evidence location and named review decision.
+          Reject missing, stale, skip-only, or different-artifact evidence. Host readiness is insufficient.
+          Require actual bounded BGG fetch/Cosmos write/readback and telemetry; ranked/timer, continuation,
+          restart/failure and payload compatibility exercises; unchanged API results and document readback;
+          source drain/duplicate-start prevention and selective Cosmos recovery with ETag-conflict rehearsal.
+          All spec regression, observation/abort, backup/recovery, owner and retention decisions must be recorded.
+          Do not start a sync or enable starters through this task; execution requires separate scoped approval.
+
+- stage: ProdDeployFunctions
+  displayName: 'Approved Prod Flex Code Deployment'
+  dependsOn:
+    - DevBuild
+    - FunctionalTestsDev
+    - FunctionsValidationDev
+  condition: |
+    and(
+      succeeded(),
+      ${{ eq(parameters.deployFunctionsDev, true) }},
+      ${{ eq(parameters.deployFunctionsProd, true) }},
+      ne(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      eq(dependencies.DevBuild.result, 'Succeeded'),
+      in(dependencies.FunctionalTestsDev.result, 'Succeeded'),
+      eq(dependencies.FunctionsValidationDev.result, 'Succeeded')
+    )
+  variables:
+    functionArtifactSha256: $[ stageDependencies.DevBuild.BuildFunctionJob.outputs['RecordFunctionArtifact.functionArtifactSha256'] ]
 
   jobs:
-  - job: DeployProdFunctionApp
-    displayName: 'Deploy Prod Function App'
+  - job: ApproveProdFunctionsCode
+    pool: server
+    timeoutInMinutes: 1445
     steps:
-    - download: current
-      artifact: dropFunction
-
-    - task: AzureCLI@2
-      displayName: 'Configure Prod Function App Settings'
+    - task: ManualValidation@1
+      timeoutInMinutes: 1440
       inputs:
-        azureSubscription: 'gamer-uncle-prod-sc'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          echo "Setting Prod Function App application settings..."
-          az functionapp config appsettings set \
-            --name gamer-uncle-prod-function \
-            --resource-group gamer-uncle-prod-rg \
-            --settings \
-              'COSMOS_ENDPOINT=https://gamer-uncle-prod-cosmos.documents.azure.com:443/' \
-              'COSMOS_DATABASE_NAME=gamer-uncle-prod-cosmos-container' \
-              'COSMOS_CONTAINER_NAME=Games' \
-              'AZURE_TENANT_ID=c88223a3-60b3-4697-9374-209fc154bdf1' \
-              'AZURE_CLIENT_ID=0ba1bae1-6df4-4f2a-b874-41321a154d2b' \
-              'AZURE_FUNCTIONS_ENVIRONMENT=Production'
-          
-          echo "Verifying prod settings were applied..."
-          az functionapp config appsettings list \
-            --name gamer-uncle-prod-function \
-            --resource-group gamer-uncle-prod-rg \
-            --query "[?name=='COSMOS_ENDPOINT' || name=='AZURE_TENANT_ID' || name=='AZURE_CLIENT_ID' || name=='AZURE_FUNCTIONS_ENVIRONMENT']" \
-            -o table
-
-    - task: AzureFunctionApp@1
-      displayName: 'Deploy Prod Function App (Consumption Linux)'
-      inputs:
-        azureSubscription: 'gamer-uncle-prod-sc'
-        appType: 'functionAppLinux'
-        appName: 'gamer-uncle-prod-function'
-        package: '$(Pipeline.Workspace)/dropFunction'
-        runtimeStack: 'DOTNET-ISOLATED|8.0'
-
-    - task: AzureCLI@2
-      displayName: 'Verify and Trigger Prod Function'
-      inputs:
-        azureSubscription: 'gamer-uncle-prod-sc'
-        scriptType: 'bash'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-          echo "Waiting for Prod Function App to be ready after deployment..."
-          sleep 60
-          
-          echo "Checking Prod Function App status..."
-          az functionapp show \
-            --name gamer-uncle-prod-function \
-            --resource-group gamer-uncle-prod-rg \
-            --query "{state:state,runtime:linuxFxVersion,kind:kind}" -o table
-          
-          # Check if function app base URL is accessible before proceeding
-          echo "Verifying Function App base URL accessibility..."
-          FUNCTION_APP_URL="https://gamer-uncle-prod-function-evdrg8cbe7eag9ht.westus-01.azurewebsites.net"
-          MAX_URL_RETRIES=5
-          URL_RETRY_COUNT=0
-          URL_ACCESSIBLE=false
-          
-          while [[ $URL_RETRY_COUNT -lt $MAX_URL_RETRIES && "$URL_ACCESSIBLE" == "false" ]]; do
-            URL_RETRY_COUNT=$((URL_RETRY_COUNT + 1))
-            echo "Checking Function App URL accessibility (attempt $URL_RETRY_COUNT of $MAX_URL_RETRIES)..."
-            
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_APP_URL" || echo "000")
-            
-            if [[ "$HTTP_STATUS" != "404" && "$HTTP_STATUS" != "000" ]]; then
-              echo "✅ Function App is accessible (HTTP $HTTP_STATUS)"
-              URL_ACCESSIBLE=true
-            else
-              echo "⚠️ Function App not yet accessible (HTTP $HTTP_STATUS). Waiting 30 seconds..."
-              sleep 30
-            fi
-          done
-          
-          if [[ "$URL_ACCESSIBLE" == "false" ]]; then
-            echo "❌ Function App base URL is not accessible after $MAX_URL_RETRIES attempts"
-            exit 1
-          fi
-          
-          echo "Listing deployed functions..."
-          FUNCTIONS=$(az functionapp function list \
-            --name gamer-uncle-prod-function \
-            --resource-group gamer-uncle-prod-rg \
-            --query "[].name" -o tsv 2>/dev/null || echo "")
-          
-          if [[ -z "$FUNCTIONS" ]]; then
-            echo "❌ No functions found. Waiting and retrying..."
-            sleep 30
-            FUNCTIONS=$(az functionapp function list \
-              --name gamer-uncle-prod-function \
-              --resource-group gamer-uncle-prod-rg \
-              --query "[].name" -o tsv 2>/dev/null || echo "")
-          fi
-          
-          if [[ -z "$FUNCTIONS" ]]; then
-            echo "❌ No functions deployed! Check deployment logs"
-            exit 1
-          else
-            echo "✅ Found functions: $FUNCTIONS"
-          fi
-          
-          # Get function key
-          echo "Getting Prod Function App host key..."
-          HOST_KEY=$(az functionapp keys list \
-            --name gamer-uncle-prod-function \
-            --resource-group gamer-uncle-prod-rg \
-            --query "masterKey" -o tsv)
-          
-          if [[ -z "$HOST_KEY" ]]; then
-            echo "❌ Could not get function key"
-            exit 1
-          fi
-          
-          # Verify function deployment without triggering
-          if [[ "$FUNCTIONS" == *"GameSyncHttpStart"* ]]; then
-            echo "✅ GameSyncHttpStart function deployed successfully to production"
-            echo "ℹ️  Function will run automatically based on timer schedule:"
-            echo "   - Prod: Every second Tuesday at 12:05 AM PT (bi-weekly)"
-            echo "   - Next scheduled execution will respect the bi-weekly cadence"
-          else
-            echo "❌ GameSyncHttpStart function not found"
-            echo "Available functions: $FUNCTIONS"
-            exit 1
-          fi
+        notifyUsers: '${{ parameters.functionsMigrationApprovers }}'
+        approvers: '${{ parameters.functionsMigrationApprovers }}'
+        allowApproversToApproveTheirOwnRuns: false
+        onTimeout: 'reject'
+        instructions: |
+          Approve code deployment only to ${{ parameters.functionsProdAppName }}.
+          Current run: $(Build.BuildId); exact dev-validated SHA256: $(functionArtifactSha256).
+          Require the signed dev evidence and approved prod provisioning, cost, identity, isolation,
+          recovery and operational ownership decisions. Reject missing or different-artifact evidence.
+          All five starters must already be disabled. No live-data writes, source changes, or cutover
+          are authorized here; those require the separate source-drain, canary and observation gates.
+  - job: DeployProdFunctionApp
+    dependsOn: ApproveProdFunctionsCode
+    displayName: 'Deploy Disabled Prod Flex App'
+    steps:
+    - template: templates/deploy-functions-flex.yml
+      parameters:
+        appName: '${{ parameters.functionsProdAppName }}'
+        sourceAppName: 'gamer-uncle-prod-function'
+        resourceGroup: 'gamer-uncle-prod-rg'
+        serviceConnection: 'gamer-uncle-prod-sc'
+        environment: 'Production'
+        approvers: '${{ parameters.functionsMigrationApprovers }}'
 
 - stage: ProdDeployMobile
   displayName: 'Prod Deploy Mobile'
