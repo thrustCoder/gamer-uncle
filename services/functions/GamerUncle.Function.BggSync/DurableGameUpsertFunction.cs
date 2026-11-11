@@ -31,8 +31,16 @@ namespace GamerUncle.Functions
             _cosmosClient = cosmosClient ?? throw new ArgumentNullException(nameof(cosmosClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             
-            var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
-            var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
+            var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME");
+            var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME");
+            if (string.IsNullOrEmpty(databaseName))
+            {
+                databaseName = "gamer-uncle-dev-cosmos-container";
+            }
+            if (string.IsNullOrEmpty(containerName))
+            {
+                containerName = "Games";
+            }
 
             _logger.LogInformation("Initializing Cosmos DB container: {DatabaseName}/{ContainerName}", databaseName, containerName);
             _container = _cosmosClient.GetContainer(databaseName, containerName);
