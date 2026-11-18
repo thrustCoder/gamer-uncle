@@ -1,0 +1,80 @@
+parameters:
+- name: appName
+  type: string
+- name: sourceAppName
+  type: string
+- name: resourceGroup
+  type: string
+- name: serviceConnection
+  type: string
+- name: environment
+  type: string
+- name: approvers
+  type: string
+
+steps:
+- checkout: self
+- download: current
+  artifact: dropFunction
+
+- pwsh: |
+    $ErrorActionPreference = 'Stop'
+    $archive = Join-Path $env:PIPELINE_WORKSPACE 'dropFunction/function.zip'
+    $expected = (Get-Content "$archive.sha256" -Raw).Trim()
+    if ($expected -notmatch '^[a-fA-F0-9]{64}$' -or
+        $env:FUNCTIONS_APPROVED_SHA256 -notmatch '^[a-fA-F0-9]{64}$' -or
+        $expected -ne $env:FUNCTIONS_APPROVED_SHA256 -or
+        (Get-FileHash $archive -Algorithm SHA256).Hash -ne $expected) {
+      throw 'Functions artifact SHA256 verification failed.'
+    }
+    Write-Host "Functions artifact SHA256: $expected"
+  displayName: 'Verify exact Functions artifact'
+  env:
+    FUNCTIONS_APPROVED_SHA256: '$(functionArtifactSha256)'
+
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: '$(Pipeline.Workspace)/dropFunction/function.zip'
+    destinationFolder: '$(Agent.TempDirectory)/functions-$(System.JobId)'
+    cleanDestinationFolder: true
+  displayName: 'Extract Functions metadata for verification'
+
+- task: AzureCLI@2
+  displayName: 'Validate disabled and isolated .NET 10 Flex target'
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    scriptType: 'pscore'
+    scriptLocation: 'scriptPath'
+    scriptPath: '$(Build.SourcesDirectory)/pipelines/scripts/verify-functions-flex.ps1'
+  env:
+    FUNCTIONS_TARGET_APP: '${{ parameters.appName }}'
+    FUNCTIONS_SOURCE_APP: '${{ parameters.sourceAppName }}'
+    FUNCTIONS_RESOURCE_GROUP: '${{ parameters.resourceGroup }}'
+    FUNCTIONS_ENVIRONMENT: '${{ parameters.environment }}'
+    FUNCTIONS_MIGRATION_APPROVERS: '${{ parameters.approvers }}'
+
+- task: AzureFunctionApp@2
+  displayName: 'Deploy Function App (Flex Consumption, starters disabled)'
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    appType: 'functionAppLinux'
+    appName: '${{ parameters.appName }}'
+    isFlexConsumption: true
+    package: '$(Pipeline.Workspace)/dropFunction/function.zip'
+
+- task: AzureCLI@2
+  displayName: 'Verify Functions host readiness and complete discovery'
+  timeoutInMinutes: 15
+  inputs:
+    azureSubscription: '${{ parameters.serviceConnection }}'
+    scriptType: 'pscore'
+    scriptLocation: 'scriptPath'
+    scriptPath: '$(Build.SourcesDirectory)/pipelines/scripts/verify-functions-flex.ps1'
+    arguments: '-VerifyHost'
+  env:
+    FUNCTIONS_TARGET_APP: '${{ parameters.appName }}'
+    FUNCTIONS_SOURCE_APP: '${{ parameters.sourceAppName }}'
+    FUNCTIONS_RESOURCE_GROUP: '${{ parameters.resourceGroup }}'
+    FUNCTIONS_ENVIRONMENT: '${{ parameters.environment }}'
+    FUNCTIONS_MIGRATION_APPROVERS: '${{ parameters.approvers }}'
+    FUNCTIONS_METADATA_PATH: '$(Agent.TempDirectory)/functions-$(System.JobId)/functions.manifest.json'

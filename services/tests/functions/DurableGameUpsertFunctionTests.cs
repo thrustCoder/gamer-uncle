@@ -159,11 +159,13 @@ namespace GamerUncle.Functions.Tests
             
             try
             {
-                // Act
-                var databaseName = Environment.GetEnvironmentVariable("COSMOS_DATABASE_NAME") ?? "gamer-uncle-dev-cosmos-container";
-                
-                // Assert
-                Assert.Equal(expectedValue, databaseName);
+                var cosmos = new Mock<CosmosClient>();
+                cosmos.Setup(client => client.GetContainer(It.IsAny<string>(), It.IsAny<string>()))
+                    .Returns(Mock.Of<Container>());
+
+                _ = new DurableGameUpsertFunction(cosmos.Object, Mock.Of<ILogger<DurableGameUpsertFunction>>());
+
+                cosmos.Verify(client => client.GetContainer(expectedValue, It.IsAny<string>()), Times.Once);
             }
             finally
             {
@@ -184,11 +186,13 @@ namespace GamerUncle.Functions.Tests
             
             try
             {
-                // Act
-                var containerName = Environment.GetEnvironmentVariable("COSMOS_CONTAINER_NAME") ?? "Games";
-                
-                // Assert
-                Assert.Equal(expectedValue, containerName);
+                var cosmos = new Mock<CosmosClient>();
+                cosmos.Setup(client => client.GetContainer(It.IsAny<string>(), It.IsAny<string>()))
+                    .Returns(Mock.Of<Container>());
+
+                _ = new DurableGameUpsertFunction(cosmos.Object, Mock.Of<ILogger<DurableGameUpsertFunction>>());
+
+                cosmos.Verify(client => client.GetContainer(It.IsAny<string>(), expectedValue), Times.Once);
             }
             finally
             {

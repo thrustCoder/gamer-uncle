@@ -28,14 +28,20 @@ namespace GamerUncle.Pipeline.Tests
         {
             // Arrange
             var pipelineContent = File.ReadAllText(_pipelineConfigPath);
+            var pipelineDirectory = Path.GetDirectoryName(_pipelineConfigPath)!;
+            var template = File.ReadAllText(Path.Combine(pipelineDirectory, "templates", "deploy-functions-flex.yml"));
+            var verification = File.ReadAllText(Path.Combine(pipelineDirectory, "scripts", "verify-functions-flex.ps1"));
 
-            // Act & Assert
-            Assert.IsTrue(pipelineContent.Contains("Verifying Function App base URL accessibility"), 
-                "Pipeline should verify function app base URL before triggering functions");
-            Assert.IsTrue(pipelineContent.Contains("MAX_URL_RETRIES=5"), 
-                "Pipeline should have retry logic for function app health checks");
-            Assert.IsTrue(pipelineContent.Contains("Function App is accessible"), 
-                "Pipeline should confirm function app accessibility before proceeding");
+            Assert.IsTrue(pipelineContent.Contains("template: templates/deploy-functions-flex.yml"),
+                "Functions deployments should use the shared readiness template");
+            Assert.IsTrue(template.Contains("arguments: '-VerifyHost'"),
+                "The deployment template must run host and discovery verification");
+            Assert.IsTrue(verification.Contains("/admin/host/status") &&
+                          verification.Contains("$status.state -eq 'Running'"),
+                "Readiness must require the actual host to be Running, not an arbitrary root response");
+            Assert.IsTrue(verification.Contains("Compare-Object $expected $actual -CaseSensitive") &&
+                          verification.Contains("$maxAttempts = 10"),
+                "Readiness must compare complete artifact discovery with bounded retries");
         }
 
         [TestMethod]
