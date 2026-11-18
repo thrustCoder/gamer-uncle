@@ -14,9 +14,11 @@
 - **Runway**: The support deadline has passed; both source apps still use .NET 8.
   Treat unsupported-runtime exposure as urgent without bypassing rollout gates.
 - **Affected subscription**: `e1a26719-3504-42e4-bc8c-05aa63259e4b` (Visual Studio Enterprise Subscription)
-- **Status**: Repository implementation is committed and pushed in
-  [PR #166](https://github.com/thrustCoder/gamer-uncle/pull/166). Actual local host verification,
+- **Status**: Repository implementation and the preflight evidence were merged in
+  [PR #166](https://github.com/thrustCoder/gamer-uncle/pull/166) on 17 November 2026
+  (merge commit `f0450e30cc5599b14bea45b41185b7f6b1ba31be`). Actual local host verification,
   Azure DevOps server-side preview, and a read-only preflight refresh have completed.
+  Dev provisioning configuration has been prepared following design/preparation-only approval.
   Real dev workload validation and operational migration remain pending.
   Azure provisioning, deployment, access changes, sync execution, and cutover remain separately gated.
 
@@ -232,7 +234,7 @@ work. Recheck name availability and quota immediately before an approved provisi
 | Telemetry | Reuse `gamer-uncle-dev-app-insights`; distinguish the replacement by cloud role/resource identity. Do not retarget source alerts before approved dev cutover |
 | Trigger safety | Set all five starters disabled before deploying any code; disabled code deployment does not authorize enabling a starter or running a sync |
 | Provisioning | Prepare a narrowly scoped, repeatable configuration and review its changes before apply; no automatic bulk migration/copy of legacy settings |
-| Remaining gates | Actual Flex quota/capacity, deployment-principal access, named independent approvers, workload inputs/limits, recovery objectives, and explicit resource/access approval |
+| Remaining gates | Actual Flex quota/capacity, deployment-principal access, named independent approvers, workload inputs/limits, recovery objectives, and explicit resource/access approval; initial validation budget recorded below |
 
 Public West US Flex On Demand prices retrieved on 17 November are USD `0.000037` per billable
 GB-second and USD `0.40` per million billable executions, before discounts and excluding storage,
@@ -240,12 +242,46 @@ transactions, telemetry, Cosmos, and networking. For illustration, one 2-GB grou
 executing for one hour is USD `0.2664` before grants and execution charges; this is not a monthly
 estimate or a hard spending cap. Free grants are subscription-shared and must not be assumed
 available. A maximum of 1 applies per scaling group, not to the app's aggregate instance count.
-Approve an operating budget and validate actual consumption before workload execution.
+Validate actual consumption before workload execution; approve ongoing operating costs before
+enabling normal scheduling.
 
-GitHub's active rules require one eligible approval, code-owner review, and approval of the last
-push; stale approvals are dismissed on push. The user's chat review does not satisfy those
-recorded GitHub requirements. Only squash merging is allowed by the active pull-request rule.
-Do not self-approve, bypass rules, or weaken deployment approvals to complete this migration.
+PR #166 merged at `2026-11-18T06:55:55Z`; the native merge watcher confirmed the terminal state.
+The session did not self-approve or bypass GitHub rules. Future pull requests must still satisfy
+recorded GitHub approval requirements; chat approval does not replace them.
+
+### Dev provisioning preparation (not applied)
+
+The user approved the proposed dev target design and preparation only. The repeatable
+configuration is `infrastructure\functions\dev-flex.bicep`. Local Bicep compilation and checks
+of the compiled ARM template passed: .NET 10/FC1, the approved capacity, all five starters
+disabled, identity-only new storage, dev dependencies only, and no secret-value retrieval.
+The template preserves the observed dev database/container and sync-count settings. It resolves
+the existing BGG Key Vault reference through the dev UAMI and proposes Secrets User only at
+that secret's scope, not across the whole vault.
+
+An Incremental ARM what-if with Provider validation succeeded against the explicit advisory
+subscription and `gamer-uncle-dev-rg`. It predicted nine creates: the new storage account,
+blob-service/container resources, three storage role assignments, one BGG-secret role assignment,
+the FC1 plan, and the replacement app. Existing resources were ignored, with no predicted
+existing-resource modification or deletion. The template and this status update are local
+follow-up work, not an amendment to the merged PR.
+
+What-if is a preview, not deployment or effective-access evidence. It does not confirm actual
+Flex regional quota, role propagation, Key Vault resolution, host startup, CI-principal access,
+or real workload behavior. The source's discovered `FunctionFlexQuota` diagnostic also returned
+"Site SKU unavailable" / no Flex SKU data for the current site; no actual quota was established.
+No resources, access grants, configuration, deployments, or sync execution were applied.
+
+The user selected **USD 10 of additional spend for the initial dev-validation phase** as a
+planning threshold, not a hard spending cap or permission to create resources. Include new
+compute, storage, and telemetry consumption when tracking that threshold. No budget alert or
+automated spending control has been created; ongoing operational costs remain a later decision.
+
+Before any apply, confirm the actual Flex quota/capacity, review costs against that threshold,
+approve the resource creation and four scoped access assignments, recheck source configuration/name
+availability, and review a fresh what-if. Use only the assessed subscription and dev resource
+group, with Incremental mode; never Complete mode. This template does not deploy function code,
+enable starters, start syncs, change source alerts, or authorize production changes.
 
 ---
 
