@@ -9,12 +9,15 @@
 > continue to operate, but security updates will no longer be provided.
 
 - **Deadline**: 10 November 2026
-- **Live Azure assessment**: 8 November 2026
-- **Spec updated**: 9 November 2026
-- **Runway**: One calendar day until the published deadline; treat this as urgent.
+- **Live Azure assessment**: 8 November 2026; read-only refreshes on 10 and 17 November 2026
+- **Spec updated**: 17 November 2026 (local time; verification timestamps below are UTC)
+- **Runway**: The support deadline has passed; both source apps still use .NET 8.
+  Treat unsupported-runtime exposure as urgent without bypassing rollout gates.
 - **Affected subscription**: `e1a26719-3504-42e4-bc8c-05aa63259e4b` (Visual Studio Enterprise Subscription)
-- **Status**: Initial repository implementation and local verification completed following
-  authorization on 9 November 2026. Host/cloud validation and operational migration remain pending.
+- **Status**: Repository implementation is committed and pushed in
+  [PR #166](https://github.com/thrustCoder/gamer-uncle/pull/166). Actual local host verification,
+  Azure DevOps server-side preview, and a read-only preflight refresh have completed.
+  Real dev workload validation and operational migration remain pending.
   Azure provisioning, deployment, access changes, sync execution, and cutover remain separately gated.
 
 This specification establishes the proposed change, approval gates, and acceptance criteria.
@@ -71,9 +74,10 @@ continue to work unchanged.
 
 ## Current State
 
-The live findings below were observed on **8 November 2026** in the advisory's subscription.
-Reconfirm them during implementation preflight; they are not a completed migration-readiness
-assessment.
+The source runtime, running state, plan, and identity configuration below were reconfirmed on
+**17 November 2026** in the advisory's subscription, following the initial 8 November assessment.
+The additional preflight findings are recorded below; neither inventory nor a quiet instance
+snapshot is a completed migration-readiness assessment.
 
 | App | Region | OS / plan | Runtime | State |
 |---|---|---|---|---|
@@ -87,9 +91,11 @@ identity through `AZURE_CLIENT_ID`; the replacement must preserve that configura
 the identity's actual access to dependencies.
 
 Azure CLI listed **West US** as supporting Flex Consumption and listed **.NET 10 isolated**
-as an available Flex runtime there. Subscription quota, cost, deployment permissions, complete
-configuration compatibility, identity role coverage, and active Durable instances remain
-unverified. At assessment, the local machine had .NET 8 and 9 SDKs installed, but no .NET 10 SDK;
+as an available Flex runtime there. Flex memory quota, cost, deployment permissions, complete
+configuration compatibility, effective dependency access, and cutover/drain readiness remain
+unverified. Identity assignments and a dated Durable status snapshot are recorded below; neither
+establishes replacement access or source isolation. At assessment, the local machine had .NET 8
+and 9 SDKs installed, but no .NET 10 SDK;
 repository preparation subsequently used a session-local .NET 10 SDK without replacing them.
 
 The repository changes are bounded as follows. Dependency selections below are now pinned in
@@ -120,18 +126,31 @@ Source anchors: Functions project lines 4 and 21-29; `host.json` line 5; pipelin
 job near line 161, deployments near lines 485 and 1166, and alert resource lookups near lines
 956 and 1480. Line numbers describe the assessment baseline and may move during implementation.
 
-### Repository preparation evidence (local only)
+### Repository preparation and non-mutating verification evidence
 
 | Area | Observed result |
 |---|---|
 | Tooling | Session-local .NET SDK `10.0.403`; repository NuGet feeds and machine-wide SDK configuration unchanged |
 | Functions | Release build and publish succeeded; all 99 Functions tests passed |
 | Generated discovery | Actual generated `IFunctionMetadataProvider` exposes all 13 functions with entry points and bindings |
+| Actual local host | Core Tools `4.0.7317`, host `4.1038.300.25164`: net10 worker initialized, host `Running`, storage-backed host lock acquired, all 13 functions discovered, and all five starters confirmed disabled |
 | Existing consumers | Unchanged net8 API and MCP projects built successfully; shared models remain net8 |
 | Pipeline checks | All 53 existing pipeline tests passed; changed YAML parsed and stage dependency references resolved locally |
 | Deployment guard logic | All 29 Azure/HTTP-mocked PowerShell scenarios passed without contacting Azure, including wrong runtime/plan, missing configuration, enabled starters, hub reuse, host errors, and incomplete discovery |
 | Artifact | Actual pipeline contract/checksum scripts passed against local publish output and ZIP, including hidden `.azurefunctions` assemblies and rejection of an incorrect approved SHA256 |
-| Cloud operations | None performed: no provisioning, access changes, deployment, sync starts, source changes, or cutover |
+| Azure DevOps preview | Pipeline `2` expanded commit `2a116348b8d85ff5a86311f83708dae0903cb5a6` successfully through the dry-run-only preview API; all 15 stages, default-off guards, three non-self-approvable approval tasks, two Flex deployment tasks, and artifact output references were checked |
+| Automatic PR checks | All nine reported GitHub/ADO checks succeeded for the pushed commit, including the Functions artifact build, API/mobile/pipeline tests, and PR functional tests |
+| Azure changes | None performed: no provisioning, access changes, deployment, sync starts, source changes, or cutover; cloud interactions were read-only inventory and pipeline preview |
+
+Local host verification used a copy of the validated ZIP, an empty memory-only Azurite instance
+on dedicated loopback ports, and the unique `LocalNet10MigrationVerification` task hub. No Azure
+storage/Cosmos credentials or BGG token were supplied, and no function was invoked. Azurite
+`3.34.0` initially rejected the storage SDK's `2026-02-06` API version; its documented
+`--skipApiVersionCheck` option allowed the isolated check to complete without listener/worker
+errors. This emulator compatibility option is not Azure Storage compatibility evidence. Both
+temporary helper processes were stopped afterward. The verified local ZIP SHA256 is
+`42701b5746ac435f37ab0be087db2dce205f08a2993bafe98e54c6e663918883`; do not substitute this local
+hash for the approved CI artifact hash.
 
 `Azure.Functions.Sdk/1.0.0` embeds generated metadata in the application assembly and enables worker
 indexing; this project does not publish `functions.metadata`. CI obtains discovery evidence from
@@ -149,11 +168,84 @@ against both its SHA256 sidecar and the current build's approved output hash. Se
 non-self-approvable manual gates cover dev code deployment, same-artifact dev evidence, and production
 code deployment. No deployment task enables starters or starts an orchestration.
 
-This is not a production-readiness declaration. Compatible local Core Tools host startup/discovery,
-Azure DevOps server-side pipeline expansion/task execution, and real dev replay/restart, BGG/Cosmos,
-API readback, telemetry, recovery, and cutover evidence are still pending. Local mocks and generated
-metadata do not satisfy those operational gates. Existing alerts intentionally retain source-app
-targets until their approved operational ownership transition.
+This is not a production-readiness declaration. Server-side expansion and successful build checks
+do not execute the disabled deployment stages or prove deployment-time hash propagation and access.
+Actual Flex deployment, real dev replay/restart, BGG/Cosmos execution, API readback, telemetry,
+recovery, and cutover evidence are still pending. Local mocks, host discovery, and preview output
+do not satisfy those operational gates. Existing alerts intentionally retain source-app targets
+until their approved operational ownership transition.
+
+### Read-only preflight refresh: 10 November 2026 local
+
+The following observations were obtained without changing resources, settings, permissions, or
+instance state. UTC timestamps cross into 11 November because the local assessment was in
+UTC-08:00.
+
+| Area | Observation and remaining gate |
+|---|---|
+| Source apps | Both remain `Running`, Linux Consumption `Y1` / `Dynamic`, and `DOTNET-ISOLATED\|8.0` in West US; neither has migrated |
+| Durable snapshot | GET-only queries returned zero `Running`, `Pending`, `ContinuedAsNew`, or `Suspended` instances in both source apps, with pagination exhausted, at `2026-11-11T01:05:02Z` (dev) and `2026-11-11T01:05:15Z` (prod) |
+| Cosmos recovery | Both Cosmos accounts are in West US 3 and use **Periodic**, not Continuous, backup with a 240-minute interval and Geo redundancy; retention is 8 hours in dev and 24 hours in prod |
+| User-assigned identity | Both existing UAMIs have Cosmos built-in data-contributor assignments; retaining those identities does not prove access to new host/deployment storage |
+| System-assigned identity | Both source system identities have Key Vault Secrets User assignments on their environment's vault; a replacement system identity will not inherit them. Production also has a Cosmos data-contributor assignment on its source system identity |
+| Storage configuration | Connection-string and identity-based storage setting names coexist. The dev UAMI has no direct storage role in the retrieved assignment inventory; the prod UAMI has a blob-data-owner assignment on source storage. Do not infer queue/table or replacement-storage access from these observations |
+| Quota and capacity | The generic regional App Service usage response did not establish the Flex regional memory quota; Flex capacity/quota remains an explicit unresolved gate |
+| Decisions | Replacement names, new storage/deployment configuration and access, memory/concurrency/scale limits, cost, provisioning approach, owners, recovery objectives, retention, and workload/abort thresholds still require approval |
+
+The empty Durable snapshot is **not** source isolation or a cutover drain certificate: HTTP and
+timer starters have not been disabled and can accept new work. Repeat the inventory after the
+separately approved pause of all five source starters, keeping orchestration/activity processing
+available, immediately before authorizing any replacement write to live production Cosmos.
+
+Periodic backup does not establish point-in-time recovery. Confirm the actual restore procedure,
+permissions, achievable RPO/RTO, and selective document-repair rehearsal before any production
+write. Do not silently convert backup mode or add access as part of this read-only assessment.
+
+### Read-only refresh and proposed dev configuration: 17 November 2026 local
+
+The source apps still report `Running`, `DOTNET-ISOLATED|8.0`, and their original Y1 plans.
+Cosmos backup policies remain Periodic with the interval, retention, and redundancy recorded
+above. GET-only Durable inventory again exhausted pagination and found zero nonterminal
+instances at `2026-11-18T06:49:03Z` (dev) and `2026-11-18T06:49:36Z` (prod). No source starter
+disable flags were present; this is not a drain certificate or permission to write.
+
+West US currently lists .NET 10 isolated on FC1, supports 2,048 MB instances and a lowest
+maximum-instance setting of 1, and has `Microsoft.App` registered in this subscription.
+The generic App Service usage endpoint still does not establish Flex regional quota; do not
+substitute its Y1/VM counts or the published default quota for the actual subscription limit.
+The Azure MCP inventory returned no resources in this subscription context; the inventory above
+was obtained through the established CLI account with the subscription explicitly selected.
+
+The following is a **proposal**, not authorization to provision, grant access, deploy, or start
+work. Recheck name availability and quota immediately before an approved provisioning operation.
+
+| Item | Proposed dev value / boundary |
+|---|---|
+| Scope | Existing advisory subscription, `gamer-uncle-dev-rg`, West US; no production resource changes |
+| Replacement app / plan | `gamer-uncle-dev-function-flex` / `gamer-uncle-dev-flex-plan`, FC1 and .NET 10 isolated |
+| Isolated storage | New `gameruncledevflexsa`, Standard LRS StorageV2, private containers and TLS 1.2 minimum; separate deployment container and `GamerUncleDevNet10Flex` Durable hub, with no source storage reuse |
+| Availability | Proposed app and storage names were available when checked; this does not reserve them |
+| Capacity | 2,048 MB, maximum on-demand instances 1 per independently scaling group, zero always-ready instances; preserve current Durable concurrency initially and measure before tuning |
+| Identity | Reuse `gamer-uncle-dev-function-uami` and its existing dev Cosmos/telemetry assignments; explicitly configure it for host, Durable, deployment storage, and Key Vault-reference resolution |
+| Proposed new access | Storage Blob Data Owner, Storage Queue Data Contributor, and Storage Table Data Contributor scoped only to new dev storage, subject to confirming host/Durable requirements; Key Vault Secrets User for the required dev BGG secret only |
+| Secret handling | `BggApiBearerToken` is a Key Vault reference on the source. Preserve the reference, not the secret value; explicitly verify the replacement's reference identity and access |
+| Telemetry | Reuse `gamer-uncle-dev-app-insights`; distinguish the replacement by cloud role/resource identity. Do not retarget source alerts before approved dev cutover |
+| Trigger safety | Set all five starters disabled before deploying any code; disabled code deployment does not authorize enabling a starter or running a sync |
+| Provisioning | Prepare a narrowly scoped, repeatable configuration and review its changes before apply; no automatic bulk migration/copy of legacy settings |
+| Remaining gates | Actual Flex quota/capacity, deployment-principal access, named independent approvers, workload inputs/limits, recovery objectives, and explicit resource/access approval |
+
+Public West US Flex On Demand prices retrieved on 17 November are USD `0.000037` per billable
+GB-second and USD `0.40` per million billable executions, before discounts and excluding storage,
+transactions, telemetry, Cosmos, and networking. For illustration, one 2-GB group actively
+executing for one hour is USD `0.2664` before grants and execution charges; this is not a monthly
+estimate or a hard spending cap. Free grants are subscription-shared and must not be assumed
+available. A maximum of 1 applies per scaling group, not to the app's aggregate instance count.
+Approve an operating budget and validate actual consumption before workload execution.
+
+GitHub's active rules require one eligible approval, code-owner review, and approval of the last
+push; stale approvals are dismissed on push. The user's chat review does not satisfy those
+recorded GitHub requirements. Only squash merging is allowed by the active pull-request rule.
+Do not self-approve, bypass rules, or weaken deployment approvals to complete this migration.
 
 ---
 
@@ -383,7 +475,8 @@ Repository-only implementation was authorized separately; it does not resolve th
 
 - [ ] Approve the target subscription, West US region, Flex plan, replacement names, cost
   estimate, and implementation scope.
-- [ ] Pass the advisory subscription explicitly to Azure CLI operations; do not rely on the
+- [x] Pass the advisory subscription explicitly to the read-only Azure CLI assessment; continue
+  doing so for later operations. Do not rely on the
   machine's active subscription, which differed during the assessment.
 - [ ] Confirm quota/capacity, deployment permissions, dependency access, configuration compatibility,
   and provisioning approach.
@@ -403,12 +496,15 @@ The Functions upgrade must be verifiable without deploying a net10 artifact to a
 - [x] Upgrade Functions and Functions tests, preserving shared models and existing contracts.
 - [x] Prepare .NET 10 SDK tooling, targeted CI build/tests, and default-off Flex-aware deployments.
 - [x] Build/publish, pass all 99 Functions tests, and verify generated discovery and ZIP layout locally.
-- [ ] Verify actual host startup/function discovery with compatible Core Tools.
+- [x] Verify actual host startup/function discovery with compatible Core Tools, isolated local
+  storage, and all five starters disabled; no sync execution.
 - [x] Validate unchanged API/MCP consumers still build against the shared models.
 - [x] Stage pipeline targeting changes so a merge cannot deploy the new artifact to the old apps
   or enable replacement starters; locally exercise fail-closed deployment guards.
-- [ ] Validate expanded pipeline/task configuration and output-hash propagation in Azure DevOps
-  before authorizing the first deployment; local YAML parsing does not replace this check.
+- [x] Validate server-expanded pipeline/task configuration in Azure DevOps for the exact pushed
+  commit, including default-off conditions, approval gates, and preserved output-hash references.
+- [ ] Verify runtime output-hash propagation and target permissions through the separately approved
+  disabled dev code deployment before any production deployment; preview does not execute these tasks.
 
 ### Phase 2: Dev replacement and validation
 
@@ -460,13 +556,17 @@ Closure follows operational evidence, not merely a deployment-task success or ad
 
 ## Target Schedule and Approval Gates
 
-As of 9 November, this is an accelerated target rather than a guaranteed delivery estimate.
-Quota, access, dependency compatibility, and the time needed to drain existing work can extend it.
+As of 17 November, repository preparation, local host verification, and server-side preview have
+completed, but cloud migration has not started. The support deadline has passed. Record a revised
+migration ETA and explicit risk ownership after resolving the resource, quota, cost, access, and
+recovery gates; no production completion date is established by the current evidence.
 
 | Target | Milestone | Gate |
 |---|---|---|
-| 9 November 2026 | Preflight, code/pipeline preparation, dev migration and bounded verification | Approved design and resources; successful Functions-specific dev evidence |
-| Before 10 November 2026 | Production migration and controlled cutover | Explicit production approval, dev evidence, source drain, and rollback readiness |
+| 10 November 2026 | Repository preparation, local host verification, server preview, and read-only preflight refresh | Completed evidence above; no Azure changes or sync execution |
+| 17 November 2026 | Refreshed source/runtime/backup/Durable evidence and proposed dev names, capacity, identity, and pricing | Read-only checks completed; quota, budget, access, and provisioning approval remain open |
+| Next, after scoped approval | Dev provisioning, disabled code deployment, and bounded workload/recovery validation | Approved names, capacity, cost, identities/storage, inputs, and recovery plan |
+| Only after successful dev evidence | Production migration and controlled cutover | Explicit production approval, same approved CI artifact, source isolation/drain, and rollback readiness |
 | After cutover | Observation and eventual source cleanup | Owner-approved retention window and separate cleanup approval |
 
 Do not waive validation or terminate outstanding work to meet the date. If the deadline cannot
@@ -525,9 +625,9 @@ dependent implementation phases.
 | Hosting and topology | Side-by-side Flex replacements in existing RGs / West US; confirm quota, names, capacity, and cost |
 | Durable storage and cutover | Prefer draining the source and using isolated replacement state; confirm actual active instances, storage configuration, and drain duration |
 | Provisioning | Choose narrowly scoped IaC or an approved repeatable migration runbook; retain a reproducible final configuration |
-| SDK and dependencies | Pinned selections and local results recorded above; real host and representative dev compatibility remain approval prerequisites |
+| SDK and dependencies | Pinned selections and actual local host verification recorded above; real Flex-host and representative dev compatibility remain approval prerequisites |
 | Operational ownership | Assign production approver and migration/rollback owner; approve the gate sheet, baseline, numeric abort limits, observation duration, and retention window before cutover |
-| Cosmos recovery | Confirm backup mode/retention, recovery permissions and objectives, secure document inventory, and rehearsed selective repair without overwriting concurrent writes |
+| Cosmos recovery | Periodic backup observed: 240-minute interval, dev 8-hour/prod 24-hour retention; confirm restore permissions/objectives, secure document inventory, and rehearsed selective repair without assuming PITR or overwriting concurrent writes |
 | API/MCP follow-up | Separate deployments, same .NET 8 support deadline; assign owners and explicitly acknowledge any unsupported-runtime deferral |
 
 ---
